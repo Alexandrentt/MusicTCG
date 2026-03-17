@@ -1,23 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { useMusicPlayer, Track } from '@/store/useMusicPlayer';
 import Card from '@/components/cards/Card';
 import CardBack from '@/components/cards/CardBack';
-import MiniCard from '@/components/cards/MiniCard';
 import { Play, Volume2, Swords, Trophy, Skull, Zap, Star, ShieldAlert, Mic2, Settings, X, LogOut, VolumeX } from 'lucide-react';
 import { useGameEngine, BoardCard, hasKw } from '@/hooks/useGameEngine';
 import { generateCard, CardData } from '@/lib/engine/generator';
+import { calculateDeckPower, getDifficultyLevel, generateBotDeck, botPlayTurn, botReplicaResponse, DifficultyLevel, BotAction } from '@/lib/engine/botAI';
 import { playSound } from '@/lib/audio';
 import { t } from '@/lib/i18n';
 
-// ── Components ──
+// ── Sub-Components ──
 
-function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language }: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language }: {
+  isOpen: boolean;
+  onClose: () => void;
   onConcede: () => void;
   volume: number;
   setVolume: (v: number) => void;
@@ -27,7 +27,7 @@ function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
@@ -51,13 +51,13 @@ function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language
             </div>
             <div className="flex items-center gap-4">
               <VolumeX className="w-4 h-4 text-gray-500" />
-              <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.01" 
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
                 value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVolume(parseFloat(e.target.value))}
                 className="flex-1 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
               />
               <Volume2 className="w-4 h-4 text-gray-500" />
@@ -78,13 +78,13 @@ function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language
 
           {/* Actions */}
           <div className="grid grid-cols-2 gap-4 pt-4">
-            <button 
+            <button
               onClick={onClose}
               className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
             >
               Continuar
             </button>
-            <button 
+            <button
               onClick={onConcede}
               className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
@@ -98,33 +98,7 @@ function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language
   );
 }
 
-// ─── Bot deck generator ──────────────────────────────────────────────────────
-
-const generateBotDeck = async (): Promise<CardData[]> => {
-  try {
-    const terms = ['daft punk', 'metallica', 'michael jackson', 'queen', 'the beatles', 'bad bunny', 'rosalia', 'the weeknd', 'dua lipa'];
-    const term = terms[Math.floor(Math.random() * terms.length)];
-    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=40`);
-    const data = await res.json();
-    if (data.results && data.results.length >= 20) {
-      const deck: CardData[] = [];
-      for (let i = 0; i < 40; i++) deck.push(generateCard(data.results[i % data.results.length]));
-      return deck.sort(() => Math.random() - 0.5);
-    }
-  } catch (e) { console.error('Bot deck fetch failed', e); }
-  // Fallback
-  const genres = ['Rock', 'Pop', 'Hip Hop', 'Electronic', 'Classical'];
-  return Array.from({ length: 40 }, (_, i) => {
-    const id = Math.floor(Math.random() * 1e9).toString();
-    return generateCard({
-      trackId: id, trackName: `Bot Track ${i + 1}`, artistName: 'El Algoritmo',
-      collectionName: 'Matrix', primaryGenreName: genres[i % genres.length],
-      artworkUrl100: `https://picsum.photos/seed/${id}/300/300`, previewUrl: '',
-    });
-  });
-};
-
-function BackstageSlot({ card, onClick }: { card: BoardCard, onClick?: () => void }) {
+function BackstageSlot({ card, onClick }: { card: BoardCard; onClick?: () => void }) {
   return (
     <motion.div
       layout
@@ -154,7 +128,7 @@ function BoardCardSlot({
   card: BoardCard;
   isSelected?: boolean;
   canTarget?: boolean;
-  onClick?: (e?: any) => void;
+  onClick?: (e?: React.MouseEvent) => void;
   onPointerDown?: () => void;
   onPointerUp?: () => void;
   owner: 'player' | 'bot';
@@ -187,7 +161,7 @@ function BoardCardSlot({
         <Card data={card} className="origin-top-left transform scale-[0.3125] pointer-events-none" />
       </div>
 
-      {/* Stat overlay — show modified stats */}
+      {/* Stat overlay */}
       <div className="absolute bottom-1 left-1 right-1 flex justify-between z-10 pointer-events-none">
         <span className="text-[9px] font-black text-red-400 bg-black/70 px-1 rounded">
           {card.currentAtk}
@@ -204,7 +178,7 @@ function BoardCardSlot({
             PROV
           </div>
         )}
-        {hasFrenzy && card.stageFright === false && (
+        {hasFrenzy && !card.stageFright && (
           <div className="text-[7px] font-black bg-orange-500 text-black px-1 rounded-full">
             ⚡
           </div>
@@ -214,7 +188,6 @@ function BoardCardSlot({
             ↯
           </div>
         )}
-
       </div>
 
       {/* Stage Fright indicator */}
@@ -235,8 +208,8 @@ export default function PlayPage() {
 
   const {
     player, bot, turn, turnCount, phase, gameOver, pendingAttack,
-    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, endTurn,
-    playerRef, botRef
+    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, endTurn, doMulligan,
+    playerRef, botRef,
   } = useGameEngine();
 
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -248,10 +221,12 @@ export default function PlayPage() {
   const [showTurnIndicator, setShowTurnIndicator] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('novato');
   const inspectTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Bot AI phase tracker (prevents stale state loops)
-  const botPhase = useRef<'play' | 'attack' | 'done'>('play');
+  // Bot AI action queue — executes actions one at a time with delays
+  const botActionQueue = useRef<BotAction[]>([]);
+  const botProcessing = useRef(false);
 
   // ── Long-press to inspect ──
   const handlePointerDown = (card: CardData) => {
@@ -265,13 +240,11 @@ export default function PlayPage() {
   // ── Reset selections on turn change ──
   useEffect(() => {
     if (matchStarted && !gameOver) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedHandIndex(null);
       setSelectedAttackerIndex(null);
-      botPhase.current = 'play';
       setShowTurnIndicator(true);
-      const t = setTimeout(() => setShowTurnIndicator(false), 1800);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setShowTurnIndicator(false), 1800);
+      return () => clearTimeout(timer);
     }
   }, [turn, matchStarted, gameOver]);
 
@@ -284,16 +257,15 @@ export default function PlayPage() {
   const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
   useEffect(() => {
     if (phase === 'replica' && turn === 'bot') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReplicaTimeLeft(5);
       const interval = setInterval(() => {
-        setReplicaTimeLeft(t => {
-          if (t <= 1) {
+        setReplicaTimeLeft(prev => {
+          if (prev <= 1) {
             clearInterval(interval);
             skipReplica();
             return 0;
           }
-          return t - 1;
+          return prev - 1;
         });
       }, 1000);
       return () => clearInterval(interval);
@@ -305,27 +277,26 @@ export default function PlayPage() {
     if (phase === 'replica' && turn === 'player' && pendingAttack) {
       const timer = setTimeout(() => {
         const b = botRef.current;
-        
-        // 1. Try to use backstage event if enough energy
-        const playableBackstageIdx = b.backstage.findIndex(c => c.cost <= b.energy);
-        if (playableBackstageIdx >= 0) {
-          activateBackstage('bot', playableBackstageIdx);
-          return; // will re-run effect
-        }
+        const p = playerRef.current;
 
-        // 2. Try to intercept if it's a direct attack and we have energy
-        if (pendingAttack.defenderIdx === null && b.energy >= 1) {
-          const interceptorIdx = b.board.findIndex(c => !c.isTapped);
-          if (interceptorIdx >= 0) {
-            intercept(interceptorIdx);
-            return;
-          }
+        // Use the AI engine for replica response
+        const attackerIdx = pendingAttack.attackerIdx;
+        const attackerCard = p.board[attackerIdx] || null;
+        const isDirectAttack = pendingAttack.defenderIdx === null;
+
+        const response = botReplicaResponse(b, attackerCard, isDirectAttack, difficulty);
+
+        if (response.action === 'backstage') {
+          activateBackstage('bot', response.backstageIdx);
+        } else if (response.action === 'intercept') {
+          intercept(response.interceptorIdx);
+        } else {
+          skipReplica();
         }
-        skipReplica();
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [phase, turn, pendingAttack, intercept, activateBackstage, skipReplica, botRef]);
+  }, [phase, turn, pendingAttack, intercept, activateBackstage, skipReplica, botRef, playerRef, difficulty]);
 
   const simulateScratch = useCallback(() => {
     setIsScratching(true);
@@ -337,7 +308,6 @@ export default function PlayPage() {
   const prevPhase = useRef(phase);
   useEffect(() => {
     if (prevPhase.current === 'replica' && phase === 'main') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       simulateScratch();
     }
     prevPhase.current = phase;
@@ -363,7 +333,7 @@ export default function PlayPage() {
   const handlePlayerBoardCardClick = (i: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (gameOver) return;
-    
+
     if (phase === 'replica' && turn === 'bot') {
       const card = player.board[i];
       if (!card || card.isTapped || player.energy < 1) return;
@@ -391,116 +361,163 @@ export default function PlayPage() {
   // ── Auto pass turn ──
   useEffect(() => {
     if (turn !== 'player' || phase !== 'main' || gameOver || !matchStarted || selectedAttackerIndex !== null) return;
-    
-    // Check valid moves
+
     const canPlayHand = player.hand.some(c => c.cost <= player.energy);
     const canActivateBackstage = player.backstage.some(c => c.cost <= player.energy);
     const canPromoteCard = player.canPromote && player.maxEnergy < 10 && player.hand.length > 0;
     const canAttack = player.board.some(c => !c.isTapped && !c.stageFright);
-    
+
     if (!canPlayHand && !canActivateBackstage && !canPromoteCard && !canAttack) {
-      const t = setTimeout(() => {
+      const timer = setTimeout(() => {
         endTurn();
       }, 1500);
-      return () => clearTimeout(t);
+      return () => clearTimeout(timer);
     }
   }, [turn, phase, gameOver, matchStarted, player.hand, player.energy, player.backstage, player.canPromote, player.maxEnergy, player.board, endTurn, selectedAttackerIndex]);
 
-  // ── Bot AI ──
-  useEffect(() => {
-    if (turn !== 'bot' || !matchStarted || gameOver || phase !== 'main') {
-      if (turn !== 'bot' || gameOver) botPhase.current = 'play';
+  // ── Bot AI (DDA-powered) ──
+  // Process bot action queue one action at a time
+  const processNextBotAction = useCallback(() => {
+    if (botActionQueue.current.length === 0 || gameOver) {
+      botProcessing.current = false;
       return;
     }
 
-    const delay = botPhase.current === 'play' ? 900 : 500;
-    const timer = setTimeout(() => {
+    const action = botActionQueue.current.shift()!;
+    const delay = action.type === 'ATTACK' ? 800 : action.type === 'END_TURN' ? 400 : 600;
+
+    setTimeout(() => {
+      if (gameOver) { botProcessing.current = false; return; }
+
+      switch (action.type) {
+        case 'PROMOTE':
+          promoteCard('bot', action.cardIndex);
+          break;
+        case 'PLAY_CARD':
+          playCard('bot', action.cardIndex);
+          break;
+        case 'ACTIVATE_BACKSTAGE':
+          activateBackstage('bot', action.backstageIndex);
+          break;
+        case 'ATTACK':
+          declareAttack(action.attackerIndex, action.targetIndex);
+          // Attack involves replica phase — wait for it to resolve before continuing
+          // The replica resolution will trigger a re-run of the bot effect
+          return;
+        case 'END_TURN':
+          endTurn();
+          botProcessing.current = false;
+          return;
+      }
+
+      // Continue processing next action
+      processNextBotAction();
+    }, delay);
+  }, [gameOver, promoteCard, playCard, activateBackstage, declareAttack, endTurn]);
+
+  // Main bot AI trigger — fires when it's bot's turn in main phase
+  useEffect(() => {
+    if (turn !== 'bot' || !matchStarted || gameOver || phase !== 'main') {
+      return;
+    }
+
+    // If we're still processing a queue (e.g., after a replica resolved), continue
+    if (botProcessing.current && botActionQueue.current.length > 0) {
+      const resumeTimer = setTimeout(() => processNextBotAction(), 600);
+      return () => clearTimeout(resumeTimer);
+    }
+
+    // Prevent double-triggering
+    if (botProcessing.current) return;
+
+    // Initial delay before bot starts its turn
+    const startTimer = setTimeout(() => {
       const b = botRef.current;
       const p = playerRef.current;
 
-      // Phase 1: play cards
-      if (botPhase.current === 'play') {
-        // Try to promote a card if maxEnergy < 10 and we have a card to spare
-        if (b.canPromote && b.maxEnergy < 10 && b.hand.length > 4) {
-          promoteCard('bot', 0);
-          return;
-        }
+      // Generate the full turn plan using the AI engine
+      const actions = botPlayTurn(
+        { botState: b, playerState: p, turnCount },
+        difficulty,
+      );
 
-        const idx = b.hand.findIndex(c => c.cost <= b.energy);
-        if (idx !== -1) {
-          playCard('bot', idx);
-          return; // state will update → effect re-runs, still in 'play' phase
-        }
-        // Try to activate backstage if we have energy left and no cards to play
-        const backstageIdx = b.backstage.findIndex(c => c.cost <= b.energy);
-        if (backstageIdx !== -1) {
-          activateBackstage('bot', backstageIdx);
-          return;
-        }
-        botPhase.current = 'attack';
-      }
+      botActionQueue.current = actions;
+      botProcessing.current = true;
+      processNextBotAction();
+    }, 1200);
 
-      // Phase 2: attack with first eligible card
-      if (botPhase.current === 'attack') {
-        const attackerIdx = b.board.findIndex(c => !c.isTapped && !c.stageFright);
-        if (attackerIdx >= 0) {
-          // Target taunt first, else random creature, else direct
-          const taunterIdx = p.board.findIndex(c => hasKw(c, 'taunt') && !c.isTapped);
-          if (taunterIdx >= 0) {
-            declareAttack(attackerIdx, taunterIdx);
-          } else if (p.board.length > 0) {
-            declareAttack(attackerIdx, Math.floor(Math.random() * p.board.length));
-          } else {
-            declareAttack(attackerIdx, null);
-          }
-          return; // re-run to attack with next card
-        }
-        botPhase.current = 'done';
-      }
+    return () => clearTimeout(startTimer);
+  }, [turn, matchStarted, gameOver, phase, botRef, playerRef, turnCount, difficulty, processNextBotAction]);
 
-      // Phase 3: end turn
-      botPhase.current = 'play';
-      endTurn();
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [turn, matchStarted, gameOver, phase, playCard, promoteCard, declareAttack, endTurn, activateBackstage, botRef, playerRef]);
-
-  // ── Start match ──
+  // ── Start match with DDA ──
   const startMatch = async (deckId: string) => {
     setSelectedDeckId(deckId);
     setLoadingMatch(true);
-    const deck = decks[deckId];
-    if (!deck) return;
 
+    const deck = decks[deckId];
+    if (!deck) { setLoadingMatch(false); return; }
+
+    // Build player deck from inventory
     const playerDeck: CardData[] = [];
     const tracks: Track[] = [];
     Object.entries(deck.cards).forEach(([cardId, count]) => {
       const cardData = inventory[cardId]?.card;
       if (cardData) {
         for (let i = 0; i < count; i++) playerDeck.push(cardData);
-        if (cardData.previewUrl) tracks.push({ id: cardData.id, url: cardData.previewUrl, title: cardData.name, artist: cardData.artist, artUrl: cardData.artUrl || '' });
+        if (cardData.previewUrl) {
+          tracks.push({
+            id: cardData.id,
+            url: cardData.previewUrl,
+            title: cardData.name,
+            artist: cardData.artist,
+            artUrl: cardData.artUrl || '',
+          });
+        }
       }
     });
-    while (playerDeck.length < 40) playerDeck.push(playerDeck[0] || generateCard({ trackId: 'dummy', trackName: 'Dummy', artistName: 'Dummy', collectionName: 'Dummy', primaryGenreName: 'Pop', artworkUrl100: '' }));
 
-    const botDeck = await generateBotDeck();
+    // Pad deck to 40 if short
+    while (playerDeck.length < 40) {
+      playerDeck.push(
+        playerDeck[0] || generateCard({
+          trackId: 'filler_' + playerDeck.length,
+          trackName: 'Filler Track',
+          artistName: 'Unknown',
+          collectionName: 'Filler',
+          primaryGenreName: 'Pop',
+          artworkUrl100: '',
+        })
+      );
+    }
+
+    // ── DDA: Calculate power and generate matching bot deck ──
+    const deckPower = calculateDeckPower(playerDeck);
+    const diffLevel = getDifficultyLevel(deckPower);
+    setDifficulty(diffLevel);
+
+    const botDeck = generateBotDeck(deckPower);
     startGame(playerDeck.slice(0, 40), botDeck);
 
-    setQueue([...tracks, ...tracks.slice().reverse()]);
-    playNext();
-    setVolume(0.5);
+    // Setup music queue
+    if (tracks.length > 0) {
+      setQueue([...tracks, ...tracks.slice().reverse()]);
+      playNext();
+      setVolume(0.5);
+    }
+
     setMatchStarted(true);
     setIsInBattle(true);
     setLoadingMatch(false);
+
+    // Reset bot action state
+    botActionQueue.current = [];
+    botProcessing.current = false;
   };
+
   useEffect(() => () => { setIsInBattle(false); }, [setIsInBattle]);
 
   const decksList = Object.values(decks);
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Deck selection screen
-  // ════════════════════════════════════════════════════════════════════════════
   const handlePromote = () => {
     if (turn !== 'player' || phase !== 'main' || gameOver || selectedHandIndex === null) return;
     if (!player.canPromote || player.maxEnergy >= 10) return;
@@ -509,11 +526,15 @@ export default function PlayPage() {
     setSelectedHandIndex(null);
   };
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // Deck selection screen
+  // ════════════════════════════════════════════════════════════════════════════
+
   if (!matchStarted) {
     return (
       <div className="flex flex-col gap-6 min-h-[70vh]">
         <h1 className="text-3xl font-bold">El Escenario</h1>
-        <p className="text-gray-400">Selecciona un mazo de 40 cartas para enfrentar a El Algoritmo.</p>
+        <p className="text-gray-400">Selecciona un mazo para enfrentar a El Algoritmo.</p>
         {decksList.length === 0 ? (
           <div className="text-center py-12 bg-[#121212] rounded-xl border border-white/10">
             <p className="text-gray-400">No tienes mazos creados.</p>
@@ -523,7 +544,7 @@ export default function PlayPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {decksList.map(deck => {
               const cardCount = Object.values(deck.cards).reduce((a, b) => a + b, 0);
-              const isValid = cardCount === 40;
+              const isValid = cardCount >= 40;
               return (
                 <div
                   key={deck.id}
@@ -537,7 +558,7 @@ export default function PlayPage() {
                   <div className="relative z-10 flex flex-col items-center">
                     <Swords className="w-12 h-12 mb-4 text-gray-400 group-hover:text-white transition-colors" />
                     <h3 className="text-xl font-bold">{deck.name}</h3>
-                    <p className={`text-sm ${isValid ? 'text-green-400' : 'text-red-400'}`}>{cardCount}/40 cartas</p>
+                    <p className={`text-sm ${isValid ? 'text-green-400' : 'text-red-400'}`}>{cardCount} cartas {!isValid && '(min. 40)'}</p>
                     {loadingMatch && selectedDeckId === deck.id && <p className="text-xs text-yellow-400 mt-2 animate-pulse">Conectando...</p>}
                   </div>
                 </div>
@@ -563,7 +584,9 @@ export default function PlayPage() {
             Tú vs El Algoritmo
           </h1>
           <p className="text-xs text-gray-400">
-            Turno {turnCount} — {turn === 'player' ? '⚡ Tu Turno' : '🤖 Rival'}
+            Turno {turnCount} — {turn === 'player' ? '⚡ Tu Turno' : '🤖 Rival'} — <span className={
+              difficulty === 'experto' ? 'text-red-400' : difficulty === 'intermedio' ? 'text-yellow-400' : 'text-green-400'
+            }>{difficulty.toUpperCase()}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -673,14 +696,14 @@ export default function PlayPage() {
             <div className="flex flex-col gap-1 w-16 shrink-0">
               <div className="flex flex-wrap gap-1">
                 {player.backstage.map((c, i) => (
-                  <BackstageSlot 
-                    key={c.instanceId} 
-                    card={c} 
+                  <BackstageSlot
+                    key={c.instanceId}
+                    card={c}
                     onClick={() => {
                       if (player.energy >= c.cost && (phase === 'main' || phase === 'replica')) {
                         activateBackstage('player', i);
                       }
-                    }} 
+                    }}
                   />
                 ))}
               </div>
@@ -706,7 +729,7 @@ export default function PlayPage() {
                     card={card}
                     owner="player"
                     isSelected={selectedAttackerIndex === i}
-                    onClick={(e: any) => handlePlayerBoardCardClick(i, e)}
+                    onClick={(e: React.MouseEvent | undefined) => { if (e) handlePlayerBoardCardClick(i, e); }}
                     onPointerDown={() => handlePointerDown(card)}
                     onPointerUp={handlePointerUp}
                   />
@@ -758,6 +781,39 @@ export default function PlayPage() {
           <div className="absolute inset-0 bg-red-500/10 pointer-events-none animate-pulse z-50 flex items-center justify-center">
             <p className="text-red-500 font-black text-3xl -rotate-6 drop-shadow-lg">¡GOLPE!</p>
           </div>
+        )}
+
+        {/* ── Start of Turn / Mulligan Overlay ── */}
+        {matchStarted && turnCount === 1 && turn === 'player' && !player.hasMulliganed && (
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none"
+            >
+              <div className="bg-black/90 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl flex flex-col items-center pointer-events-auto">
+                <h2 className="text-3xl font-black mb-4 uppercase tracking-wider text-white">¿Roba Nueva Mano? (Mulligan)</h2>
+                <p className="text-gray-400 mb-8 max-w-sm text-center">
+                  Tienes 1 oportunidad de volver a mezclar tu mano inicial y robar 5 cartas nuevas.
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => doMulligan('player')}
+                    className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full font-bold uppercase tracking-wider transition-all"
+                  >
+                    Mulligan
+                  </button>
+                  <button
+                    onClick={() => doMulligan('player')}
+                    className="px-8 py-3 bg-white text-black hover:bg-gray-200 rounded-full font-black uppercase tracking-wider transition-all"
+                  >
+                    Mantener
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         )}
 
         {/* ── Game over overlay ── */}
@@ -851,7 +907,7 @@ export default function PlayPage() {
       <div className="h-44 shrink-0 bg-[#0a0a0a] border-t border-white/10 px-4 py-2 overflow-x-auto overflow-y-hidden flex items-end justify-center relative z-20">
         <div className="flex flex-row justify-center items-end gap-3 px-8 min-w-max mb-1">
           {/* Promotion Zone */}
-          <div 
+          <div
             onClick={handlePromote}
             className={[
               "w-20 h-28 mb-3 rounded-xl border-4 border-dashed flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shrink-0",
@@ -866,62 +922,64 @@ export default function PlayPage() {
 
           <div className="flex flex-row justify-center items-end gap-2 px-2">
             <AnimatePresence>
-            {player.hand.map((card, i) => {
-              const canPlay = player.energy >= card.cost && turn === 'player' && !gameOver;
-              const isSelected = selectedHandIndex === i;
-              return (
-                <motion.div
-                  key={`${card.id}-${i}`}
-                  initial={{ y: 100, opacity: 0 }}
-                  animate={{ y: isSelected ? -24 : 0, opacity: 1, rotate: 0 }}
-                  exit={{ y: -100, opacity: 0, scale: 0.5 }}
-                  whileHover={{ y: -28, scale: 1.08, zIndex: 50 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-                  onClick={() => {
-                    if (!canPlay) return;
-                    setSelectedHandIndex(isSelected ? null : i);
-                    setSelectedAttackerIndex(null);
-                  }}
-                  onPointerDown={() => handlePointerDown(card)}
-                  onPointerUp={handlePointerUp}
-                  onPointerLeave={handlePointerUp}
-                  className={[
-                    'cursor-pointer relative group',
-                    isSelected ? 'z-40' : 'z-10 hover:z-30',
-                    !canPlay ? 'opacity-40 grayscale-[0.6]' : '',
-                  ].join(' ')}
-                >
-                  <Card
-                    data={card}
-                    onDoubleClick={() => handlePlayCard(i)}
+              {player.hand.map((card, i) => {
+                const canPlay = player.energy >= card.cost && turn === 'player' && !gameOver;
+                const isSelected = selectedHandIndex === i;
+                return (
+                  <motion.div
+                    key={`${card.id}-hand-${i}`}
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: isSelected ? -24 : 0, opacity: 1, rotate: 0 }}
+                    exit={{ y: -100, opacity: 0, scale: 0.5 }}
+                    whileHover={{ y: -28, scale: 1.08, zIndex: 50 }}
+                    transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+                    onClick={() => {
+                      if (!canPlay) return;
+                      setSelectedHandIndex(isSelected ? null : i);
+                      setSelectedAttackerIndex(null);
+                    }}
+                    onPointerDown={() => handlePointerDown(card)}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
                     className={[
-                      'w-28 sm:w-36 rounded-xl',
-                      isSelected ? 'shadow-[0_0_20px_rgba(59,130,246,0.7)]' : '',
-                      canPlay && !isSelected ? 'group-hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]' : '',
+                      'cursor-pointer relative group',
+                      isSelected ? 'z-40' : 'z-10 hover:z-30',
+                      !canPlay ? 'opacity-40 grayscale-[0.6]' : '',
                     ].join(' ')}
-                  />
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                  >
+                    <div className="relative w-28 h-40 sm:w-36 sm:h-[200px] rounded-xl overflow-hidden shadow-lg transition-shadow">
+                      <Card
+                        data={card}
+                        onDoubleClick={() => handlePlayCard(i)}
+                        className={[
+                          'origin-top-left transform scale-[0.4375] sm:scale-[0.5625] w-64',
+                          isSelected ? 'shadow-[0_0_20px_rgba(59,130,246,0.7)]' : '',
+                          canPlay && !isSelected ? 'group-hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]' : '',
+                        ].join(' ')}
+                      />
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
         </div>
+
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          onConcede={() => {
+            setShowSettings(false);
+            setMatchStarted(false);
+            setQueue([]);
+          }}
+          volume={volume}
+          setVolume={setVolume}
+          language={language}
+        />
       </div>
 
-      <SettingsModal 
-        isOpen={showSettings} 
-        onClose={() => setShowSettings(false)}
-        onConcede={() => {
-          setShowSettings(false);
-          setMatchStarted(false);
-          setQueue([]);
-        }}
-        volume={volume}
-        setVolume={setVolume}
-        language={language}
-      />
-    </div>
-
-    {/* ── Card inspect modal ── */}
+      {/* ── Card inspect modal ── */}
       <AnimatePresence>
         {inspectedCard && (
           <motion.div

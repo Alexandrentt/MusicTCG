@@ -27,9 +27,22 @@ function mulberry32(a: number) {
   };
 }
 
+// Simple string hash for deterministic seeding from any ID
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const chr = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return Math.abs(hash) || 1; // Ensure non-zero
+}
+
 export function generateCard(track: any, forcedRarity?: CardData['rarity']): CardData {
-  // 1. Semilla basada en el ID único de Apple Music
-  const seed = parseInt(track.trackId.toString(), 10);
+  // 1. Semilla basada en el ID — soporta IDs numéricos y strings arbitrarios
+  const rawId = track.trackId.toString();
+  const parsed = parseInt(rawId, 10);
+  const seed = isNaN(parsed) ? hashString(rawId) : parsed;
   const random = mulberry32(seed);
 
   // 2. Determinación de Coste y Rareza (Simulando popularidad con el hash por ahora)
@@ -81,7 +94,7 @@ export function generateCard(track: any, forcedRarity?: CardData['rarity']): Car
     type = 'EVENT';
     cost = Math.max(1, Math.floor(cost / 2));
     budget = 0; // Los eventos no tienen stats de combate
-    
+
     // Habilidad de evento procedural básica
     const eventEffects = [
       'Restaura 2 de Defensa a todas tus cartas.',

@@ -94,5 +94,17 @@ Para asegurar una experiencia de usuario fluida y libre de errores técnicos com
 3. **Optimización de Imágenes:** Configuración estricta en `next.config.ts` para permitir hostnames específicos (`mzstatic.com`, `picsum.photos`, `google.com`) y uso del componente `next/image` con `referrerPolicy="no-referrer"` para evitar bloqueos de CORS en recursos externos.
 4. **Sanitización de Datos en Firestore:** Implementación de lógica de filtrado en el puente de sincronización para asegurar que solo objetos planos y serializables lleguen a la base de datos, eliminando métodos de clase o funciones que Zustand podría inyectar en el estado.
 
+## 10. Inteligencia Artificial y Ajuste Dinámico de Dificultad (DDA)
+Ubicación: `/lib/engine/botAI.ts` y `/app/play/page.tsx`
+
+Para ofrecer una experiencia de un solo jugador desafiante pero justa, se implementó un sistema de Ajuste Dinámico de Dificultad (DDA) para "El Algoritmo" (la CPU).
+1. **Cálculo de Poder de Mazo (Deck Power):** Antes de iniciar una partida, se evalúa el nivel de poder del mazo del jugador basándose en la rareza de sus cartas (Bronce=1, Plata=2, Oro=4, Platino=7).
+2. **Generación Procedural del Mazo del Bot:** El bot no utiliza mazos preconstruidos fijos. En su lugar, construye dinámicamente un mazo de 40 cartas cuyo nivel de poder total se ajusta a un margen de ±10% del poder del jugador. Esto asegura que jugadores novatos enfrenten cartas débiles y jugadores avanzados enfrenten cartas raras.
+3. **Niveles de Heurística (Dificultad):** Basado en el "Deck Power", el bot asume una de tres personalidades:
+   - **Novato:** Juega la primera carta que puede pagar y ataca objetivos aleatorios o directo.
+   - **Intermedio:** Hace "Curve Matching" (juega la carta más cara) y prioriza limpiar criaturas enemigas con menor defensa.
+   - **Experto:** Busca maximizar el valor de maná, evalúa la "amenaza" (threat score) de las cartas en mesa, realiza tradeos eficientes (matar cartas minimizando pérdidas), e identifica daño letal para acabar la partida.
+4. **Ejecución Asíncrona:** El bot planea su turno completo en una sola función `botPlayTurn` y devuelve una lista de `BotAction` secuenciales, que la interfaz de usuario desencola e intercepta con retrasos artificiales, simulando que el bot está "pensando" y permitiendo que se ejecuten las animaciones.
+
 ---
-*Nota: Este documento se mantendrá actualizado a medida que se implementen nuevas fases del GDD (como el motor de combate multijugador completo en `/play`).*
+*Nota: Este documento se mantendrá actualizado a medida que se implementen nuevas fases del GDD.*

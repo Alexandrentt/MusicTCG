@@ -35,7 +35,7 @@ export interface PlayerState {
   };
   inventory: Record<string, { card: CardData; count: number }>;
   decks: Record<string, Deck>;
-  
+
   freePacksCount: number;
   lastFreePackTime: number;
   dailyMissions: Mission[];
@@ -43,13 +43,14 @@ export interface PlayerState {
   language: string;
   discoveryUsername: string;
   hasReceivedInitialPacks: boolean;
+  hasCompletedOnboarding: boolean;
   isInBattle: boolean;
   playMusicInBattle: boolean;
   pityCounters: {
     GOLD: number;
     PLATINUM: number;
   };
-  
+
   // Actions
   addRegalias: (amount: number) => void;
   spendRegalias: (amount: number) => boolean;
@@ -64,7 +65,7 @@ export interface PlayerState {
    */
   millCard: (cardId: string) => boolean;
   millAllDuplicates: () => number;
-  
+
   createDeck: (name: string) => void;
   deleteDeck: (deckId: string) => void;
   addCardToDeck: (deckId: string, card: CardData) => boolean;
@@ -82,6 +83,7 @@ export interface PlayerState {
   setPlayMusicInBattle: (val: boolean) => void;
   incrementPity: (rarity: 'GOLD' | 'PLATINUM') => void;
   resetPity: (rarity: 'GOLD' | 'PLATINUM') => void;
+  completeOnboarding: (deckName: string, cards: CardData[]) => void;
 }
 
 export const usePlayerStore = create<PlayerState>()(
@@ -109,6 +111,7 @@ export const usePlayerStore = create<PlayerState>()(
       language: 'es', // Default, will be updated by component
       discoveryUsername: '',
       hasReceivedInitialPacks: false,
+      hasCompletedOnboarding: false,
       isInBattle: false,
       playMusicInBattle: true,
       pityCounters: {
@@ -117,7 +120,7 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       addRegalias: (amount) => set((state) => ({ regalias: state.regalias + amount })),
-      
+
       spendRegalias: (amount) => {
         const { regalias } = get();
         if (regalias >= amount) {
@@ -132,7 +135,7 @@ export const usePlayerStore = create<PlayerState>()(
         set((state) => {
           const existing = state.inventory[card.id];
           const count = existing ? existing.count : 0;
-          
+
           // Rule 7.1 & 7.2: Play-set limit is 4. 5th copy becomes a wildcard.
           if (count >= 4) {
             result = { added: false, convertedToWildcard: true };
@@ -170,10 +173,10 @@ export const usePlayerStore = create<PlayerState>()(
         const { wildcards, inventory } = get();
         const existing = inventory[card.id];
         const count = existing ? existing.count : 0;
-        
+
         // Cannot craft if already at max copies
         if (count >= 4) return false;
-        
+
         // Check if player has the required wildcard
         if (wildcards[card.rarity] > 0) {
           set((state) => ({
@@ -197,17 +200,17 @@ export const usePlayerStore = create<PlayerState>()(
         set((state) => {
           const item = state.inventory[cardId];
           if (!item || item.count <= 0) return state;
-          
+
           const rarity = item.card.rarity;
           const newCount = item.count - 1;
           const newInventory = { ...state.inventory };
-          
+
           if (newCount <= 0) {
             delete newInventory[cardId];
           } else {
             newInventory[cardId] = { ...item, count: newCount };
           }
-          
+
           const newDecks = { ...state.decks };
           Object.keys(newDecks).forEach(dId => {
             const deck = newDecks[dId];
@@ -218,12 +221,12 @@ export const usePlayerStore = create<PlayerState>()(
               newDecks[dId] = { ...deck, cards: dCards };
             }
           });
-          
+
           // Update wildcard progress safely
           const currentProgress = state.wildcardProgress?.[rarity] || 0;
           let newProgress = currentProgress + 1;
           let newWildcards = state.wildcards?.[rarity] || 0;
-          
+
           if (newProgress >= 5) {
             newProgress = 0;
             newWildcards += 1;
@@ -254,15 +257,15 @@ export const usePlayerStore = create<PlayerState>()(
           const newDecks = { ...state.decks };
           const newWildcardProgress = { ...(state.wildcardProgress || { BRONZE: 0, SILVER: 0, GOLD: 0, PLATINUM: 0 }) };
           const newWildcards = { ...(state.wildcards || { BRONZE: 0, SILVER: 0, GOLD: 0, PLATINUM: 0 }) };
-          
+
           Object.values(state.inventory).forEach(item => {
             if (item.count > 4) {
               const toMill = item.count - 4;
               const rarity = item.card.rarity;
-              
+
               for (let i = 0; i < toMill; i++) {
                 totalMilled++;
-                
+
                 // Update inventory
                 const currentItem = newInventory[item.card.id];
                 if (currentItem.count > 1) {
@@ -270,7 +273,7 @@ export const usePlayerStore = create<PlayerState>()(
                 } else {
                   delete newInventory[item.card.id];
                 }
-                
+
                 // Update decks
                 const currentCount = newInventory[item.card.id]?.count || 0;
                 Object.keys(newDecks).forEach(dId => {
@@ -282,7 +285,7 @@ export const usePlayerStore = create<PlayerState>()(
                     newDecks[dId] = { ...deck, cards: dCards };
                   }
                 });
-                
+
                 // Update progress
                 newWildcardProgress[rarity] = (newWildcardProgress[rarity] || 0) + 1;
                 if (newWildcardProgress[rarity] >= 5) {
@@ -292,7 +295,7 @@ export const usePlayerStore = create<PlayerState>()(
               }
             }
           });
-          
+
           return {
             inventory: newInventory,
             decks: newDecks,
@@ -300,7 +303,7 @@ export const usePlayerStore = create<PlayerState>()(
             wildcards: newWildcards
           };
         });
-        
+
         if (totalMilled > 0) {
           get().updateMissionProgress('mill', totalMilled);
         }
@@ -328,16 +331,16 @@ export const usePlayerStore = create<PlayerState>()(
         set((state) => {
           const deck = state.decks[deckId];
           if (!deck) return state;
-          
+
           const currentDeckCount = Object.values(deck.cards).reduce((a, b) => a + b, 0);
-          if (currentDeckCount >= 60) return state;
-          
+          if (currentDeckCount >= 200) return state;
+
           const cardInDeck = deck.cards[card.id] || 0;
           if (cardInDeck >= 4) return state;
-          
+
           const owned = state.inventory[card.id]?.count || 0;
           if (cardInDeck >= owned) return state;
-          
+
           success = true;
           return {
             decks: {
@@ -359,7 +362,7 @@ export const usePlayerStore = create<PlayerState>()(
       removeCardFromDeck: (deckId, cardId) => set((state) => {
         const deck = state.decks[deckId];
         if (!deck || !deck.cards[cardId]) return state;
-        
+
         const newCount = deck.cards[cardId] - 1;
         const newCards = { ...deck.cards };
         if (newCount <= 0) {
@@ -367,7 +370,7 @@ export const usePlayerStore = create<PlayerState>()(
         } else {
           newCards[cardId] = newCount;
         }
-        
+
         return {
           decks: {
             ...state.decks,
@@ -383,7 +386,7 @@ export const usePlayerStore = create<PlayerState>()(
         const now = Date.now();
         const lastTime = state.lastFreePackTime || now;
         const hoursPassed = Math.floor((now - lastTime) / (1000 * 60 * 60));
-        
+
         if (hoursPassed > 0) {
           const newCount = Math.min((state.freePacksCount || 0) + hoursPassed, 10);
           return {
@@ -408,7 +411,7 @@ export const usePlayerStore = create<PlayerState>()(
         const now = Date.now();
         const lastReset = state.lastMissionResetTime || 0;
         const daysPassed = Math.floor((now - lastReset) / (1000 * 60 * 60 * 24));
-        
+
         if (daysPassed > 0 || !state.dailyMissions || state.dailyMissions.length === 0) {
           const newMissions: Mission[] = [
             { id: 'm1', type: 'open_pack', description: 'Abre 3 sobres', progress: 0, target: 3, reward: 150, completed: false },
@@ -464,6 +467,42 @@ export const usePlayerStore = create<PlayerState>()(
           [rarity]: 0
         }
       })),
+      completeOnboarding: (deckName, cards) => {
+        set((state) => {
+          const newInventory = { ...state.inventory };
+          const newDeckId = Date.now().toString();
+          const deckCards: Record<string, number> = {};
+
+          cards.forEach(card => {
+            const existing = newInventory[card.id];
+            const count = existing ? existing.count : 0;
+            if (count < 4) {
+              newInventory[card.id] = { card, count: count + 1 };
+              deckCards[card.id] = (deckCards[card.id] || 0) + 1;
+            }
+          });
+
+          return {
+            hasCompletedOnboarding: true,
+            inventory: newInventory,
+            decks: {
+              ...state.decks,
+              [newDeckId]: {
+                id: newDeckId,
+                name: deckName,
+                coverArt: cards[0]?.artUrl,
+                cards: deckCards
+              }
+            },
+            wildcards: {
+              ...state.wildcards,
+              BRONZE: state.wildcards.BRONZE + 5,
+              SILVER: state.wildcards.SILVER + 2,
+              GOLD: state.wildcards.GOLD + 1
+            }
+          };
+        });
+      },
     }),
     {
       name: 'musictcg-player-storage',

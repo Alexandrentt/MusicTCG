@@ -24,6 +24,7 @@ export interface PlayerState {
   energy: number;        // Current energy available (Mana Float: carries to opponent's turn for reactions)
   maxEnergy: number;     // Max energy this turn (increases by 1 each turn, capped at 10)
   canPromote: boolean;   // Can sacrifice 1 card per turn for max energy
+  hasMulliganed: boolean;
   deck: CardData[];
   hand: CardData[];
   board: BoardCard[];
@@ -57,7 +58,7 @@ function makeBoardCard(card: CardData): BoardCard {
 }
 
 const makeInitial = (): PlayerState => ({
-  hp: 30, hype: 0, energy: 1, maxEnergy: 1, canPromote: true,
+  hp: 30, hype: 0, energy: 1, maxEnergy: 1, canPromote: true, hasMulliganed: false,
   deck: [], hand: [], board: [], backstage: [], graveyard: [],
 });
 
@@ -83,7 +84,7 @@ function resolveAttackPure(
 
   // ── Muro de Sonido / Taunt enforcement ──
   const activeTaunters = defState.board.filter(c => hasKw(c, 'taunt') && !c.isTapped);
-  const mustAttackTaunters = hasKw(attacker, 'vip') 
+  const mustAttackTaunters = hasKw(attacker, 'vip')
     ? activeTaunters.filter(c => hasKw(c, 'vip'))
     : activeTaunters;
 
@@ -162,10 +163,10 @@ function resolveAttackPure(
       board: atkDestroyed
         ? newAtk.board.filter((_, i) => i !== attackerIdx)
         : newAtk.board.map((c, i) =>
-            i === attackerIdx
-              ? { ...c, isTapped: true, hasAttacked: true, currentDef: c.currentDef - defDmg }
-              : c
-          ),
+          i === attackerIdx
+            ? { ...c, isTapped: true, hasAttacked: true, currentDef: c.currentDef - defDmg }
+            : c
+        ),
       graveyard: atkDestroyed ? [...newAtk.graveyard, attacker] : newAtk.graveyard,
     };
 
@@ -176,10 +177,10 @@ function resolveAttackPure(
       board: defDestroyed
         ? newDef.board.filter((_, i) => i !== defenderIdx)
         : newDef.board.map((c, i) =>
-            i === defenderIdx
-              ? { ...c, currentDef: c.currentDef - atkDmg }
-              : c
-          ),
+          i === defenderIdx
+            ? { ...c, currentDef: c.currentDef - atkDmg }
+            : c
+        ),
       graveyard: defDestroyed ? [...newDef.graveyard, defender] : newDef.graveyard,
     };
   }
@@ -231,8 +232,25 @@ export function useGameEngine() {
     _instanceCounter = 0;
     const sp = [...playerDeck].sort(() => Math.random() - 0.5);
     const sb = [...botDeck].sort(() => Math.random() - 0.5);
+
+    // Create Beat Drop card
+    const beatDrop: CardData = {
+      id: 'beat_drop_' + Date.now(),
+      type: 'EVENT',
+      stats: { atk: 0, def: 0 },
+      cost: 0,
+      rarity: 'BRONZE',
+      abilities: [{ keyword: 'beat_drop', description: 'Beat Drop (Coin)' }],
+      name: 'Beat Drop',
+      artist: 'Tempo',
+      album: 'Utility',
+      genre: 'Utility',
+      artUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/91/33/c8/9133c8bf-53a5-10eb-0649-bf6b0e980dd2/source/100x100bb.jpg',
+      themeColor: '#eab308'
+    };
+
     setPlayer({ ...makeInitial(), deck: sp.slice(5), hand: sp.slice(0, 5) });
-    setBot({ ...makeInitial(), deck: sb.slice(5), hand: sb.slice(0, 5) });
+    setBot({ ...makeInitial(), deck: sb.slice(5), hand: [...sb.slice(0, 5), beatDrop] }); // P2 gets 5 cards + Beat Drop (and will draw 1 on their turn)
     setTurn('player');
     setTurnCount(1);
     setPhase('main');
@@ -240,11 +258,35 @@ export function useGameEngine() {
     setPendingAttack(null);
   }, []);
 
+  // ── doMulligan ──
+  const doMulligan = useCallback((target: PlayerKey) => {
+    const setSt = target === 'player' ? setPlayer : setBot;
+    setSt((prev: PlayerState) => {
+      if (prev.hasMulliganed) return prev;
+      // Shuffle hand back into deck and draw 5 new cards
+      const newDeck = [...prev.deck, ...prev.hand.filter((c: CardData) => !c.id.startsWith('beat_drop'))].sort(() => Math.random() - 0.5);
+
+      const newHand = newDeck.slice(0, 5);
+      // Keep beat drop if had one
+      const hasBeatDrop = prev.hand.find((c: CardData) => c.id.startsWith('beat_drop'));
+      if (hasBeatDrop) {
+        newHand.push(hasBeatDrop);
+      }
+
+      return {
+        ...prev,
+        deck: newDeck.slice(5),
+        hand: newHand,
+        hasMulliganed: true
+      };
+    });
+  }, []);
+
   // ── drawCard (mill check built-in) ──
   const drawCard = useCallback((target: PlayerKey) => {
     const setSt = target === 'player' ? setPlayer : setBot;
     let mill = false;
-    setSt(prev => {
+    setSt((prev: PlayerState) => {
       if (prev.deck.length === 0) { mill = true; return prev; }
       const [drawn, ...rest] = prev.deck;
       return { ...prev, deck: rest, hand: [...prev.hand, drawn] };
@@ -255,7 +297,7 @@ export function useGameEngine() {
   // ── playCard ──
   const playCard = useCallback((target: PlayerKey, cardIndex: number) => {
     const setSt = target === 'player' ? setPlayer : setBot;
-    setSt(prev => {
+    setSt((prev: PlayerState) => {
       const card = prev.hand[cardIndex];
       if (!card || prev.energy < card.cost) return prev;
       const newHand = prev.hand.filter((_, i) => i !== cardIndex);
@@ -311,12 +353,12 @@ export function useGameEngine() {
     if (phaseRef.current !== 'replica') return;
     const pa = pendingAttackRef.current;
     if (!pa) return;
-    
+
     const defenderOwner = pa.attackerOwner === 'player' ? 'bot' : 'player';
     const defState = defenderOwner === 'player' ? playerRef.current : botRef.current;
-    
+
     if (defState.energy < 1) return;
-    
+
     const interceptor = defState.board[interceptorIdx];
     if (!interceptor || interceptor.isTapped) return;
 
@@ -327,18 +369,18 @@ export function useGameEngine() {
     if (attacker && hasKw(attacker, 'vip') && !hasKw(interceptor, 'vip')) {
       return;
     }
-    
+
     if (defenderOwner === 'player') {
-      setPlayer(p => ({ ...p, energy: p.energy - 1 }));
+      setPlayer((p: PlayerState) => ({ ...p, energy: p.energy - 1 }));
     } else {
-      setBot(b => ({ ...b, energy: b.energy - 1 }));
+      setBot((b: PlayerState) => ({ ...b, energy: b.energy - 1 }));
     }
-    
+
     setPendingAttack({
       ...pa,
       defenderIdx: interceptorIdx
     });
-    
+
     setTimeout(() => {
       resolvePendingAttack();
     }, 800);
@@ -347,21 +389,28 @@ export function useGameEngine() {
   const activateBackstage = useCallback((owner: PlayerKey, backstageIdx: number) => {
     const setSt = owner === 'player' ? setPlayer : setBot;
     let cardCost = 0;
-    
-    setSt(prev => {
+
+    setSt((prev: PlayerState) => {
       const card = prev.backstage[backstageIdx];
       if (!card || prev.energy < card.cost) return prev;
       cardCost = card.cost;
-      
+
       const newBackstage = prev.backstage.filter((_, i) => i !== backstageIdx);
-      
+
       // Apply backstage effect (for now just heal 2, later we'll add specific effects)
-      const newHp = Math.min(prev.hp + 2, 20);
+      let newHp = Math.min(prev.hp + 2, 20);
+      let newEnergy = prev.energy - card.cost;
+
+      // Handle Beat Drop
+      if (card.id.startsWith('beat_drop')) {
+        newEnergy += 1;
+        newHp = prev.hp; // Reset hp back, no healing from beat_drop
+      }
 
       return {
         ...prev,
         hp: newHp,
-        energy: prev.energy - card.cost,
+        energy: newEnergy,
         backstage: newBackstage,
         graveyard: [...prev.graveyard, card]
       };
@@ -381,11 +430,20 @@ export function useGameEngine() {
     const currentTurn = turnRef.current;
     const nextTurn: PlayerKey = currentTurn === 'player' ? 'bot' : 'player';
 
+    // Discard down to 10 max cards for the player ENDING their turn
+    const currentSetter = currentTurn === 'player' ? setPlayer : setBot;
+    currentSetter((prev: PlayerState) => {
+      if (prev.hand.length <= 10) return prev;
+      const keep = prev.hand.slice(0, 10);
+      const discard = prev.hand.slice(10);
+      return { ...prev, hand: keep, graveyard: [...prev.graveyard, ...discard] };
+    });
+
     // Process START of next player's turn
     const nextSetter = nextTurn === 'player' ? setPlayer : setBot;
-    nextSetter(prev => {
+    nextSetter((prev: PlayerState) => {
       // Untap all cards, remove Stage Fright
-      const untappedBoard = prev.board.map(c => {
+      const untappedBoard = prev.board.map((c: BoardCard) => {
         let newDef = c.currentDef;
         // Sustain: heal to max def at start of turn
         if (hasKw(c, 'sustain')) {
@@ -395,13 +453,13 @@ export function useGameEngine() {
       });
 
       // Aura — Soundtrack: grant +1 DEF to all other cards while on stage
-      const hasSoundtrack = untappedBoard.some(c => hasKw(c, 'soundtrack'));
+      const hasSoundtrack = untappedBoard.some((c: BoardCard) => hasKw(c, 'soundtrack'));
       const newBoard = hasSoundtrack
-        ? untappedBoard.map(c => hasKw(c, 'soundtrack') ? c : { ...c, currentDef: c.currentDef + 1 })
+        ? untappedBoard.map((c: BoardCard) => hasKw(c, 'soundtrack') ? c : { ...c, currentDef: c.currentDef + 1 })
         : untappedBoard;
 
       // Hype Engine passive: +1 hype per untapped hypeEngine card at turn start
-      const hypeGain = newBoard.filter(c => hasKw(c, 'hypeEngine')).length;
+      const hypeGain = newBoard.filter((c: BoardCard) => hasKw(c, 'hypeEngine')).length;
 
       return {
         ...prev,
@@ -423,11 +481,11 @@ export function useGameEngine() {
   // ── promoteCard ──
   const promoteCard = useCallback((target: PlayerKey, cardIndex: number) => {
     const setSt = target === 'player' ? setPlayer : setBot;
-    setSt(prev => {
+    setSt((prev: PlayerState) => {
       if (!prev.canPromote || prev.maxEnergy >= 10) return prev;
       const card = prev.hand[cardIndex];
       if (!card) return prev;
-      const newHand = prev.hand.filter((_, i) => i !== cardIndex);
+      const newHand = prev.hand.filter((_: any, i: number) => i !== cardIndex);
       return {
         ...prev,
         maxEnergy: prev.maxEnergy + 1,
@@ -440,7 +498,7 @@ export function useGameEngine() {
 
   return {
     player, bot, turn, turnCount, phase, gameOver, pendingAttack,
-    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, endTurn,
+    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, endTurn, doMulligan,
     // Expose for external use
     playerRef, botRef,
   };
