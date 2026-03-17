@@ -184,7 +184,7 @@ function BoardCardSlot({
       ].join(' ') + (card.isTapped ? (owner === 'bot' ? ' -rotate-6' : ' rotate-6') : '')}
     >
       <div className="absolute inset-0 rounded-[10px] overflow-hidden">
-        <MiniCard data={card} className="w-full h-full" />
+        <Card data={card} className="origin-top-left transform scale-[0.3125] pointer-events-none" />
       </div>
 
       {/* Stat overlay — show modified stats */}
@@ -274,6 +274,11 @@ export default function PlayPage() {
       return () => clearTimeout(t);
     }
   }, [turn, matchStarted, gameOver]);
+
+  // Sync TabBar visibility across the app to only hide during match
+  useEffect(() => {
+    setIsInBattle(matchStarted);
+  }, [matchStarted, setIsInBattle]);
 
   // ── Player Replica Timer ──
   const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
@@ -383,6 +388,24 @@ export default function PlayPage() {
     setSelectedAttackerIndex(null);
   };
 
+  // ── Auto pass turn ──
+  useEffect(() => {
+    if (turn !== 'player' || phase !== 'main' || gameOver || !matchStarted || selectedAttackerIndex !== null) return;
+    
+    // Check valid moves
+    const canPlayHand = player.hand.some(c => c.cost <= player.energy);
+    const canActivateBackstage = player.backstage.some(c => c.cost <= player.energy);
+    const canPromoteCard = player.canPromote && player.maxEnergy < 10 && player.hand.length > 0;
+    const canAttack = player.board.some(c => !c.isTapped && !c.stageFright);
+    
+    if (!canPlayHand && !canActivateBackstage && !canPromoteCard && !canAttack) {
+      const t = setTimeout(() => {
+        endTurn();
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [turn, phase, gameOver, matchStarted, player.hand, player.energy, player.backstage, player.canPromote, player.maxEnergy, player.board, endTurn, selectedAttackerIndex]);
+
   // ── Bot AI ──
   useEffect(() => {
     if (turn !== 'bot' || !matchStarted || gameOver || phase !== 'main') {
@@ -471,7 +494,6 @@ export default function PlayPage() {
     setIsInBattle(true);
     setLoadingMatch(false);
   };
-
   useEffect(() => () => { setIsInBattle(false); }, [setIsInBattle]);
 
   const decksList = Object.values(decks);
@@ -563,7 +585,7 @@ export default function PlayPage() {
       {/* Battlefield */}
       <div
         className="flex-1 flex flex-col justify-between relative overflow-hidden bg-cover bg-center"
-        style={{ backgroundImage: 'url(https://picsum.photos/seed/concert2/1920/1080)' }}
+        style={{ backgroundImage: 'url(/board-bg.png)' }}
       >
         <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-0" />
 
@@ -827,22 +849,22 @@ export default function PlayPage() {
 
       {/* ── Hand ── */}
       <div className="h-44 shrink-0 bg-[#0a0a0a] border-t border-white/10 px-4 py-2 overflow-x-auto overflow-y-hidden flex items-end justify-center relative z-20">
-        <div className="flex flex-row justify-center items-end gap-4 px-8 min-w-max">
+        <div className="flex flex-row justify-center items-end gap-3 px-8 min-w-max mb-1">
           {/* Promotion Zone */}
           <div 
             onClick={handlePromote}
             className={[
-              "w-20 h-28 mb-2 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shrink-0",
+              "w-20 h-28 mb-3 rounded-xl border-4 border-dashed flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shrink-0",
               player.canPromote && selectedHandIndex !== null && player.maxEnergy < 10
                 ? "border-yellow-500/60 bg-yellow-500/10 scale-105 shadow-[0_0_15px_rgba(234,179,8,0.3)]"
                 : "border-white/10 bg-white/5 opacity-40 grayscale pointer-events-none"
             ].join(' ')}
           >
             <Zap className="w-8 h-8 text-yellow-500" />
-            <span className="text-[10px] font-black text-yellow-500 uppercase tracking-tighter">PROMOTE</span>
+            <span className="text-[10px] font-black text-yellow-500 uppercase tracking-tighter text-center">PROMOCIONAR</span>
           </div>
 
-          <div className="flex flex-row justify-center items-end -space-x-10">
+          <div className="flex flex-row justify-center items-end gap-2 px-2">
             <AnimatePresence>
             {player.hand.map((card, i) => {
               const canPlay = player.energy >= card.cost && turn === 'player' && !gameOver;
