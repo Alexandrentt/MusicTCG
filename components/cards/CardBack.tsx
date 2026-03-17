@@ -4,40 +4,60 @@ import { Music } from 'lucide-react';
 
 interface CardBackProps {
   className?: string;
+  isRare?: boolean;
 }
 
-export default function CardBack({ className = '' }: CardBackProps) {
+export default function CardBack({ className = '', isRare = false }: CardBackProps) {
   return (
-    <div className={`relative w-64 aspect-[2.5/3.5] bg-[#0a0a0a] rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl flex items-center justify-center group ${className}`}>
-      {/* Vinyl Record Pattern */}
-      <div className="absolute inset-0 opacity-20">
-        {[...Array(20)].map((_, i) => (
-          <div 
-            key={i} 
-            className="absolute inset-0 border border-white/10 rounded-full" 
-            style={{ margin: `${i * 5}%` }}
-          />
-        ))}
-      </div>
+    <div className={`relative w-full h-full bg-[#050505] rounded-xl border-2 ${isRare ? 'border-[#ffd700] shadow-[0_0_40px_rgba(255,215,0,0.4)]' : 'border-zinc-800 shadow-2xl'} overflow-hidden flex items-center justify-center group ${className}`}>
+      {/* Deep Space Background */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a1a2e_0%,_#000000_100%)]" />
 
-      {/* Center Label */}
-      <div className="relative z-10 w-32 h-32 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-1 shadow-[0_0_30px_rgba(124,58,237,0.5)] group-hover:scale-110 transition-transform duration-500">
-        <div className="w-full h-full rounded-full bg-black flex items-center justify-center border border-white/20">
-          <div className="flex flex-col items-center">
-            <Music className="text-white mb-1" size={32} />
-            <span className="text-[8px] font-black text-white tracking-[0.2em] uppercase">MusicTCG</span>
-          </div>
+      {/* Geometric Energy Pattern */}
+      <svg className="absolute inset-0 w-full h-full opacity-20 group-hover:opacity-40 transition-opacity duration-700" viewBox="0 0 100 140">
+        <defs>
+          <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.1" />
+          </pattern>
+        </defs>
+        <rect width="100" height="140" fill="url(#grid)" />
+        <circle cx="50" cy="70" r="40" fill="none" stroke="currentColor" strokeWidth="0.2" className={isRare ? 'text-yellow-500' : 'text-blue-500'} />
+        <circle cx="50" cy="70" r="35" fill="none" stroke="currentColor" strokeWidth="0.1" className={isRare ? 'text-yellow-600' : 'text-purple-600'} />
+      </svg>
+
+      {/* The Vinyl / Core */}
+      <div className="relative z-10 w-[85%] aspect-square rounded-full flex items-center justify-center p-0.5">
+        {/* Vinyl Grooves Effect */}
+        <div className={`absolute inset-0 rounded-full bg-[repeating-radial-gradient(circle,_#111_0px,_#111_2px,_#222_3px,_#111_4px)] opacity-80 ${isRare ? 'shadow-[0_0_25px_rgba(255,215,0,0.2)]' : 'shadow-2xl'}`} />
+
+        {/* Central Label */}
+        <div className={`relative w-1/2 h-1/2 rounded-full flex items-center justify-center overflow-hidden border-2 ${isRare ? 'border-yellow-400 bg-gradient-to-tr from-yellow-700 via-yellow-400 to-yellow-800' : 'border-zinc-700 bg-gradient-to-br from-zinc-900 to-black'}`}>
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30" />
+          <Music className={`w-8 h-8 ${isRare ? 'text-black' : 'text-white'} drop-shadow-lg animate-pulse`} />
         </div>
+
+        {/* Outer Glow Ring */}
+        <div className={`absolute -inset-1 rounded-full border-2 border-dashed opacity-40 animate-[spin_20s_linear_infinite] ${isRare ? 'border-yellow-500' : 'border-indigo-500'}`} />
       </div>
 
-      {/* Corner Accents */}
-      <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-white/20 rounded-tl-sm" />
-      <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-white/20 rounded-tr-sm" />
-      <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-white/20 rounded-bl-sm" />
-      <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-white/20 rounded-br-sm" />
+      {/* Decorative Text */}
+      <div className="absolute bottom-4 left-0 right-0 text-center flex flex-col items-center">
+        <span className={`text-[9px] font-black tracking-[0.4em] uppercase ${isRare ? 'text-yellow-500' : 'text-zinc-500'}`}>
+          Music TCG
+        </span>
+        <div className={`mt-1 h-[1px] w-12 ${isRare ? 'bg-yellow-500' : 'bg-zinc-700'}`} />
+      </div>
 
-      {/* Holographic Shine */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+      {/* Rare Polish */}
+      {isRare && (
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none group-hover:animate-shine transition-all duration-1000" />
+      )}
+
+      {/* Corner Brackets */}
+      <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/10" />
+      <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/10" />
+      <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-white/10" />
+      <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-white/10" />
     </div>
   );
 }

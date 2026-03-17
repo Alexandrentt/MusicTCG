@@ -17,7 +17,7 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
   const [imgError, setImgError] = useState(false);
   const [showBigCard, setShowBigCard] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const rarityGlow = {
     BRONZE: 'shadow-[0_0_15px_rgba(205,127,50,0.3)] border-[#cd7f32]/30',
     SILVER: 'shadow-[0_0_15px_rgba(192,192,192,0.4)] border-[#c0c0c0]/40',
@@ -51,16 +51,14 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
         <Zap className={`text-yellow-400 ${isBig ? 'w-4 h-4' : 'w-3 h-3'}`} />
         <span className={`font-black text-white ${isBig ? 'text-lg' : 'text-xs'}`}>{data.cost}</span>
       </div>
-      <div className={`bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-lg ${
-        data.rarity === 'PLATINUM' ? 'border-cyan-500/50' : 
-        data.rarity === 'GOLD' ? 'border-yellow-500/50' : 
-        data.rarity === 'SILVER' ? 'border-gray-400/50' : 'border-amber-600/50'
-      }`}>
-        <span className={`font-black text-[10px] uppercase tracking-tighter ${
-          data.rarity === 'PLATINUM' ? 'text-cyan-400' : 
-          data.rarity === 'GOLD' ? 'text-yellow-400' : 
-          data.rarity === 'SILVER' ? 'text-gray-300' : 'text-amber-600'
+      <div className={`bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-lg ${data.rarity === 'PLATINUM' ? 'border-cyan-500/50' :
+          data.rarity === 'GOLD' ? 'border-yellow-500/50' :
+            data.rarity === 'SILVER' ? 'border-gray-400/50' : 'border-amber-600/50'
         }`}>
+        <span className={`font-black text-[10px] uppercase tracking-tighter ${data.rarity === 'PLATINUM' ? 'text-cyan-400' :
+            data.rarity === 'GOLD' ? 'text-yellow-400' :
+              data.rarity === 'SILVER' ? 'text-gray-300' : 'text-amber-600'
+          }`}>
           {data.rarity}
         </span>
       </div>
@@ -83,40 +81,40 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
   const hasAbilities = data.abilities && data.abilities.length > 0;
 
   const cardContent = (
-    <div 
+    <div
       onDoubleClick={onDoubleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative ${isBig ? 'w-80 sm:w-96' : 'w-64'} aspect-[2.5/3.5] bg-[#1a1a1a] rounded-xl overflow-hidden flex flex-col border-2 ${rarityGlow} transition-transform ${!isBig && 'hover:scale-105'} ${className}`} 
+      className={`relative ${isBig ? 'w-80 sm:w-96' : 'w-64'} aspect-[2.5/3.5] bg-[#1a1a1a] rounded-xl overflow-hidden flex flex-col border-2 ${rarityGlow} transition-transform ${!isBig && 'hover:scale-105'} ${className}`}
       style={{ '--theme-color': data.themeColor } as React.CSSProperties}
     >
       {renderTopBadges()}
-      
+
       {/* Art Section */}
       <div className={`relative ${hasAbilities ? 'h-[55%]' : 'h-full'} w-full bg-black`}>
         {data.artUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img 
-            src={data.artUrl} 
-            alt={data.name} 
-            className="w-full h-full object-cover" 
-            crossOrigin="anonymous" 
+          <img
+            src={data.artUrl}
+            alt={data.name}
+            className="w-full h-full object-cover"
+            crossOrigin="anonymous"
             onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-800"><Music className="w-12 h-12 text-gray-500" /></div>
         )}
-        
+
         {/* Gradient Overlay for Full Art or Transition */}
         <div className={`absolute inset-0 bg-gradient-to-t ${hasAbilities ? 'from-[#1a1a1a] via-transparent to-transparent h-full' : 'from-black via-black/40 to-transparent'}`}></div>
       </div>
 
       {/* Info Section */}
-      <div className={`${hasAbilities ? 'flex-1 p-3' : 'absolute bottom-0 left-0 right-0 p-3'} flex flex-col justify-between relative z-10 ${hasAbilities ? 'bg-[#1a1a1a]' : ''}`}>
+      <div className={`${hasAbilities ? 'flex-1 px-3 pt-3 pb-4 sm:pb-5' : 'absolute bottom-0 left-0 right-0 px-3 pt-3 pb-4 sm:pb-5'} flex flex-col justify-between relative z-10 ${hasAbilities ? 'bg-[#1a1a1a]' : ''}`}>
         <div>
           <h3 className={`font-bold text-white ${isBig ? 'text-xl' : 'text-sm'} leading-tight line-clamp-1`}>{data.name}</h3>
           <p className={`text-gray-400 ${isBig ? 'text-xs' : 'text-[10px]'} uppercase tracking-wider mt-0.5 line-clamp-1`}>{data.artist}</p>
-          
+
           {hasAbilities && (
             <div className={`mt-2 ${isBig ? 'text-sm' : 'text-[11px]'} leading-tight text-gray-300 space-y-1.5 overflow-y-auto ${isBig ? 'max-h-[120px]' : 'max-h-[60px]'} pr-1 scrollbar-thin scrollbar-thumb-gray-600`}>
               {data.abilities.map((ability, idx) => (
@@ -148,7 +146,7 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
           >
             <div className="relative">
               <Card data={data} isBig={true} />
-              
+
               {/* Extra Info Panel (Arena Style) */}
               <div className="absolute left-full ml-4 top-0 w-64 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl">
                 <h4 className="text-white font-bold text-xs uppercase tracking-widest mb-3 border-b border-white/10 pb-2">
@@ -161,11 +159,10 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
                   </div>
                   <div>
                     <span className="text-gray-500 text-[10px] uppercase font-bold tracking-tighter block mb-1">Rareza</span>
-                    <span className={`text-sm font-bold ${
-                      data.rarity === 'PLATINUM' ? 'text-cyan-400' : 
-                      data.rarity === 'GOLD' ? 'text-yellow-400' : 
-                      data.rarity === 'SILVER' ? 'text-gray-300' : 'text-amber-600'
-                    }`}>{data.rarity}</span>
+                    <span className={`text-sm font-bold ${data.rarity === 'PLATINUM' ? 'text-cyan-400' :
+                        data.rarity === 'GOLD' ? 'text-yellow-400' :
+                          data.rarity === 'SILVER' ? 'text-gray-300' : 'text-amber-600'
+                      }`}>{data.rarity}</span>
                   </div>
                   {hasAbilities && (
                     <div>

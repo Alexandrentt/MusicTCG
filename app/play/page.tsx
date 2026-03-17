@@ -12,6 +12,7 @@ import { generateCard, CardData } from '@/lib/engine/generator';
 import { calculateDeckPower, getDifficultyLevel, generateBotDeck, botPlayTurn, botReplicaResponse, DifficultyLevel, BotAction } from '@/lib/engine/botAI';
 import { playSound } from '@/lib/audio';
 import { t } from '@/lib/i18n';
+import { TurnPhase } from '@/lib/engine/gameState';
 
 // ── Sub-Components ──
 
@@ -256,7 +257,7 @@ export default function PlayPage() {
   // ── Player Replica Timer ──
   const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
   useEffect(() => {
-    if (phase === 'replica' && turn === 'bot') {
+    if (phase === TurnPhase.REPLICA && turn === 'bot') {
       setReplicaTimeLeft(5);
       const interval = setInterval(() => {
         setReplicaTimeLeft(prev => {
@@ -274,7 +275,7 @@ export default function PlayPage() {
 
   // ── Bot AI for Replica ──
   useEffect(() => {
-    if (phase === 'replica' && turn === 'player' && pendingAttack) {
+    if (phase === TurnPhase.REPLICA && turn === 'player' && pendingAttack) {
       const timer = setTimeout(() => {
         const b = botRef.current;
         const p = playerRef.current;
@@ -307,7 +308,7 @@ export default function PlayPage() {
 
   const prevPhase = useRef(phase);
   useEffect(() => {
-    if (prevPhase.current === 'replica' && phase === 'main') {
+    if (prevPhase.current === TurnPhase.REPLICA && phase === TurnPhase.MAIN) {
       simulateScratch();
     }
     prevPhase.current = phase;
@@ -315,7 +316,7 @@ export default function PlayPage() {
 
   // ── Play a card from hand ──
   const handlePlayCard = (index: number) => {
-    if (turn !== 'player' || phase !== 'main' || gameOver || player.energy < player.hand[index]?.cost) return;
+    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || player.energy < player.hand[index]?.cost) return;
     playSound('play');
     playCard('player', index);
     setSelectedHandIndex(null);
@@ -323,7 +324,7 @@ export default function PlayPage() {
 
   // ── Click on bot card (attack) ──
   const handleBotCardClick = (i: number) => {
-    if (turn !== 'player' || phase !== 'main' || gameOver || selectedAttackerIndex === null) return;
+    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || selectedAttackerIndex === null) return;
     playSound('attack');
     declareAttack(selectedAttackerIndex, i);
     setSelectedAttackerIndex(null);
@@ -334,7 +335,7 @@ export default function PlayPage() {
     e.stopPropagation();
     if (gameOver) return;
 
-    if (phase === 'replica' && turn === 'bot') {
+    if (phase === TurnPhase.REPLICA && turn === 'bot') {
       const card = player.board[i];
       if (!card || card.isTapped || player.energy < 1) return;
       playSound('play');
@@ -342,7 +343,7 @@ export default function PlayPage() {
       return;
     }
 
-    if (turn !== 'player' || phase !== 'main') return;
+    if (turn !== 'player' || phase !== TurnPhase.MAIN) return;
     const card = player.board[i];
     if (!card || card.isTapped || card.stageFright) return;
     playSound('play');
@@ -352,7 +353,7 @@ export default function PlayPage() {
 
   // ── Direct attack on bot player zone ──
   const handleDirectAttack = () => {
-    if (turn !== 'player' || phase !== 'main' || gameOver || selectedAttackerIndex === null) return;
+    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || selectedAttackerIndex === null) return;
     playSound('attack');
     declareAttack(selectedAttackerIndex, null);
     setSelectedAttackerIndex(null);
@@ -360,7 +361,7 @@ export default function PlayPage() {
 
   // ── Auto pass turn ──
   useEffect(() => {
-    if (turn !== 'player' || phase !== 'main' || gameOver || !matchStarted || selectedAttackerIndex !== null) return;
+    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || !matchStarted || selectedAttackerIndex !== null) return;
 
     const canPlayHand = player.hand.some(c => c.cost <= player.energy);
     const canActivateBackstage = player.backstage.some(c => c.cost <= player.energy);
@@ -417,7 +418,7 @@ export default function PlayPage() {
 
   // Main bot AI trigger — fires when it's bot's turn in main phase
   useEffect(() => {
-    if (turn !== 'bot' || !matchStarted || gameOver || phase !== 'main') {
+    if (turn !== 'bot' || !matchStarted || gameOver || phase !== TurnPhase.MAIN) {
       return;
     }
 
@@ -519,7 +520,7 @@ export default function PlayPage() {
   const decksList = Object.values(decks);
 
   const handlePromote = () => {
-    if (turn !== 'player' || phase !== 'main' || gameOver || selectedHandIndex === null) return;
+    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || selectedHandIndex === null) return;
     if (!player.canPromote || player.maxEnergy >= 10) return;
     playSound('play');
     promoteCard('player', selectedHandIndex);
@@ -700,7 +701,7 @@ export default function PlayPage() {
                     key={c.instanceId}
                     card={c}
                     onClick={() => {
-                      if (player.energy >= c.cost && (phase === 'main' || phase === 'replica')) {
+                      if (player.energy >= c.cost && (phase === TurnPhase.MAIN || phase === TurnPhase.REPLICA)) {
                         activateBackstage('player', i);
                       }
                     }}
@@ -768,7 +769,7 @@ export default function PlayPage() {
             </div>
             <button
               onClick={endTurn}
-              disabled={turn !== 'player' || !!gameOver || phase !== 'main'}
+              disabled={turn !== 'player' || !!gameOver || phase !== TurnPhase.MAIN}
               className="ml-2 px-3 py-1 bg-white text-black text-xs font-black rounded-full disabled:opacity-40 hover:bg-gray-200 transition-colors"
             >
               Pasar Turno
@@ -847,7 +848,7 @@ export default function PlayPage() {
 
         {/* ── Replica Overlay ── */}
         <AnimatePresence>
-          {phase === 'replica' && (
+          {phase === TurnPhase.REPLICA && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -885,18 +886,22 @@ export default function PlayPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Turn indicator ── */}
+        {/* Battle Phase Indicator Overlay */}
         <AnimatePresence>
           {showTurnIndicator && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.5 }}
-              transition={{ duration: 0.25 }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"
+              initial={{ opacity: 0, scale: 2, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.5, y: 20 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
             >
-              <div className={`text-5xl font-black uppercase tracking-widest drop-shadow-[0_0_30px_rgba(0,0,0,1)] ${turn === 'player' ? 'text-green-400' : 'text-red-500'}`}>
-                {turn === 'player' ? 'Tu Turno' : 'Turno del Rival'}
+              <div className="bg-black/40 backdrop-blur-sm px-12 py-6 rounded-full border border-white/20 shadow-2xl">
+                <h2 className="text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
+                  {turn === 'player' ? 'TU TURNO' : 'TURNO RIVAL'}
+                </h2>
+                <div className="text-center mt-2 text-sm font-bold tracking-[0.4em] text-gray-400">
+                  {phase === TurnPhase.REPLICA ? 'FASE DE REPLICA' : 'FASE PRINCIPAL'}
+                </div>
               </div>
             </motion.div>
           )}

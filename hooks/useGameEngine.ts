@@ -1,6 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { CardData } from '@/lib/engine/generator';
 
+import {
+  EngineAbilities,
+  pushEffectToStack,
+  resolveStack,
+  triggerMap
+} from '@/lib/engine/effectEngine';
+import { TurnPhase } from '@/lib/engine/gameState';
+
 let _instanceCounter = 0;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -12,10 +20,12 @@ export interface BoardCard extends CardData {
   hasAttacked: boolean;   // For Stealth/Acústico
   currentAtk: number;     // Can be modified by effects
   currentDef: number;
+  maxDef: number;         // Stores original def for Sustain
+  isSilenced: boolean;
+  statuses: string[];
 }
 
 export type PlayerKey = 'player' | 'bot';
-export type GamePhase = 'main' | 'replica' | 'end';
 export type GameOverResult = 'player' | 'bot' | 'draw' | null;
 
 export interface PlayerState {
@@ -49,11 +59,13 @@ function makeBoardCard(card: CardData): BoardCard {
     ...card,
     instanceId: `${card.id}_${++_instanceCounter}`,
     isTapped: false,
-    // Stage Fright: can't attack turn played, UNLESS card has Frenzy/Tempo
     stageFright: !hasKw(card, 'frenzy'),
     hasAttacked: false,
     currentAtk: card.stats.atk,
     currentDef: card.stats.def,
+    maxDef: card.stats.def,
+    isSilenced: false,
+    statuses: [],
   };
 }
 
@@ -197,7 +209,7 @@ export function useGameEngine() {
   const [bot, setBot] = useState<PlayerState>(makeInitial);
   const [turn, setTurn] = useState<PlayerKey>('player');
   const [turnCount, setTurnCount] = useState(1);
-  const [phase, setPhase] = useState<GamePhase>('main');
+  const [phase, setPhase] = useState<TurnPhase>(TurnPhase.MAIN);
   const [gameOver, setGameOver] = useState<GameOverResult>(null);
   const [pendingAttack, setPendingAttack] = useState<PendingAttack | null>(null);
 
@@ -253,7 +265,7 @@ export function useGameEngine() {
     setBot({ ...makeInitial(), deck: sb.slice(5), hand: [...sb.slice(0, 5), beatDrop] }); // P2 gets 5 cards + Beat Drop (and will draw 1 on their turn)
     setTurn('player');
     setTurnCount(1);
-    setPhase('main');
+    setPhase(TurnPhase.MAIN);
     setGameOver(null);
     setPendingAttack(null);
   }, []);
@@ -295,8 +307,24 @@ export function useGameEngine() {
   }, []);
 
   // ── playCard ──
+  const triggerAbilities = useCallback((trigger: string, sourceInstanceId: string, currentGameState: any) => {
+    // This is a bridge between the Hook state and the Engine
+    const board = [...currentGameState.player.board, ...currentGameState.bot.board];
+    const card = board.find((c: BoardCard) => c.instanceId === sourceInstanceId);
+    if (!card || card.isSilenced) return;
+
+    card.abilities?.forEach((ability: any) => {
+      const keywordEffect = EngineAbilities.find(e => e.keyword === ability.keyword);
+      if (keywordEffect && keywordEffect.trigger === trigger) {
+        keywordEffect.resolve(currentGameState, sourceInstanceId);
+      }
+    });
+  }, []);
+
   const playCard = useCallback((target: PlayerKey, cardIndex: number) => {
     const setSt = target === 'player' ? setPlayer : setBot;
+    let playedInstanceId = '';
+
     setSt((prev: PlayerState) => {
       const card = prev.hand[cardIndex];
       if (!card || prev.energy < card.cost) return prev;
@@ -305,26 +333,44 @@ export function useGameEngine() {
 
       if (card.type === 'EVENT') {
         const backstageCard = makeBoardCard(card);
+        playedInstanceId = backstageCard.instanceId;
         return { ...prev, energy: newEnergy, hand: newHand, backstage: [...prev.backstage, backstageCard] };
       }
 
       const boardCard = makeBoardCard(card);
-
-      // DissTrack intro: -1 ATK / -1 DEF to a random opponent creature (applied on play)
-      // This will be applied in a separate effect in the future
+      playedInstanceId = boardCard.instanceId;
       return { ...prev, energy: newEnergy, hand: newHand, board: [...prev.board, boardCard] };
     });
-  }, []);
+
+    // After state update, we trigger the Intro effects
+    setTimeout(() => {
+      if (playedInstanceId) {
+        const fullState = {
+          player: playerRef.current,
+          bot: botRef.current,
+          activePlayer: turnRef.current.toUpperCase() as any,
+          effectStack: [],
+          isGameOver: false,
+          winner: null
+        };
+        triggerAbilities('ON_PLAY', playedInstanceId, fullState);
+        resolveStack(fullState as any);
+        // Sync back state
+        setPlayer({ ...playerRef.current, hp: (fullState.player as any).health, hype: (fullState.player as any).hype });
+        setBot({ ...botRef.current, hp: (fullState.bot as any).health, hype: (fullState.bot as any).hype });
+      }
+    }, 10);
+  }, [triggerAbilities]);
 
   // ── attack ──
   const declareAttack = useCallback((attackerIdx: number, defenderIdx: number | null) => {
-    if (gameOverRef.current || phaseRef.current !== 'main') return;
+    if (gameOverRef.current || phaseRef.current !== TurnPhase.MAIN) return;
     setPendingAttack({
       attackerOwner: turnRef.current,
       attackerIdx,
       defenderIdx,
     });
-    setPhase('replica');
+    setPhase(TurnPhase.REPLICA);
   }, []);
 
   const resolvePendingAttack = useCallback(() => {
@@ -340,17 +386,17 @@ export function useGameEngine() {
     setPlayer(np);
     setBot(nb);
     setPendingAttack(null);
-    setPhase('main');
+    setPhase(TurnPhase.MAIN);
   }, []);
 
   const skipReplica = useCallback(() => {
-    if (phaseRef.current === 'replica') {
+    if (phaseRef.current === TurnPhase.REPLICA) {
       resolvePendingAttack();
     }
   }, [resolvePendingAttack]);
 
   const intercept = useCallback((interceptorIdx: number) => {
-    if (phaseRef.current !== 'replica') return;
+    if (phaseRef.current !== TurnPhase.REPLICA) return;
     const pa = pendingAttackRef.current;
     if (!pa) return;
 
@@ -417,66 +463,100 @@ export function useGameEngine() {
     });
 
     // If activated during replica phase, it resolves the attack immediately (or intercepts)
-    if (phaseRef.current === 'replica' && cardCost > 0) { // Only if it was actually activated
+    if (phaseRef.current === TurnPhase.REPLICA && cardCost > 0) { // Only if it was actually activated
       setTimeout(() => {
         resolvePendingAttack();
       }, 800);
     }
   }, [resolvePendingAttack]);
 
-  // ── endTurn ──
-  const endTurn = useCallback(() => {
-    if (phaseRef.current !== 'main') return;
+  // ── advancePhase (New logic replacing endTurn) ──
+  const advancePhase = useCallback(() => {
+    if (gameOverRef.current) return;
+
+    const currentPhase = phaseRef.current;
     const currentTurn = turnRef.current;
-    const nextTurn: PlayerKey = currentTurn === 'player' ? 'bot' : 'player';
 
-    // Discard down to 10 max cards for the player ENDING their turn
-    const currentSetter = currentTurn === 'player' ? setPlayer : setBot;
-    currentSetter((prev: PlayerState) => {
-      if (prev.hand.length <= 10) return prev;
-      const keep = prev.hand.slice(0, 10);
-      const discard = prev.hand.slice(10);
-      return { ...prev, hand: keep, graveyard: [...prev.graveyard, ...discard] };
-    });
+    switch (currentPhase) {
+      case TurnPhase.START:
+        setPhase(TurnPhase.DRAW);
+        setTimeout(() => drawCard(currentTurn), 100);
+        break;
 
-    // Process START of next player's turn
-    const nextSetter = nextTurn === 'player' ? setPlayer : setBot;
-    nextSetter((prev: PlayerState) => {
-      // Untap all cards, remove Stage Fright
-      const untappedBoard = prev.board.map((c: BoardCard) => {
-        let newDef = c.currentDef;
-        // Sustain: heal to max def at start of turn
-        if (hasKw(c, 'sustain')) {
-          newDef = c.stats.def;
-        }
-        return { ...c, isTapped: false, stageFright: false, currentDef: newDef };
-      });
+      case TurnPhase.DRAW:
+        setPhase(TurnPhase.MAIN);
+        break;
 
-      // Aura — Soundtrack: grant +1 DEF to all other cards while on stage
-      const hasSoundtrack = untappedBoard.some((c: BoardCard) => hasKw(c, 'soundtrack'));
-      const newBoard = hasSoundtrack
-        ? untappedBoard.map((c: BoardCard) => hasKw(c, 'soundtrack') ? c : { ...c, currentDef: c.currentDef + 1 })
-        : untappedBoard;
+      case TurnPhase.MAIN:
+        // Transition to COMBAT or END directly?
+        // Let's stick to a linear flow for now or allow UI to jump
+        setPhase(TurnPhase.END);
+        break;
 
-      // Hype Engine passive: +1 hype per untapped hypeEngine card at turn start
-      const hypeGain = newBoard.filter((c: BoardCard) => hasKw(c, 'hypeEngine')).length;
+      case TurnPhase.COMBAT:
+        setPhase(TurnPhase.MAIN);
+        break;
 
-      return {
-        ...prev,
-        canPromote: true,
-        energy: prev.maxEnergy, // Refresh energy at START of YOUR turn (Mana Float complete)
-        hype: Math.min(prev.hype + hypeGain, 20),
-        board: newBoard,
-      };
-    });
+      case TurnPhase.END:
+        const nextTurn: PlayerKey = currentTurn === 'player' ? 'bot' : 'player';
 
-    setTurn(nextTurn);
-    if (nextTurn === 'player') setTurnCount(c => c + 1);
-    setPhase('main');
+        // End of turn cleanup
+        const currentSetter = currentTurn === 'player' ? setPlayer : setBot;
+        currentSetter((prev: PlayerState) => {
+          // Discard down to 10
+          const newHand = prev.hand.length > 10 ? prev.hand.slice(0, 10) : prev.hand;
+          const discard = prev.hand.length > 10 ? prev.hand.slice(10) : [];
+          return { ...prev, hand: newHand, graveyard: [...prev.graveyard, ...discard] };
+        });
 
-    // Draw card for next player (slight delay to allow state to settle)
-    setTimeout(() => drawCard(nextTurn), 30);
-  }, [drawCard]);
+        setTurn(nextTurn);
+        if (nextTurn === 'player') setTurnCount(c => c + 1);
+        setPhase(TurnPhase.START);
+
+        // Process START of next turn triggers
+        const nextSetter = nextTurn === 'player' ? setPlayer : setBot;
+        nextSetter((prev: PlayerState) => {
+          const nextFullState: any = {
+            player: nextTurn === 'player' ? prev : playerRef.current,
+            bot: nextTurn === 'bot' ? prev : botRef.current,
+            activePlayer: nextTurn.toUpperCase(),
+            effectStack: [],
+          };
+
+          // Untap and triggers
+          const untapedBoard = prev.board.map(c => ({
+            ...c,
+            isTapped: false,
+            stageFright: false,
+            hasAttacked: false,
+          }));
+
+          untapedBoard.forEach(card => {
+            triggerAbilities('ON_PHASE_START', card.instanceId, nextFullState);
+          });
+
+          resolveStack(nextFullState);
+
+          return {
+            ...prev,
+            canPromote: true,
+            energy: prev.maxEnergy, // Refresh energy
+            board: untapedBoard,
+            hp: nextTurn === 'player' ? nextFullState.player.hp : nextFullState.bot.hp,
+            hype: nextTurn === 'player' ? nextFullState.player.hype : nextFullState.bot.hype,
+          };
+        });
+
+        break;
+    }
+  }, [drawCard, triggerAbilities]);
+
+  const endTurn = useCallback(() => {
+    if (phaseRef.current === TurnPhase.MAIN || phaseRef.current === TurnPhase.COMBAT) {
+      setPhase(TurnPhase.END);
+      setTimeout(advancePhase, 100);
+    }
+  }, [advancePhase]);
 
   // ── promoteCard ──
   const promoteCard = useCallback((target: PlayerKey, cardIndex: number) => {
