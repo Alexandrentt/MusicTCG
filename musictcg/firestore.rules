@@ -1,0 +1,119 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // users/{userId}
+    //   - uid: string (immutable)
+    //   - regalias: number
+    //   - wildcards: map { BRONZE, SILVER, GOLD, PLATINUM: number }
+    //   - wildcardProgress: map { BRONZE, SILVER, GOLD, PLATINUM: number }
+    //   - freePacksCount: number
+    //   - lastFreePackTime: number
+    //   - dailyMissions: list of maps
+    //   - lastMissionResetTime: number
+    //   - language: string
+    //
+    // inventories/{userId}
+    //   - uid: string (immutable)
+    //   - inventory: map of cardId -> { card: map, count: number }
+    //
+    // decks/{userId}
+    //   - uid: string (immutable)
+    //   - decks: map of deckId -> { id: string, name: string, cards: map }
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "brandonperez202431940@cunoc.edu.gt" && request.auth.token.email_verified == true));
+    }
+
+    // Ensure uid field is not modified on update
+    function uidNotModified() {
+      return request.resource.data.uid == resource.data.uid;
+    }
+
+    // ===============================================================
+    // Validation Functions
+    // ===============================================================
+
+    function isValidDiscovery(data) {
+      return data.name is string && data.artist is string && data.rarity is string;
+    }
+
+    function isValidUserProfile(data) {
+      return
+          data.uid == request.auth.uid &&
+          data.regalias is number &&
+          data.wildcards is map &&
+          data.wildcards.keys().hasAll(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM']) &&
+          data.wildcardProgress is map &&
+          data.wildcardProgress.keys().hasAll(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM']) &&
+          data.freePacksCount is number &&
+          data.lastFreePackTime is number &&
+          data.dailyMissions is list &&
+          data.lastMissionResetTime is number &&
+          data.language is string && data.language.size() < 10;
+    }
+
+    function isValidInventory(data) {
+        return data.uid == request.auth.uid && data.inventory is map;
+    }
+
+    function isValidDecks(data) {
+        return data.uid == request.auth.uid && data.decks is map;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Users should not be able to list all other users
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && uidNotModified() && isValidUserProfile(request.resource.data);
+      allow delete: if false; // Do not allow users to delete their profile
+    }
+
+    match /inventories/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidInventory(request.resource.data);
+      allow update: if isOwner(userId) && uidNotModified() && isValidInventory(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /decks/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidDecks(request.resource.data);
+      allow update: if isOwner(userId) && uidNotModified() && isValidDecks(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /discovered_songs/{songId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && isValidDiscovery(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timesFound']));
+      allow delete: if isAdmin();
+    }
+  }
+}

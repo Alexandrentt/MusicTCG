@@ -1,0 +1,11 @@
+node_modules/
+.next/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+git_status.txt
+git_remotes.txt
+test.txt
+gh_version.txt

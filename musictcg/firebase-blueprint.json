@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and game state",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "regalias": { "type": "number" },
+        "wildcards": {
+          "type": "object",
+          "properties": {
+            "BRONZE": { "type": "number" },
+            "SILVER": { "type": "number" },
+            "GOLD": { "type": "number" },
+            "PLATINUM": { "type": "number" }
+          }
+        },
+        "wildcardProgress": {
+          "type": "object",
+          "properties": {
+            "BRONZE": { "type": "number" },
+            "SILVER": { "type": "number" },
+            "GOLD": { "type": "number" },
+            "PLATINUM": { "type": "number" }
+          }
+        },
+        "freePacksCount": { "type": "number" },
+        "lastFreePackTime": { "type": "number" },
+        "dailyMissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "progress": { "type": "number" },
+              "target": { "type": "number" },
+              "reward": { "type": "number" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        },
+        "lastMissionResetTime": { "type": "number" },
+        "language": { "type": "string" }
+      },
+      "required": ["uid", "regalias"]
+    },
+    "UserInventory": {
+      "title": "UserInventory",
+      "description": "User's card collection",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "cards": {
+          "type": "object",
+          "description": "Map of cardId to count"
+        }
+      },
+      "required": ["uid"]
+    },
+    "UserDecks": {
+      "title": "UserDecks",
+      "description": "User's decks",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "decks": {
+          "type": "object",
+          "description": "Map of deckId to Deck object"
+        }
+      },
+      "required": ["uid"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile and game state"
+    },
+    "inventories/{userId}": {
+      "schema": "UserInventory",
+      "description": "User's card collection"
+    },
+    "decks/{userId}": {
+      "schema": "UserDecks",
+      "description": "User's decks"
+    }
+  }
+}
