@@ -1,0 +1,55 @@
+# REGISTRO DE DESARROLLO - MusicTCG
+
+Este archivo documenta detalladamente cada paso, decisión de diseño y cambio realizado en el proyecto MusicTCG.
+
+## Estado Inicial (Día 1)
+- Estructura básica de Next.js.
+- Motor de generación procedural basado en Hash (iTunes API).
+- Sistema de rarezas: Bronce, Plata, Oro, Platino.
+- Gestión de estado con Zustand (usePlayerStore).
+
+## Paso 1: Implementación del Sistema de Turnos y Combate
+- Archivos creados/modificados: `hooks/useGameEngine.ts`, `lib/engine/gameState.ts`, `app/play/page.tsx`.
+- **Cambio:** Se migró de usar strings literales para las fases ('main', 'replica') a un enum `TurnPhase`.
+  - *Justificación:* Evita errores de tipado y asegura que las transiciones de estado sean consistentes en toda la aplicación.
+- **Cambio:** Implementación de la fase `REPLICA`.
+  - *Justificación:* Permite que el oponente (o jugador) reaccione a los ataques declarados, siguiendo la lógica de juegos como MTG.
+
+## Paso 2: Inteligencia Artificial y Ajuste de Dificultad (DDA)
+- Archivo creado: `lib/engine/botAI.ts`.
+- **Función `calculateDeckPower`:** Evalúa el mazo del jugador asignando pesos a las rarezas (1, 2, 4, 7).
+  - *Justificación:* Necesitamos una métrica objetiva para saber qué tan fuerte es el jugador y ajustar al bot en consecuencia.
+- **Función `generateBotDeck`:** Construye un mazo para el bot que esté dentro de un ±10% del poder del jugador.
+  - *Justificación:* Mantiene el juego desafiante pero justo (DDA).
+- **Función `botPlayTurn`:** Heurística para que el bot decida qué cartas jugar, atacar o pasar.
+  - *Justificación:* Simula un oponente inteligente que prioriza amenazas y optimiza maná.
+
+## Paso 3: Refinamiento de la Tienda y Apertura de Sobres
+- Archivos modificados: `app/store/page.tsx`, `components/cards/CardBack.tsx`.
+- **Cambio:** Rediseño de la cuadrícula de sobres (3 columnas en pantallas grandes).
+  - *Justificación:* Mejor uso del espacio en resoluciones altas.
+- **Cambio:** Mejora de la animación de apertura de sobres.
+  - *Justificación:* Se cambió la disposición de las cartas reveladas a una cuadrícula vertical con scroll (antes era horizontal), permitiendo ver hasta 25 cartas sin que se salgan de la pantalla.
+- **Cambio:** Estabilización de partículas.
+  - *Justificación:* Se usó `useMemo` para los puntos del fondo, evitando que la ventana "saltara" o cambiara de tamaño por re-renderizados constantes.
+- **Cambio:** Nuevo diseño de `CardBack`.
+  - *Justificación:* Se creó un diseño más artístico y premium con svg e inspiración espacial/vinyl para mejorar la estética "wow" del juego.
+
+## Paso 5: Unificación de Tipos y Refinamiento del Tablero (Arena)
+- Archivos modificados: `hooks/useGameEngine.ts`, `app/play/page.tsx`, `lib/engine/botAI.ts`, `lib/engine/gameState.ts`.
+- **Cambio:** Unificación de la propiedad `hp` a `health` en todas las interfaces de `PlayerState`.
+  - *Justificación:* Consistencia semántica y eliminación de errores de TypeScript donde se esperaba una u otra de forma inconsistente.
+- **Cambio:** Rediseño del Tablero de Juego (Music Arena).
+  - *Justificación:* Se implementó un fondo SVG con perspectiva y efectos de rejilla para simular un escenario de concierto premium, similar a Magic Arena, mejorando la inmersión.
+- **Cambio:** Mejora de la visualización de cartas en el tablero (`BoardCardSlot`).
+  - *Justificación:* Se aumentó el tamaño relativo de las cartas y se añadieron indicadores claros de ATK/DEF y efectos como Provocar (Taunt), Frenesí (Frenzy) y Distorsión (Distortion).
+
+## Paso 6: Estabilización de la Lógica de Mano y IDs de Instancia
+- Archivos modificados: `hooks/useGameEngine.ts`, `app/play/page.tsx`.
+- **Cambio:** Las cartas en mano ahora tienen `instanceId` desde que se roban.
+  - *Justificación:* Permite a Framer Motion realizar transiciones suaves y estables (layout animations) cuando las cartas se mueven del mazo a la mano y de la mano al tablero.
+- **Cambio:** Corrección de rutas de importación (`CardBack`).
+  - *Justificación:* Se corrigió el error de build causado por una ruta de importación incorrecta tras la reorganización de componentes.
+
+---
+Este documento se actualiza con cada cambio significativo.

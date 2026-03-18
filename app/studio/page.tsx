@@ -15,7 +15,7 @@ export default function StudioPage() {
   const { inventory, wildcards, wildcardProgress, decks, createDeck, deleteDeck, addCardToDeck, removeCardFromDeck, millCard, language } = usePlayerStore();
   const { playTrack } = useMusicPlayer();
   const [mounted, setMounted] = useState(false);
-  
+
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -37,12 +37,12 @@ export default function StudioPage() {
 
   const filteredInventory = inventoryList.filter(item => {
     const card = item.card;
-    const matchesSearch = card.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         card.artist.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = card.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      card.artist.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRarity = rarityFilter === 'all' || card.rarity === rarityFilter;
     const matchesGenre = genreFilter === 'all' || card.genre.toLowerCase().includes(genreFilter.toLowerCase());
     const matchesCost = costFilter === 'all' || card.cost === parseInt(costFilter);
-    
+
     return matchesSearch && matchesRarity && matchesGenre && matchesCost;
   });
 
@@ -88,7 +88,7 @@ export default function StudioPage() {
             <h1 className="text-2xl font-bold">{deck.name}</h1>
             <p className="text-gray-400 text-sm">{t(language, 'studio', 'cardsInDeck', { count: deckCardCount }) || `${deckCardCount}/60 cartas`}</p>
           </div>
-          <button 
+          <button
             onClick={() => setEditingDeckId(null)}
             className="px-6 py-2 bg-white text-black rounded-full text-sm font-bold hover:bg-gray-200 transition-colors shadow-lg"
           >
@@ -114,13 +114,13 @@ export default function StudioPage() {
                         <span className="text-sm truncate">{cardData.name}</span>
                       </div>
                       <div className="flex gap-1">
-                        <button 
+                        <button
                           onClick={() => removeCardFromDeck(deck.id, cardId)}
                           className="p-1 hover:bg-red-500/20 text-red-400 rounded"
                         >
                           <Minus size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => addCardToDeck(deck.id, cardData)}
                           className="p-1 hover:bg-green-500/20 text-green-400 rounded"
                           disabled={count >= 4 || count >= (inventory[cardId]?.count || 0)}
@@ -139,17 +139,17 @@ export default function StudioPage() {
           <div className="lg:col-span-2">
             <div className="flex flex-col gap-4 mb-6">
               <h2 className="font-bold">{t(language, 'studio', 'yourCollection') || 'Tu Colección'}</h2>
-              
+
               {/* Filters in Deck Editor */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                <input 
+                <input
                   type="text"
                   placeholder={t(language, 'search', 'placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-[#121212] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white/30"
                 />
-                <select 
+                <select
                   value={rarityFilter}
                   onChange={(e) => setRarityFilter(e.target.value)}
                   className="bg-[#121212] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none"
@@ -160,7 +160,7 @@ export default function StudioPage() {
                   <option value="GOLD">GOLD</option>
                   <option value="PLATINUM">PLATINUM</option>
                 </select>
-                <select 
+                <select
                   value={genreFilter}
                   onChange={(e) => setGenreFilter(e.target.value)}
                   className="bg-[#121212] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none"
@@ -171,13 +171,13 @@ export default function StudioPage() {
                   <option value="hip-hop">Hip-Hop</option>
                   <option value="electronic">Electronic</option>
                 </select>
-                <select 
+                <select
                   value={costFilter}
                   onChange={(e) => setCostFilter(e.target.value)}
                   className="bg-[#121212] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none"
                 >
                   <option value="all">{t(language, 'studio', 'all')} {t(language, 'studio', 'cost')}</option>
-                  {[1,2,3,4,5,6,7,8].map(c => <option key={c} value={c}>{c}</option>)}
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
@@ -186,7 +186,7 @@ export default function StudioPage() {
               {filteredInventory.map((item) => {
                 const inDeckCount = deck.cards[item.card.id] || 0;
                 const canAdd = inDeckCount < 4 && inDeckCount < item.count && deckCardCount < 60;
-                
+
                 return (
                   <div key={item.card.id} className="relative group cursor-pointer" onClick={() => canAdd && addCardToDeck(deck.id, item.card)}>
                     <MiniCard data={item.card} className={`w-full transition-transform ${canAdd ? 'group-hover:scale-105' : 'opacity-50 grayscale'}`} />
@@ -216,15 +216,15 @@ export default function StudioPage() {
           <h1 className="text-3xl font-bold">{t(language, 'studio', 'title') || 'Estudio'}</h1>
           <p className="text-gray-400 text-sm">{t(language, 'studio', 'subtitle') || 'Tu colección y mazos (Deckbuilder)'}</p>
         </div>
-        
+
         <div className="flex gap-2 overflow-x-auto pb-1">
-          <button 
+          <button
             onClick={() => setActiveTab('mazos')}
             className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'mazos' ? 'bg-white text-black' : 'bg-[#242424] text-white hover:bg-[#333]'}`}
           >
             {mounted ? (t(language, 'studio', 'decksTab', { count: decksList.length }) || `Mazos (${decksList.length})`) : 'Mazos (---)'}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('coleccion')}
             className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'coleccion' ? 'bg-white text-black' : 'bg-[#242424] text-white hover:bg-[#333]'}`}
           >
@@ -232,7 +232,7 @@ export default function StudioPage() {
           </button>
         </div>
       </div>
-      
+
       {/* Wildcards Display */}
       <div className="flex flex-col gap-4 bg-[#121212] p-4 rounded-xl border border-white/10">
         <div className="flex justify-between items-center">
@@ -240,7 +240,7 @@ export default function StudioPage() {
             <h2 className="font-bold text-sm">{t(language, 'studio', 'wildcards') || 'Tus Comodines'}</h2>
             <p className="text-xs text-gray-400">{t(language, 'studio', 'wildcardsDesc') || 'Muele 5 cartas de una rareza para obtener 1 comodín'}</p>
           </div>
-          <button 
+          <button
             onClick={() => {
               const count = usePlayerStore.getState().millAllDuplicates();
               if (count > 0) {
@@ -265,17 +265,17 @@ export default function StudioPage() {
               PLATINUM: 'bg-cyan-400'
             };
             const colorClass = colors[rarity as keyof typeof colors];
-            
+
             return (
               <div key={rarity} className="flex flex-col items-center bg-[#242424] p-2 rounded-lg">
                 <span className="text-[10px] text-gray-500 uppercase font-bold mb-1">{rarity}</span>
                 <span className={`font-bold text-lg ${colorClass.replace('bg-', 'text-')}`}>{count}</span>
-                
+
                 {/* Progress Bar */}
                 <div className="w-full mt-2 flex gap-0.5 h-1.5">
                   {[...Array(5)].map((_, i) => (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       className={`flex-1 rounded-full ${i < progress ? colorClass : 'bg-[#333]'}`}
                     />
                   ))}
@@ -286,21 +286,21 @@ export default function StudioPage() {
           })}
         </div>
       </div>
-      
+
       {activeTab === 'mazos' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-2">
-          <div 
+          <div
             onClick={() => setShowCreateModal(true)}
             className="bg-[#121212] border border-white/10 rounded-xl p-4 aspect-square flex flex-col items-center justify-center text-center cursor-pointer hover:bg-[#1a1a1a] transition-colors"
           >
             <div className="text-4xl mb-2">+</div>
             <p className="font-bold">{t(language, 'studio', 'createDeck') || 'Crear Mazo'}</p>
           </div>
-          
+
           {decksList.map(deck => {
             const count = Object.values(deck.cards).reduce((a, b) => a + b, 0);
             return (
-              <div 
+              <div
                 key={deck.id}
                 onClick={() => setEditingDeckId(deck.id)}
                 className="bg-[#121212] border border-white/10 rounded-xl p-4 aspect-square flex flex-col justify-end relative overflow-hidden cursor-pointer group"
@@ -316,7 +316,7 @@ export default function StudioPage() {
                       <p className="font-bold text-lg truncate">{deck.name}</p>
                       <p className="text-xs text-gray-300">{t(language, 'studio', 'cardsInDeck', { count }) || `${count}/60 cartas`}</p>
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); if (confirm(t(language, 'studio', 'deleteDeckConfirm') || '¿Eliminar mazo?')) deleteDeck(deck.id); }}
                       className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
@@ -335,14 +335,14 @@ export default function StudioPage() {
           {/* Filters in Collection Tab */}
           <div className="flex flex-col gap-4 mb-6 bg-[#121212] p-4 rounded-xl border border-white/10">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <input 
+              <input
                 type="text"
                 placeholder={t(language, 'search', 'placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-black border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white/30"
               />
-              <select 
+              <select
                 value={rarityFilter}
                 onChange={(e) => setRarityFilter(e.target.value)}
                 className="bg-black border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none"
@@ -353,7 +353,7 @@ export default function StudioPage() {
                 <option value="GOLD">GOLD</option>
                 <option value="PLATINUM">PLATINUM</option>
               </select>
-              <select 
+              <select
                 value={genreFilter}
                 onChange={(e) => setGenreFilter(e.target.value)}
                 className="bg-black border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none"
@@ -364,13 +364,13 @@ export default function StudioPage() {
                 <option value="hip-hop">Hip-Hop</option>
                 <option value="electronic">Electronic</option>
               </select>
-              <select 
+              <select
                 value={costFilter}
                 onChange={(e) => setCostFilter(e.target.value)}
                 className="bg-black border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none"
               >
                 <option value="all">{t(language, 'studio', 'all')} {t(language, 'studio', 'cost')}</option>
-                {[1,2,3,4,5,6,7,8].map(c => <option key={c} value={c}>{c}</option>)}
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -383,8 +383,8 @@ export default function StudioPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {filteredInventory.map((item) => (
-                <div 
-                  key={item.card.id} 
+                <div
+                  key={item.card.id}
                   className="relative group cursor-pointer"
                   onClick={() => setSelectedCard(item.card)}
                 >
@@ -435,7 +435,7 @@ export default function StudioPage() {
             <div className="relative group">
               <Card data={selectedCard} className="w-72 sm:w-80" />
               {selectedCard.previewUrl && (
-                <button 
+                <button
                   onClick={() => handlePlayPreview(selectedCard)}
                   className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl"
                 >
@@ -445,15 +445,15 @@ export default function StudioPage() {
                 </button>
               )}
             </div>
-            
+
             <div className="flex gap-4 w-full">
-              <button 
+              <button
                 onClick={() => setSelectedCard(null)}
                 className="flex-1 py-3 rounded-full font-bold text-white bg-[#242424] hover:bg-[#333] transition-colors"
               >
                 {t(language, 'studio', 'close') || 'Cerrar'}
               </button>
-              <button 
+              <button
                 onClick={() => handleMillCard(selectedCard.id)}
                 className="flex-1 py-3 rounded-full font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
               >

@@ -238,7 +238,7 @@ function threatScore(card: BoardCard): number {
  * Determina si el bot tiene "lethal" — suficiente daño total
  * en mesa (no-tapped, no-stageFright) para matar al jugador.
  */
-function hasLethal(botBoard: BoardCard[], playerHp: number, playerBoard: BoardCard[]): boolean {
+function hasLethal(botBoard: BoardCard[], playerHealth: number, playerBoard: BoardCard[]): boolean {
     // Si hay taunters activos, no podemos atacar directamente
     const activeTaunters = playerBoard.filter(c => hasKw(c, 'taunt') && !c.isTapped);
     if (activeTaunters.length > 0) return false;
@@ -247,7 +247,7 @@ function hasLethal(botBoard: BoardCard[], playerHp: number, playerBoard: BoardCa
         .filter(c => !c.isTapped && !c.stageFright)
         .reduce((sum, c) => sum + c.currentAtk, 0);
 
-    return totalDamage >= playerHp;
+    return totalDamage >= playerHealth;
 }
 
 /**
@@ -472,7 +472,7 @@ export function botPlayTurn(
 
             case 'experto': {
                 // Verificar lethal primero
-                if (hasLethal(simulatedBoard, playerState.hp, playerState.board)) {
+                if (hasLethal(simulatedBoard, playerState.health, playerState.board)) {
                     // ¡Tenemos lethal! Atacar todo directo
                     for (const attacker of attackers) {
                         const atkIdx = simulatedBoard.indexOf(attacker);
@@ -521,7 +521,7 @@ export function botPlayTurn(
                         actions.push({ type: 'ATTACK', attackerIndex: atkIdx, targetIndex: null });
                     } else {
                         // Si hay un tradeo pero no es "crítico", atacar directo si el jugador tiene poca vida
-                        if (playerState.hp <= 10) {
+                        if (playerState.health <= 10) {
                             actions.push({ type: 'ATTACK', attackerIndex: atkIdx, targetIndex: null });
                         } else {
                             actions.push({ type: 'ATTACK', attackerIndex: atkIdx, targetIndex: tradeTarget });
@@ -602,7 +602,7 @@ export function botReplicaResponse(
         }
 
         // Si nadie sobrevive pero el ataque es letal-range, sacrificar la carta más débil
-        if (botState.hp <= attackerCard.currentAtk * 2) {
+        if (botState.health <= attackerCard.currentAtk * 2) {
             const weakest = botState.board
                 .map((c, i) => ({ card: c, idx: i }))
                 .filter(({ card }) => !card.isTapped)

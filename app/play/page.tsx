@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { useMusicPlayer, Track } from '@/store/useMusicPlayer';
 import Card from '@/components/cards/Card';
-import CardBack from '@/components/cards/CardBack';
 import { Play, Volume2, Swords, Trophy, Skull, Zap, Star, ShieldAlert, Mic2, Settings, X, LogOut, VolumeX } from 'lucide-react';
 import { useGameEngine, BoardCard, hasKw } from '@/hooks/useGameEngine';
 import { generateCard, CardData } from '@/lib/engine/generator';
@@ -13,6 +12,7 @@ import { calculateDeckPower, getDifficultyLevel, generateBotDeck, botPlayTurn, b
 import { playSound } from '@/lib/audio';
 import { t } from '@/lib/i18n';
 import { TurnPhase } from '@/lib/engine/gameState';
+import CardBack from '@/components/CardBack';
 
 // ── Sub-Components ──
 
@@ -110,7 +110,7 @@ function BackstageSlot({ card, onClick }: { card: BoardCard; onClick?: () => voi
       className="w-16 h-24 rounded-lg border border-purple-500/50 bg-purple-900/20 flex items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-800/40 transition-colors relative overflow-hidden"
     >
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
-      <span className="text-purple-300/50 font-black text-xs rotate-[-45deg] tracking-widest">EVENT</span>
+      <span className="text-purple-300/50 font-black text-xs rotate-[-45deg] tracking-widest text-center px-1">EVENTO</span>
     </motion.div>
   );
 }
@@ -149,25 +149,25 @@ function BoardCardSlot({
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
       className={[
-        'relative w-20 h-28 rounded-xl border-2 flex items-center justify-center cursor-pointer transition-all duration-200 select-none',
+        'relative w-24 h-32 rounded-xl border-2 flex items-center justify-center cursor-pointer transition-all duration-200 select-none group',
         card.isTapped ? 'opacity-60' : '',
-        isSelected ? 'border-green-400 shadow-[0_0_18px_rgba(34,197,94,0.5)] scale-110 z-30' : '',
+        isSelected ? 'border-green-400 shadow-[0_0_24px_rgba(34,197,94,0.6)] scale-110 z-30' : '',
         canTarget ? 'border-red-500/60 hover:border-red-400 hover:scale-105 cursor-crosshair' : '',
         !isSelected && !canTarget ? 'border-white/15 hover:border-white/40' : '',
         card.stageFright ? 'grayscale-[0.3]' : '',
-        hasTaunt ? 'ring-2 ring-yellow-500/50' : '',
+        hasTaunt ? 'ring-2 ring-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : '',
       ].join(' ') + (card.isTapped ? (owner === 'bot' ? ' -rotate-6' : ' rotate-6') : '')}
     >
       <div className="absolute inset-0 rounded-[10px] overflow-hidden">
-        <Card data={card} className="origin-top-left transform scale-[0.3125] pointer-events-none" />
+        <Card data={card} className="origin-top-left transform scale-[0.375] pointer-events-none" />
       </div>
 
       {/* Stat overlay */}
       <div className="absolute bottom-1 left-1 right-1 flex justify-between z-10 pointer-events-none">
-        <span className="text-[9px] font-black text-red-400 bg-black/70 px-1 rounded">
+        <span className="text-[10px] font-black text-red-100 bg-red-600/90 px-1.5 rounded-sm shadow-sm">
           {card.currentAtk}
         </span>
-        <span className="text-[9px] font-black text-blue-400 bg-black/70 px-1 rounded">
+        <span className="text-[10px] font-black text-blue-100 bg-blue-600/90 px-1.5 rounded-sm shadow-sm">
           {card.currentDef}
         </span>
       </div>
@@ -175,17 +175,17 @@ function BoardCardSlot({
       {/* Keyword badges */}
       <div className="absolute -top-2 left-0 right-0 flex justify-center gap-0.5 z-20 pointer-events-none">
         {hasTaunt && (
-          <div className="text-[7px] font-black bg-yellow-500 text-black px-1 rounded-full whitespace-nowrap">
+          <div className="text-[7px] font-black bg-yellow-500 text-black px-1 rounded-full whitespace-nowrap shadow-md">
             PROV
           </div>
         )}
         {hasFrenzy && !card.stageFright && (
-          <div className="text-[7px] font-black bg-orange-500 text-black px-1 rounded-full">
+          <div className="text-[7px] font-black bg-orange-500 text-black px-1 rounded-full shadow-md">
             ⚡
           </div>
         )}
         {hasDistortion && (
-          <div className="text-[7px] font-black bg-red-700 text-white px-1 rounded-full">
+          <div className="text-[7px] font-black bg-red-700 text-white px-1 rounded-full shadow-md">
             ↯
           </div>
         )}
@@ -194,7 +194,7 @@ function BoardCardSlot({
       {/* Stage Fright indicator */}
       {card.stageFright && !card.isTapped && (
         <div className="absolute inset-0 rounded-[10px] bg-gray-900/40 pointer-events-none flex items-center justify-center z-20">
-          <span className="text-[9px] text-gray-300 font-bold bg-black/60 px-1 rounded">😨</span>
+          <span className="text-xl animate-bounce">😨</span>
         </div>
       )}
     </motion.div>
@@ -238,7 +238,7 @@ export default function PlayPage() {
     setInspectedCard(null);
   };
 
-  // ── Reset selections on turn change ──
+  // Reset selections on turn change
   useEffect(() => {
     if (matchStarted && !gameOver) {
       setSelectedHandIndex(null);
@@ -253,6 +253,18 @@ export default function PlayPage() {
   useEffect(() => {
     setIsInBattle(matchStarted);
   }, [matchStarted, setIsInBattle]);
+
+  // Derived gameState for potential engine compatibility or debug
+  const gameState = useMemo(() => ({
+    player,
+    bot,
+    turn,
+    turnCount,
+    phase,
+    gameOver,
+    pendingAttack,
+    activePlayer: turn === 'player' ? 'PLAYER' : 'BOT'
+  }), [player, bot, turn, turnCount, phase, gameOver, pendingAttack]);
 
   // ── Player Replica Timer ──
   const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
@@ -280,7 +292,6 @@ export default function PlayPage() {
         const b = botRef.current;
         const p = playerRef.current;
 
-        // Use the AI engine for replica response
         const attackerIdx = pendingAttack.attackerIdx;
         const attackerCard = p.board[attackerIdx] || null;
         const isDirectAttack = pendingAttack.defenderIdx === null;
@@ -315,10 +326,21 @@ export default function PlayPage() {
   }, [phase, simulateScratch]);
 
   // ── Play a card from hand ──
-  const handlePlayCard = (index: number) => {
-    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || player.energy < player.hand[index]?.cost) return;
-    playSound('play');
-    playCard('player', index);
+  const handlePlayCard = (cardIdx: number) => {
+    const card = player.hand[cardIdx];
+    if (!card) return;
+
+    if (player.energy < card.cost) {
+      alert(`No tienes suficiente energía (${player.energy}/${card.cost})`);
+      return;
+    }
+
+    if (phase !== TurnPhase.MAIN) {
+      alert('Solo puedes jugar cartas en tu Fase Principal');
+      return;
+    }
+
+    playCard('player', cardIdx);
     setSelectedHandIndex(null);
   };
 
@@ -371,13 +393,12 @@ export default function PlayPage() {
     if (!canPlayHand && !canActivateBackstage && !canPromoteCard && !canAttack) {
       const timer = setTimeout(() => {
         endTurn();
-      }, 1500);
+      }, 2500);
       return () => clearTimeout(timer);
     }
   }, [turn, phase, gameOver, matchStarted, player.hand, player.energy, player.backstage, player.canPromote, player.maxEnergy, player.board, endTurn, selectedAttackerIndex]);
 
-  // ── Bot AI (DDA-powered) ──
-  // Process bot action queue one action at a time
+  // ── Bot AI behavior ──
   const processNextBotAction = useCallback(() => {
     if (botActionQueue.current.length === 0 || gameOver) {
       botProcessing.current = false;
@@ -385,7 +406,7 @@ export default function PlayPage() {
     }
 
     const action = botActionQueue.current.shift()!;
-    const delay = action.type === 'ATTACK' ? 800 : action.type === 'END_TURN' ? 400 : 600;
+    const delay = action.type === 'ATTACK' ? 1200 : action.type === 'END_TURN' ? 600 : 800;
 
     setTimeout(() => {
       if (gameOver) { botProcessing.current = false; return; }
@@ -402,120 +423,66 @@ export default function PlayPage() {
           break;
         case 'ATTACK':
           declareAttack(action.attackerIndex, action.targetIndex);
-          // Attack involves replica phase — wait for it to resolve before continuing
-          // The replica resolution will trigger a re-run of the bot effect
           return;
         case 'END_TURN':
           endTurn();
           botProcessing.current = false;
           return;
       }
-
-      // Continue processing next action
       processNextBotAction();
     }, delay);
   }, [gameOver, promoteCard, playCard, activateBackstage, declareAttack, endTurn]);
 
-  // Main bot AI trigger — fires when it's bot's turn in main phase
   useEffect(() => {
-    if (turn !== 'bot' || !matchStarted || gameOver || phase !== TurnPhase.MAIN) {
-      return;
-    }
-
-    // If we're still processing a queue (e.g., after a replica resolved), continue
-    if (botProcessing.current && botActionQueue.current.length > 0) {
-      const resumeTimer = setTimeout(() => processNextBotAction(), 600);
-      return () => clearTimeout(resumeTimer);
-    }
-
-    // Prevent double-triggering
+    if (turn !== 'bot' || !matchStarted || gameOver || phase !== TurnPhase.MAIN) return;
     if (botProcessing.current) return;
 
-    // Initial delay before bot starts its turn
     const startTimer = setTimeout(() => {
-      const b = botRef.current;
-      const p = playerRef.current;
-
-      // Generate the full turn plan using the AI engine
-      const actions = botPlayTurn(
-        { botState: b, playerState: p, turnCount },
-        difficulty,
-      );
-
+      const actions = botPlayTurn({ botState: botRef.current, playerState: playerRef.current, turnCount }, difficulty);
       botActionQueue.current = actions;
       botProcessing.current = true;
       processNextBotAction();
-    }, 1200);
+    }, 1500);
 
     return () => clearTimeout(startTimer);
-  }, [turn, matchStarted, gameOver, phase, botRef, playerRef, turnCount, difficulty, processNextBotAction]);
+  }, [turn, matchStarted, gameOver, phase, turnCount, difficulty, botRef, playerRef, processNextBotAction]);
 
-  // ── Start match with DDA ──
+  // ── Start Match ──
   const startMatch = async (deckId: string) => {
     setSelectedDeckId(deckId);
     setLoadingMatch(true);
-
     const deck = decks[deckId];
     if (!deck) { setLoadingMatch(false); return; }
 
-    // Build player deck from inventory
-    const playerDeck: CardData[] = [];
+    const playerDeckArr: CardData[] = [];
     const tracks: Track[] = [];
     Object.entries(deck.cards).forEach(([cardId, count]) => {
       const cardData = inventory[cardId]?.card;
       if (cardData) {
-        for (let i = 0; i < count; i++) playerDeck.push(cardData);
+        for (let i = 0; i < count; i++) playerDeckArr.push(cardData);
         if (cardData.previewUrl) {
-          tracks.push({
-            id: cardData.id,
-            url: cardData.previewUrl,
-            title: cardData.name,
-            artist: cardData.artist,
-            artUrl: cardData.artUrl || '',
-          });
+          tracks.push({ id: cardData.id, url: cardData.previewUrl, title: cardData.name, artist: cardData.artist, artUrl: cardData.artUrl || '' });
         }
       }
     });
 
-    // Pad deck to 40 if short
-    while (playerDeck.length < 40) {
-      playerDeck.push(
-        playerDeck[0] || generateCard({
-          trackId: 'filler_' + playerDeck.length,
-          trackName: 'Filler Track',
-          artistName: 'Unknown',
-          collectionName: 'Filler',
-          primaryGenreName: 'Pop',
-          artworkUrl100: '',
-        })
-      );
+    while (playerDeckArr.length < 40) {
+      playerDeckArr.push(generateCard({ trackId: 'f_' + playerDeckArr.length, trackName: 'Filler', artistName: '?', collectionName: 'F', primaryGenreName: 'Rock', artworkUrl100: '' }));
     }
 
-    // ── DDA: Calculate power and generate matching bot deck ──
-    const deckPower = calculateDeckPower(playerDeck);
-    const diffLevel = getDifficultyLevel(deckPower);
-    setDifficulty(diffLevel);
+    const power = calculateDeckPower(playerDeckArr);
+    setDifficulty(getDifficultyLevel(power));
+    startGame(playerDeckArr.slice(0, 40), generateBotDeck(power));
 
-    const botDeck = generateBotDeck(deckPower);
-    startGame(playerDeck.slice(0, 40), botDeck);
-
-    // Setup music queue
     if (tracks.length > 0) {
-      setQueue([...tracks, ...tracks.slice().reverse()]);
+      setQueue([...tracks]);
       playNext();
       setVolume(0.5);
     }
 
     setMatchStarted(true);
-    setIsInBattle(true);
     setLoadingMatch(false);
-
-    // Reset bot action state
-    botActionQueue.current = [];
-    botProcessing.current = false;
   };
-
-  useEffect(() => () => { setIsInBattle(false); }, [setIsInBattle]);
 
   const decksList = Object.values(decks);
 
@@ -527,502 +494,232 @@ export default function PlayPage() {
     setSelectedHandIndex(null);
   };
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Deck selection screen
-  // ════════════════════════════════════════════════════════════════════════════
-
   if (!matchStarted) {
     return (
-      <div className="flex flex-col gap-6 min-h-[70vh]">
-        <h1 className="text-3xl font-bold">El Escenario</h1>
-        <p className="text-gray-400">Selecciona un mazo para enfrentar a El Algoritmo.</p>
-        {decksList.length === 0 ? (
-          <div className="text-center py-12 bg-[#121212] rounded-xl border border-white/10">
-            <p className="text-gray-400">No tienes mazos creados.</p>
-            <p className="text-sm mt-2">Ve al Estudio para crear uno.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {decksList.map(deck => {
-              const cardCount = Object.values(deck.cards).reduce((a, b) => a + b, 0);
-              const isValid = cardCount >= 40;
-              return (
-                <div
-                  key={deck.id}
-                  onClick={() => isValid && !loadingMatch && startMatch(deck.id)}
-                  className={`bg-[#121212] border border-white/10 rounded-xl p-6 flex flex-col items-center justify-center transition-colors group relative overflow-hidden ${isValid ? 'cursor-pointer hover:bg-[#1a1a1a]' : 'opacity-50 cursor-not-allowed'}`}
-                >
-                  {deck.coverArt && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={deck.coverArt} alt={deck.name} className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-50 transition-opacity" crossOrigin="anonymous" />
-                  )}
-                  <div className="relative z-10 flex flex-col items-center">
-                    <Swords className="w-12 h-12 mb-4 text-gray-400 group-hover:text-white transition-colors" />
-                    <h3 className="text-xl font-bold">{deck.name}</h3>
-                    <p className={`text-sm ${isValid ? 'text-green-400' : 'text-red-400'}`}>{cardCount} cartas {!isValid && '(min. 40)'}</p>
-                    {loadingMatch && selectedDeckId === deck.id && <p className="text-xs text-yellow-400 mt-2 animate-pulse">Conectando...</p>}
-                  </div>
+      <div className="flex flex-col gap-6 min-h-[70vh] p-8">
+        <h1 className="text-4xl font-black uppercase tracking-[0.2em] text-white underline decoration-green-500 decoration-4 underline-offset-8">El Escenario</h1>
+        <p className="text-gray-400 text-lg">Selecciona tu Sello Discográfico para el duelo.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
+          {decksList.map(deck => {
+            const cardCount = Object.values(deck.cards).reduce((a, b) => a + b, 0);
+            const isValid = cardCount >= 40;
+            return (
+              <div
+                key={deck.id}
+                onClick={() => isValid && !loadingMatch && startMatch(deck.id)}
+                className={`group relative bg-[#121212] border border-white/10 rounded-2xl p-8 overflow-hidden transition-all duration-500 ${isValid ? 'cursor-pointer hover:border-green-500/50 hover:shadow-[0_0_30px_rgba(34,197,94,0.1)]' : 'opacity-40 cursor-not-allowed'}`}
+              >
+                {deck.coverArt && <img src={deck.coverArt} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-40 transition-opacity" crossOrigin="anonymous" />}
+                <div className="relative z-10">
+                  <Swords className="w-10 h-10 mb-4 text-green-500" />
+                  <h3 className="text-2xl font-black uppercase tracking-wider">{deck.name}</h3>
+                  <p className={`font-bold ${isValid ? 'text-green-400' : 'text-red-400'}`}>{cardCount} Cartas {!isValid && '(Min. 40)'}</p>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Battle screen
-  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-
-      {/* Header */}
-      <div className="flex justify-between items-center p-3 shrink-0 bg-[#121212] border-b border-white/10">
-        <div>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <Swords className="w-4 h-4 text-red-500" />
-            Tú vs El Algoritmo
-          </h1>
-          <p className="text-xs text-gray-400">
-            Turno {turnCount} — {turn === 'player' ? '⚡ Tu Turno' : '🤖 Rival'} — <span className={
-              difficulty === 'experto' ? 'text-red-400' : difficulty === 'intermedio' ? 'text-yellow-400' : 'text-green-400'
-            }>{difficulty.toUpperCase()}</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-2 bg-[#242424] rounded-full text-gray-400 hover:text-white hover:bg-[#333] transition-colors"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => { setMatchStarted(false); setQueue([]); }}
-            className="px-3 py-1.5 bg-[#242424] rounded-full text-xs font-bold hover:bg-[#333]"
-          >
-            Salir
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#050505] text-white select-none overflow-hidden font-sans">
+      {/* ── Arena Background Design ── */}
+      <div className="absolute inset-0 pointer-events-none opacity-30">
+        <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <radialGradient id="stageGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+              <stop offset="0%" stopColor="#1a1a2e" stopOpacity="1" />
+              <stop offset="100%" stopColor="#000000" stopOpacity="1" />
+            </radialGradient>
+            <pattern id="gridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
+              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="white" strokeWidth="0.1" strokeOpacity="0.2" />
+            </pattern>
+          </defs>
+          <rect width="1000" height="1000" fill="url(#stageGlow)" />
+          <g stroke="white" strokeWidth="0.5" strokeOpacity="0.1">
+            {[0, 250, 500, 750, 1000].map(x => (
+              <React.Fragment key={x}>
+                <line x1="500" y1="500" x2={x} y2="1000" />
+                <line x1="500" y1="500" x2={x} y2="0" />
+              </React.Fragment>
+            ))}
+          </g>
+          <circle cx="500" cy="500" r="300" fill="none" stroke="white" strokeWidth="1" strokeOpacity="0.05" />
+          <rect width="1000" height="1000" fill="url(#gridPattern)" />
+        </svg>
       </div>
 
-      {/* Battlefield */}
-      <div
-        className="flex-1 flex flex-col justify-between relative overflow-hidden bg-cover bg-center"
-        style={{ backgroundImage: 'url(/board-bg.png)' }}
-      >
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-0" />
-
-        {/* ── Bot zone ── */}
-        <div className="relative z-10 flex flex-col gap-2 pt-3 px-3">
-          {/* Bot stats */}
-          <div
-            onClick={handleDirectAttack}
-            className={[
-              'flex items-center gap-3 bg-black/60 p-2 rounded-xl border transition-colors w-fit',
-              selectedAttackerIndex !== null
-                ? 'border-red-500 cursor-crosshair hover:bg-red-900/20'
-                : 'border-white/10',
-            ].join(' ')}
-          >
-            <div>
-              <p className="text-[10px] text-gray-400">El Algoritmo</p>
-              <p className="text-base font-black text-red-400">{bot.hp} ❤️</p>
-            </div>
-            <div className="flex items-center gap-1 text-blue-400">
-              <Zap className="w-3 h-3" />
-              <span className="text-xs font-mono">{bot.energy}/{bot.maxEnergy}</span>
-            </div>
-            {bot.hype > 0 && (
-              <div className="flex items-center gap-1 text-yellow-400">
-                <Star className="w-3 h-3" />
-                <span className="text-xs font-mono">{bot.hype}/20</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{bot.hand.length} en mano</span>
-              <div className="relative w-8 h-12">
-                <CardBack className="w-full h-full scale-50 origin-top-left" />
-                <div className="absolute -bottom-1 -right-1 bg-black/80 text-[8px] px-1 rounded border border-white/10 font-mono">{bot.deck.length}</div>
-              </div>
-            </div>
+      <div className="relative z-10 flex flex-col h-full">
+        {/* Top bar with Opponent Stats */}
+        <div className="flex items-center justify-between p-4 bg-black/60 backdrop-blur-xl border-b border-white/5">
+          <div>
+            <h1 className="text-lg font-black tracking-widest uppercase flex items-center gap-2">
+              <Mic2 className="w-5 h-5 text-green-500" />
+              CONCIERTO EN VIVO
+            </h1>
+            <p className="text-[10px] text-gray-500 font-mono">
+              TURNO {turnCount} — {turn === 'player' ? '>>> TU ACTUACIÓN' : '>>> RIVAL ACTUANDO'}
+            </p>
           </div>
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Algoritmo</span>
+              <span className="text-xl font-black text-red-500">{bot.health} ❤️</span>
+            </div>
+            <button onClick={() => setShowSettings(true)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+              <Settings className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+        </div>
 
-          <div className="flex gap-4">
-            {/* Bot Backstage */}
-            <div className="flex flex-col gap-1 w-16 shrink-0">
-              <span className="text-[8px] text-gray-500 uppercase text-center">Backstage</span>
-              <div className="flex flex-wrap gap-1">
-                {bot.backstage.map(c => <BackstageSlot key={c.instanceId} card={c} />)}
+        {/* Battlefield */}
+        <div className="flex-1 flex flex-col justify-between py-4 relative">
+
+          {/* Bot Board */}
+          <div className="px-6 flex gap-6 items-start">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-24 border border-white/10 rounded-lg flex flex-wrap p-1 gap-1 bg-black/40">
+                {bot.backstage.map(c => <div key={c.instanceId} className="w-6 h-9 bg-purple-500/20 rounded-sm border border-purple-500/30" />)}
               </div>
+              <span className="text-[8px] text-gray-600 font-bold uppercase">Backstage</span>
             </div>
 
-            {/* Bot board */}
-            <div className="flex flex-wrap gap-2 min-h-[7rem] items-start flex-1">
+            <div className="flex-1 flex flex-wrap gap-3 items-start min-h-[9rem]">
               <AnimatePresence>
                 {bot.board.map((card, i) => (
-                  <BoardCardSlot
-                    key={card.instanceId}
-                    card={card}
-                    owner="bot"
-                    canTarget={selectedAttackerIndex !== null}
-                    onClick={() => handleBotCardClick(i)}
-                    onPointerDown={() => handlePointerDown(card)}
-                    onPointerUp={handlePointerUp}
-                  />
+                  <BoardCardSlot key={card.instanceId} card={card} owner="bot" canTarget={selectedAttackerIndex !== null} onClick={() => handleBotCardClick(i)} onPointerDown={() => handlePointerDown(card)} onPointerUp={handlePointerUp} />
                 ))}
               </AnimatePresence>
-              {bot.board.length === 0 && (
-                <p className="text-white/10 text-xs uppercase tracking-widest self-center">Escenario del Rival Vacío</p>
-              )}
             </div>
           </div>
-        </div>
 
-        {/* ── Centre divider ── */}
-        <div className="relative z-10 flex items-center justify-center my-1 pointer-events-none">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent w-full absolute" />
-          {currentTrack && (
-            <div className="bg-black/70 px-3 py-1 rounded-full border border-white/10 flex items-center gap-2 z-10">
-              <Volume2 className="w-3 h-3 text-green-400" />
-              <span className="text-[10px] font-mono text-green-400 truncate max-w-[130px]">{currentTrack.title}</span>
-            </div>
-          )}
-        </div>
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent w-full my-2" />
 
-        {/* ── Player zone ── */}
-        <div className="relative z-10 flex flex-col gap-2 pb-3 px-3">
-          <div className="flex gap-4 items-end">
-            {/* Player Backstage */}
-            <div className="flex flex-col gap-1 w-16 shrink-0">
-              <div className="flex flex-wrap gap-1">
-                {player.backstage.map((c, i) => (
-                  <BackstageSlot
-                    key={c.instanceId}
-                    card={c}
-                    onClick={() => {
-                      if (player.energy >= c.cost && (phase === TurnPhase.MAIN || phase === TurnPhase.REPLICA)) {
-                        activateBackstage('player', i);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-              <span className="text-[8px] text-gray-500 uppercase text-center">Backstage</span>
-            </div>
-
-            {/* Player board */}
-            <div
-              className={[
-                'flex flex-wrap gap-2 min-h-[7rem] items-end rounded-xl border-2 border-dashed transition-colors p-1 flex-1',
-                selectedHandIndex !== null ? 'border-blue-500/50 bg-blue-500/5 cursor-pointer' : 'border-transparent',
-              ].join(' ')}
-              onClick={() => {
-                if (selectedHandIndex !== null) {
-                  handlePlayCard(selectedHandIndex);
-                }
-              }}
-            >
-              <AnimatePresence>
+          {/* Player Board */}
+          <div className="px-6 flex gap-6 items-end">
+            <div className="flex-1 flex flex-wrap gap-3 items-end min-h-[9rem] p-2 rounded-2xl border-2 border-dashed border-white/5 bg-white/[0.02]" onClick={() => selectedHandIndex !== null && handlePlayCard(selectedHandIndex)}>
+              <AnimatePresence mode="popLayout">
                 {player.board.map((card, i) => (
-                  <BoardCardSlot
-                    key={card.instanceId}
-                    card={card}
-                    owner="player"
-                    isSelected={selectedAttackerIndex === i}
-                    onClick={(e: React.MouseEvent | undefined) => { if (e) handlePlayerBoardCardClick(i, e); }}
-                    onPointerDown={() => handlePointerDown(card)}
-                    onPointerUp={handlePointerUp}
-                  />
+                  <BoardCardSlot key={card.instanceId} card={card} owner="player" isSelected={selectedAttackerIndex === i} onClick={(e) => handlePlayerBoardCardClick(i, e!)} onPointerDown={() => handlePointerDown(card)} onPointerUp={handlePointerUp} />
                 ))}
               </AnimatePresence>
-              {player.board.length === 0 && (
-                <p className="text-white/15 text-xs uppercase tracking-widest self-center pointer-events-none">
-                  {selectedHandIndex !== null ? '▶ Toca aquí para jugar' : 'Tu Escenario'}
-                </p>
-              )}
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-wrap gap-1 justify-center w-16">
+                {player.backstage.map((c, i) => <BackstageSlot key={c.instanceId} card={c} onClick={() => (player.energy >= c.cost) && activateBackstage('player', i)} />)}
+              </div>
+              <span className="text-[8px] text-gray-600 font-bold uppercase">Backstage</span>
             </div>
           </div>
 
-          {/* Player stats */}
-          <div className="flex items-center gap-3 bg-black/60 p-2 rounded-xl border border-white/10 w-fit">
-            <div>
-              <p className="text-[10px] text-gray-400">Tú</p>
-              <p className="text-base font-black text-green-400">{player.hp} ❤️</p>
+          {/* Player UI bar */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/80 backdrop-blur-2xl px-6 py-3 rounded-2xl border border-white/10 shadow-2xl z-30">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Reputación</span>
+              <span className="text-2xl font-black text-green-500">{player.health} ❤️</span>
             </div>
-            <div className="flex items-center gap-1 text-blue-400">
-              <Zap className="w-3 h-3" />
-              <span className="text-xs font-mono">{player.energy}/{player.maxEnergy}</span>
+            <div className="h-8 w-px bg-white/10 mx-2" />
+            <div className="flex flex-col min-w-[60px]">
+              <span className="text-[10px] text-blue-400 font-bold uppercase">Energía</span>
+              <div className="flex items-center gap-1">
+                <Zap className="w-4 h-4 text-blue-500" />
+                <span className="text-xl font-mono">{player.energy}/{player.maxEnergy}</span>
+              </div>
             </div>
             {player.hype > 0 && (
-              <div className="flex items-center gap-1 text-yellow-400">
-                <Star className="w-3 h-3" />
-                <span className="text-xs font-mono">{player.hype}/20</span>
-              </div>
+              <>
+                <div className="h-8 w-px bg-white/10 mx-2" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-yellow-500 font-bold uppercase">Hype</span>
+                  <span className="text-xl font-mono text-yellow-500">{player.hype}/20</span>
+                </div>
+              </>
             )}
-            <div className="flex items-center gap-2 ml-2">
-              <div className="relative w-8 h-12">
-                <CardBack className="w-full h-full scale-50 origin-top-left" />
-                <div className="absolute -bottom-1 -right-1 bg-black/80 text-[8px] px-1 rounded border border-white/10 font-mono">{player.deck.length}</div>
-              </div>
-              <span className="text-[10px] text-gray-500 uppercase tracking-tighter">Deck</span>
-            </div>
-            <button
-              onClick={endTurn}
-              disabled={turn !== 'player' || !!gameOver || phase !== TurnPhase.MAIN}
-              className="ml-2 px-3 py-1 bg-white text-black text-xs font-black rounded-full disabled:opacity-40 hover:bg-gray-200 transition-colors"
-            >
-              Pasar Turno
+            <button onClick={endTurn} disabled={turn !== 'player' || phase !== TurnPhase.MAIN || !!gameOver} className="ml-4 px-6 py-2 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-green-500 hover:text-white transition-all disabled:opacity-30 disabled:grayscale">
+              PASAR TURNO
             </button>
           </div>
         </div>
 
-        {/* ── Scratch overlay ── */}
-        {isScratching && (
-          <div className="absolute inset-0 bg-red-500/10 pointer-events-none animate-pulse z-50 flex items-center justify-center">
-            <p className="text-red-500 font-black text-3xl -rotate-6 drop-shadow-lg">¡GOLPE!</p>
-          </div>
-        )}
-
-        {/* ── Start of Turn / Mulligan Overlay ── */}
-        {matchStarted && turnCount === 1 && turn === 'player' && !player.hasMulliganed && (
-          <AnimatePresence>
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed inset-0 z-[150] flex items-center justify-center pointer-events-none"
-            >
-              <div className="bg-black/90 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl flex flex-col items-center pointer-events-auto">
-                <h2 className="text-3xl font-black mb-4 uppercase tracking-wider text-white">¿Roba Nueva Mano? (Mulligan)</h2>
-                <p className="text-gray-400 mb-8 max-w-sm text-center">
-                  Tienes 1 oportunidad de volver a mezclar tu mano inicial y robar 5 cartas nuevas.
-                </p>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => doMulligan('player')}
-                    className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full font-bold uppercase tracking-wider transition-all"
-                  >
-                    Mulligan
-                  </button>
-                  <button
-                    onClick={() => doMulligan('player')}
-                    className="px-8 py-3 bg-white text-black hover:bg-gray-200 rounded-full font-black uppercase tracking-wider transition-all"
-                  >
-                    Mantener
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        )}
-
-        {/* ── Game over overlay ── */}
-        {gameOver && (
-          <div className="absolute inset-0 bg-black/85 pointer-events-none z-50 flex flex-col items-center justify-center backdrop-blur-sm">
-            {gameOver === 'player' ? (
-              <>
-                <Trophy className="w-20 h-20 text-yellow-400 mb-4 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]" />
-                <div className="text-yellow-400 font-black text-5xl drop-shadow-lg uppercase">¡Victoria!</div>
-                {player.hype >= 20 && <p className="text-yellow-300 mt-2 text-sm">¡Disco de Platino! 20 Hype alcanzado.</p>}
-              </>
-            ) : gameOver === 'draw' ? (
-              <>
-                <div className="text-white font-black text-5xl drop-shadow-lg uppercase">¡Empate!</div>
-                <p className="text-gray-300 mt-2 text-sm">Double KO — No hay Regalías ganadas.</p>
-              </>
-            ) : (
-              <>
-                <Skull className="w-20 h-20 text-red-500 mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]" />
-                <div className="text-red-500 font-black text-5xl drop-shadow-lg uppercase">Derrota</div>
-              </>
-            )}
-            <button
-              onClick={() => { setMatchStarted(false); setQueue([]); }}
-              className="mt-8 px-8 py-3 bg-white text-black font-bold rounded-full pointer-events-auto hover:bg-gray-200"
-            >
-              Volver al Escenario
-            </button>
-          </div>
-        )}
-
-        {/* ── Replica Overlay ── */}
-        <AnimatePresence>
-          {phase === TurnPhase.REPLICA && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              className="absolute inset-0 z-40 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-[2px]"
-            >
-              <div className="bg-black/90 border border-red-500/50 p-6 rounded-2xl text-center pointer-events-auto shadow-[0_0_40px_rgba(239,68,68,0.4)]">
-                <h2 className="text-3xl font-black text-red-500 uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
-                  <ShieldAlert className="w-8 h-8" />
-                  ¡La Réplica!
-                </h2>
-                {turn === 'bot' ? (
-                  <>
-                    <p className="text-white mb-4">El rival declara un ataque. Tienes {replicaTimeLeft}s para reaccionar.</p>
-                    <div className="flex flex-col gap-3 items-center">
-                      <button
-                        onClick={skipReplica}
-                        className="px-8 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full font-bold transition-colors w-full"
-                      >
-                        Dejar pasar
-                      </button>
-                      <div className="text-xs text-gray-400 bg-white/5 p-2 rounded-lg border border-white/10">
-                        <span className="text-yellow-400 font-bold">INTERCEPTAR:</span> Toca una de tus cartas enderezadas en el tablero (Coste: 1 ⚡)
-                      </div>
-                      <div className="text-xs text-gray-400 bg-white/5 p-2 rounded-lg border border-white/10">
-                        <span className="text-purple-400 font-bold">BACKSTAGE:</span> Toca una carta en tu Backstage para activarla.
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-white animate-pulse">Esperando respuesta del rival...</p>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Battle Phase Indicator Overlay */}
-        <AnimatePresence>
-          {showTurnIndicator && (
-            <motion.div
-              initial={{ opacity: 0, scale: 2, y: -20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.5, y: 20 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
-            >
-              <div className="bg-black/40 backdrop-blur-sm px-12 py-6 rounded-full border border-white/20 shadow-2xl">
-                <h2 className="text-6xl font-black italic uppercase tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
-                  {turn === 'player' ? 'TU TURNO' : 'TURNO RIVAL'}
-                </h2>
-                <div className="text-center mt-2 text-sm font-bold tracking-[0.4em] text-gray-400">
-                  {phase === TurnPhase.REPLICA ? 'FASE DE REPLICA' : 'FASE PRINCIPAL'}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Hand ── */}
-      <div className="h-44 shrink-0 bg-[#0a0a0a] border-t border-white/10 px-4 py-2 overflow-x-auto overflow-y-hidden flex items-end justify-center relative z-20">
-        <div className="flex flex-row justify-center items-end gap-3 px-8 min-w-max mb-1">
-          {/* Promotion Zone */}
-          <div
-            onClick={handlePromote}
-            className={[
-              "w-20 h-28 mb-3 rounded-xl border-4 border-dashed flex flex-col items-center justify-center gap-1 transition-all cursor-pointer shrink-0",
-              player.canPromote && selectedHandIndex !== null && player.maxEnergy < 10
-                ? "border-yellow-500/60 bg-yellow-500/10 scale-105 shadow-[0_0_15px_rgba(234,179,8,0.3)]"
-                : "border-white/10 bg-white/5 opacity-40 grayscale pointer-events-none"
-            ].join(' ')}
-          >
+        {/* Hand */}
+        <div className="h-44 bg-black/40 border-t border-white/5 flex items-center justify-center gap-4 px-8 overflow-x-auto relative shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+          <div onClick={handlePromote} className={`w-24 h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer shrink-0 ${player.canPromote && selectedHandIndex !== null ? 'border-yellow-500/50 bg-yellow-500/10 scale-105' : 'border-white/5 opacity-20'}`}>
             <Zap className="w-8 h-8 text-yellow-500" />
-            <span className="text-[10px] font-black text-yellow-500 uppercase tracking-tighter text-center">PROMOCIONAR</span>
+            <span className="text-[10px] font-bold text-center uppercase">Promocionar</span>
           </div>
 
-          <div className="flex flex-row justify-center items-end gap-2 px-2">
+          <div className="flex items-end gap-2 pb-2">
             <AnimatePresence>
-              {player.hand.map((card, i) => {
-                const canPlay = player.energy >= card.cost && turn === 'player' && !gameOver;
-                const isSelected = selectedHandIndex === i;
-                return (
-                  <motion.div
-                    key={`${card.id}-hand-${i}`}
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: isSelected ? -24 : 0, opacity: 1, rotate: 0 }}
-                    exit={{ y: -100, opacity: 0, scale: 0.5 }}
-                    whileHover={{ y: -28, scale: 1.08, zIndex: 50 }}
-                    transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-                    onClick={() => {
-                      if (!canPlay) return;
-                      setSelectedHandIndex(isSelected ? null : i);
-                      setSelectedAttackerIndex(null);
-                    }}
-                    onPointerDown={() => handlePointerDown(card)}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerUp}
-                    className={[
-                      'cursor-pointer relative group',
-                      isSelected ? 'z-40' : 'z-10 hover:z-30',
-                      !canPlay ? 'opacity-40 grayscale-[0.6]' : '',
-                    ].join(' ')}
-                  >
-                    <div className="relative w-28 h-40 sm:w-36 sm:h-[200px] rounded-xl overflow-hidden shadow-lg transition-shadow">
-                      <Card
-                        data={card}
-                        onDoubleClick={() => handlePlayCard(i)}
-                        className={[
-                          'origin-top-left transform scale-[0.4375] sm:scale-[0.5625] w-64',
-                          isSelected ? 'shadow-[0_0_20px_rgba(59,130,246,0.7)]' : '',
-                          canPlay && !isSelected ? 'group-hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]' : '',
-                        ].join(' ')}
-                      />
-                    </div>
-                  </motion.div>
-                );
-              })}
+              {player.hand.map((card, i) => (
+                <motion.div
+                  key={card.instanceId}
+                  layoutId={card.instanceId}
+                  initial={{ y: 50, opacity: 0 }}
+                  animate={{ y: selectedHandIndex === i ? -20 : 0, opacity: 1 }}
+                  whileHover={{ y: -30, scale: 1.05 }}
+                  onClick={() => setSelectedHandIndex(selectedHandIndex === i ? null : i)}
+                  className="relative cursor-pointer"
+                >
+                  <div className="w-28 h-40 overflow-hidden rounded-xl border-2 border-white/10 shadow-xl">
+                    <Card data={card} onDoubleClick={() => handlePlayCard(i)} className="origin-top-left scale-[0.44] w-64" />
+                  </div>
+                  {player.energy < card.cost && <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] rounded-xl flex items-center justify-center"><Zap className="w-8 h-8 text-blue-500/50" /></div>}
+                </motion.div>
+              ))}
             </AnimatePresence>
           </div>
         </div>
 
-        <SettingsModal
-          isOpen={showSettings}
-          onClose={() => setShowSettings(false)}
-          onConcede={() => {
-            setShowSettings(false);
-            setMatchStarted(false);
-            setQueue([]);
-          }}
-          volume={volume}
-          setVolume={setVolume}
-          language={language}
-        />
-      </div>
+        {/* Overlays */}
+        <AnimatePresence>
+          {isScratching && <div className="fixed inset-0 bg-red-500/10 z-[200] pointer-events-none animate-pulse flex items-center justify-center"><h2 className="text-8xl font-black text-red-600 opacity-20 rotate-[-15deg]">SCRATCH!</h2></div>}
 
-      {/* ── Card inspect modal ── */}
-      <AnimatePresence>
-        {inspectedCard && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
-            onClick={handlePointerUp}
-          >
-            <motion.div
-              initial={{ scale: 0.8, y: 40 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.8, y: 40 }}
-              className="relative max-w-sm w-full"
-            >
-              <Card data={inspectedCard} className="w-full shadow-[0_0_50px_rgba(255,255,255,0.15)]" />
-              <div className="mt-4 bg-black/50 p-4 rounded-xl border border-white/10 text-center">
-                <h3 className="text-xl font-bold mb-1">{inspectedCard.name}</h3>
-                <p className="text-gray-400 text-sm mb-3">{inspectedCard.artist}</p>
-                <div className="flex justify-center gap-3 text-sm">
-                  <div className="bg-blue-900/40 px-3 py-2 rounded-lg border border-blue-500/30">
-                    <span className="block text-blue-400 font-bold text-[10px]">ENERGÍA</span>
-                    <span className="text-xl">{inspectedCard.cost}</span>
-                  </div>
-                  <div className="bg-red-900/40 px-3 py-2 rounded-lg border border-red-500/30">
-                    <span className="block text-red-400 font-bold text-[10px]">ATK</span>
-                    <span className="text-xl">{inspectedCard.stats.atk}</span>
-                  </div>
-                  <div className="bg-teal-900/40 px-3 py-2 rounded-lg border border-teal-500/30">
-                    <span className="block text-teal-400 font-bold text-[10px]">DEF</span>
-                    <span className="text-xl">{inspectedCard.stats.def}</span>
-                  </div>
-                </div>
+          {phase === TurnPhase.REPLICA && (
+            <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 pointer-events-none">
+              <div className="bg-zinc-900 border border-red-500/50 p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center pointer-events-auto">
+                <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">¡LA RÉPLICA!</h2>
+                {turn === 'bot' ? (
+                  <>
+                    <p className="text-gray-400 mb-6">El rival lanza un ataque. ¿Cómo respondes? ({replicaTimeLeft}s)</p>
+                    <div className="flex flex-col gap-3">
+                      <button onClick={skipReplica} className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all uppercase tracking-widest">Dejar Pasar</button>
+                      <p className="text-[10px] text-gray-500 uppercase mt-2 font-bold tracking-widest">O selecciona una carta en tu tablero para interceptar</p>
+                    </div>
+                  </>
+                ) : <p className="text-white animate-pulse uppercase font-black tracking-widest">Esperando al Rival...</p>}
+              </div>
+            </div>
+          )}
+
+          {showTurnIndicator && (
+            <motion.div initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="fixed inset-0 z-[180] flex items-center justify-center pointer-events-none">
+              <div className="bg-white text-black px-16 py-6 skew-x-[-12deg] shadow-[20px_20px_0_rgba(255,255,255,0.1)]">
+                <h2 className="text-7xl font-black italic uppercase tracking-tighter">{turn === 'player' ? 'TU TURNO' : 'RIVAL'}</h2>
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+
+          {gameOver && (
+            <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center p-8 backdrop-blur-xl">
+              {gameOver === 'player' ? <Trophy className="w-24 h-24 text-yellow-500 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.5)]" /> : <Skull className="w-24 h-24 text-red-600 mb-6" />}
+              <h2 className="text-7xl font-black italic uppercase tracking-tighter mb-8">{gameOver === 'player' ? '¡VICTORIA!' : gameOver === 'bot' ? 'DERROTA' : 'EMPATE'}</h2>
+              <button onClick={() => { setMatchStarted(false); setQueue([]); }} className="px-12 py-4 bg-white text-black font-black uppercase tracking-widest rounded-full hover:bg-green-500 hover:text-white transition-all">TERMINAR SHOW</button>
+            </div>
+          )}
+
+          {inspectedCard && (
+            <div className="fixed inset-0 z-[400] bg-black/90 backdrop-blur-md flex items-center justify-center p-8" onClick={() => setInspectedCard(null)}>
+              <div className="relative max-w-sm w-full"><Card data={inspectedCard} className="w-full scale-110" /></div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onConcede={() => { setShowSettings(false); setMatchStarted(false); setQueue([]); }} volume={volume} setVolume={setVolume} language={language} />
+      </div>
     </div>
   );
 }

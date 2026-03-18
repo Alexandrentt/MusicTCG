@@ -12,7 +12,7 @@ import Image from 'next/image';
 import { logDiscovery } from '@/lib/discovery';
 import { auth } from '@/lib/firebase';
 import Pack from '@/components/store/Pack';
-import CardBack from '@/components/cards/CardBack';
+import CardBack from '@/components/CardBack';
 
 interface PackType {
   id: string;
@@ -249,7 +249,7 @@ export default function StorePage() {
           {t(language, 'store', 'featuredPacks')}
         </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {PACK_TYPES.map((pack) => (
             <div
               key={pack.id}
@@ -354,7 +354,7 @@ export default function StorePage() {
                   >
                     <div className="absolute -inset-8 bg-white/20 blur-3xl rounded-full group-hover:bg-white/30 transition-all duration-500 animate-pulse" />
                     <Pack
-                      type={currentPack?.id.toUpperCase() as any}
+                      type={(currentPack?.id || 'BASIC').toUpperCase() as any}
                       className="scale-150 relative z-10 drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]"
                     />
                     <motion.div
@@ -380,7 +380,7 @@ export default function StorePage() {
                   </div>
 
                   <div className="flex-1 w-full overflow-y-auto px-4 py-8 scrollbar-thin scrollbar-thumb-white/20 flex flex-col items-center">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-8 justify-items-center max-w-6xl w-full">
+                    <div className="grid grid-cols-3 gap-4 sm:gap-8 justify-items-center max-w-6xl w-full">
                       {openedCards.map((item, i) => {
                         const isRare = item.card.rarity === 'GOLD' || item.card.rarity === 'PLATINUM';
 
@@ -401,7 +401,7 @@ export default function StorePage() {
                             onClick={() => !item.revealed && revealCard(i)}
                             className="relative cursor-pointer perspective-1000 group shrink-0 snap-center"
                           >
-                            <div className={`relative w-40 sm:w-56 aspect-[2.5/3.5] preserve-3d transition-all duration-500 ${item.revealed ? '' : 'hover:scale-105'}`}>
+                            <div className={`relative w-24 sm:w-56 aspect-[2.5/3.5] preserve-3d transition-all duration-500 ${item.revealed ? '' : 'hover:scale-105'}`}>
                               {/* Card Back */}
                               <div className="absolute inset-0 backface-hidden rotate-y-180">
                                 <CardBack className="w-full h-full" isRare={isRare} />

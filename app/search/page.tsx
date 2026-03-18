@@ -49,7 +49,7 @@ export default function SearchPage() {
   const handleSelectTrack = (track: any) => {
     const card = generateCard(track);
     setSelectedCard(card);
-    
+
     // Log discovery
     const playerName = discoveryUsername || auth.currentUser?.displayName || (language === 'es' ? 'Un Jugador' : 'A Player');
     logDiscovery(card, playerName);
@@ -85,7 +85,7 @@ export default function SearchPage() {
     <div className="flex flex-col gap-6 relative min-h-screen">
       <h1 className="text-3xl font-bold">{t(language, 'search', 'title') || 'La Disquera'}</h1>
       <p className="text-gray-400 text-sm -mt-4">{t(language, 'search', 'subtitle') || 'Busca cualquier canción del mundo para ver su carta.'}</p>
-      
+
       <div className="relative z-10">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           {loading ? (
@@ -105,25 +105,25 @@ export default function SearchPage() {
 
       {/* Minimalist Filters */}
       <div className="flex gap-2 overflow-x-auto pb-2 -mt-2 z-10">
-        <button 
+        <button
           onClick={() => setSearchFilter('all')}
           className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${searchFilter === 'all' ? 'bg-white text-black' : 'bg-[#242424] text-gray-400 hover:bg-[#333] hover:text-white'}`}
         >
           {t(language, 'search', 'all') || 'Todo'}
         </button>
-        <button 
+        <button
           onClick={() => setSearchFilter('songTerm')}
           className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${searchFilter === 'songTerm' ? 'bg-white text-black' : 'bg-[#242424] text-gray-400 hover:bg-[#333] hover:text-white'}`}
         >
           {t(language, 'search', 'songs') || 'Canciones'}
         </button>
-        <button 
+        <button
           onClick={() => setSearchFilter('artistTerm')}
           className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${searchFilter === 'artistTerm' ? 'bg-white text-black' : 'bg-[#242424] text-gray-400 hover:bg-[#333] hover:text-white'}`}
         >
           {t(language, 'search', 'artists') || 'Artistas'}
         </button>
-        <button 
+        <button
           onClick={() => setSearchFilter('albumTerm')}
           className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${searchFilter === 'albumTerm' ? 'bg-white text-black' : 'bg-[#242424] text-gray-400 hover:bg-[#333] hover:text-white'}`}
         >
@@ -135,15 +135,15 @@ export default function SearchPage() {
       {query.length >= 2 && !selectedCard && (
         <div className="mt-2 space-y-2 z-10">
           {results.map((track) => (
-            <div 
+            <div
               key={track.trackId}
               onClick={() => handleSelectTrack(track)}
               className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#242424] cursor-pointer transition-colors group"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={track.artworkUrl60 || track.artworkUrl100} 
-                alt={track.collectionName} 
+              <img
+                src={track.artworkUrl60 || track.artworkUrl100}
+                alt={track.collectionName}
                 className="w-12 h-12 rounded object-cover shadow-md"
                 crossOrigin="anonymous"
               />
@@ -166,7 +166,7 @@ export default function SearchPage() {
             <div className="relative group">
               <Card data={selectedCard} className="w-72 sm:w-80" />
               {selectedCard.previewUrl && (
-                <button 
+                <button
                   onClick={() => handlePlayPreview(selectedCard)}
                   className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl"
                 >
@@ -176,15 +176,15 @@ export default function SearchPage() {
                 </button>
               )}
             </div>
-            
+
             <div className="flex gap-4 w-full">
-              <button 
+              <button
                 onClick={() => setSelectedCard(null)}
                 className="flex-1 py-3 rounded-full font-bold text-white bg-[#242424] hover:bg-[#333] transition-colors"
               >
                 {t(language, 'search', 'back') || 'Volver'}
               </button>
-              <button 
+              <button
                 onClick={handleCraft}
                 className="flex-1 py-3 rounded-full font-bold text-black bg-white hover:scale-105 transition-transform flex items-center justify-center gap-2"
               >

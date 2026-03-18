@@ -153,7 +153,7 @@ export default function Onboarding() {
                                 animate={{ scale: 1, opacity: 1 }}
                                 className="flex flex-col items-center gap-6"
                             >
-                                <Pack type="GOLD" className="scale-150 my-10 animate-bounce" />
+                                <Pack type="LEGENDS" className="scale-150 my-10 animate-bounce" />
                                 <h2 className="text-4xl font-black text-amber-500">¡Toma este Comodín de Oro!</h2>
                                 <p className="text-xl text-gray-300 max-w-lg">
                                     Se ha añadido a tu inventario. Ve a la Disquera, escribe el nombre de tu canción favorita en el mundo y fírmala ahora mismo.
