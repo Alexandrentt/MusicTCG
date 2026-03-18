@@ -158,28 +158,34 @@ function resolveAttackPure(
 
     newAtk = {
       ...newAtk,
-      health: newAtk.health - excessOnAtk,
-      board: atkDestroyed
-        ? newAtk.board.filter((_, i) => i !== attackerIdx)
-        : newAtk.board.map((c, i) =>
+      health: Math.max(0, newAtk.health - excessOnAtk),
+      board: newAtk.board
+        .map((c, i) =>
           i === attackerIdx
             ? { ...c, isTapped: true, hasAttacked: true, currentDef: c.currentDef - defDmg }
             : c
-        ),
-      graveyard: atkDestroyed ? [...newAtk.graveyard, attacker] : newAtk.graveyard,
+        )
+        .filter(c => c.currentDef > 0),
+      graveyard: [
+        ...newAtk.graveyard,
+        ...newAtk.board.filter((c, i) => i === attackerIdx && c.currentDef - defDmg <= 0)
+      ],
     };
 
     newDef = {
       ...newDef,
-      health: newDef.health - excessOnDef,
-      board: defDestroyed
-        ? newDef.board.filter((_, i) => i !== defenderIdx)
-        : newDef.board.map((c, i) =>
+      health: Math.max(0, newDef.health - excessOnDef),
+      board: newDef.board
+        .map((c, i) =>
           i === defenderIdx
             ? { ...c, currentDef: c.currentDef - atkDmg }
             : c
-        ),
-      graveyard: defDestroyed ? [...newDef.graveyard, defender] : newDef.graveyard,
+        )
+        .filter(c => c.currentDef > 0),
+      graveyard: [
+        ...newDef.graveyard,
+        ...newDef.board.filter((c, i) => i === defenderIdx && c.currentDef - atkDmg <= 0)
+      ],
     };
   }
 
@@ -297,7 +303,7 @@ export function useGameEngine() {
 
     setSt((prev: PlayerState) => {
       const card = prev.hand[cardIndex];
-      if (!card || prev.energy < card.cost) return prev;
+      if (prev.board.length >= 5 && card.type !== 'EVENT') return prev; // Enforce board limit
       const newHand = prev.hand.filter((_, i) => i !== cardIndex);
       const newEnergy = prev.energy - card.cost;
       playedInstanceId = card.instanceId;
@@ -373,18 +379,50 @@ export function useGameEngine() {
   const activateBackstage = useCallback((owner: PlayerKey, backstageIdx: number) => {
     const setSt = owner === 'player' ? setPlayer : setBot;
     let cardCost = 0;
+    let reactivatedCard: BoardCard | null = null;
+
     setSt((prev: PlayerState) => {
       const card = prev.backstage[backstageIdx];
-      if (!card || prev.energy < card.cost) return prev;
-      cardCost = card.cost;
+      if (!card) return prev;
+
+      const isReactivation = card.type !== 'EVENT';
+      const cost = isReactivation ? 2 : card.cost; // Reactivating a card costs 2 energy
+
+      if (prev.energy < cost) return prev;
+      if (isReactivation && prev.board.length >= 5) return prev; // No space to reactivate
+
+      cardCost = cost;
       const newBackstage = prev.backstage.filter((_, i) => i !== backstageIdx);
-      let newHealth = Math.min(prev.health + 2, 30);
-      let newEnergy = prev.energy - card.cost;
-      if (card.id.startsWith('beat_drop')) { newEnergy += 1; newHealth = prev.health; }
-      return { ...prev, health: newHealth, energy: newEnergy, backstage: [...prev.backstage.filter((_, i) => i !== backstageIdx)], graveyard: [...prev.graveyard, card] };
+      let newEnergy = prev.energy - cost;
+
+      if (card.type === 'EVENT') {
+        let newHealth = Math.min(prev.health + 2, 30);
+        if (card.id.startsWith('beat_drop')) { newEnergy += 1; newHealth = prev.health; }
+        return { ...prev, health: newHealth, energy: newEnergy, backstage: newBackstage, graveyard: [...prev.graveyard, card] };
+      } else {
+        // Reactivate card to board
+        reactivatedCard = { ...card, isTapped: true, stageFright: true }; // Reactivated cards start tapped
+        return { ...prev, energy: newEnergy, backstage: newBackstage, board: [...prev.board, reactivatedCard] };
+      }
     });
+
     if (phaseRef.current === TurnPhase.REPLICA && cardCost > 0) setTimeout(() => resolvePendingAttack(), 800);
   }, [resolvePendingAttack]);
+
+  const retireCard = useCallback((owner: PlayerKey, boardIdx: number) => {
+    const setSt = owner === 'player' ? setPlayer : setBot;
+    setSt((prev: PlayerState) => {
+      if (prev.energy < 1) return prev; // Retiring costs 1 energy
+      const card = prev.board[boardIdx];
+      if (!card) return prev;
+      return {
+        ...prev,
+        energy: prev.energy - 1,
+        board: prev.board.filter((_, i) => i !== boardIdx),
+        backstage: [...prev.backstage, card]
+      };
+    });
+  }, []);
 
   const advancePhase = useCallback(() => {
     if (gameOverRef.current) return;
@@ -444,7 +482,7 @@ export function useGameEngine() {
 
   return {
     player, bot, turn, turnCount, phase, gameOver, pendingAttack,
-    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, endTurn, doMulligan,
+    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, retireCard, endTurn, doMulligan,
     playerRef, botRef,
   };
 }

@@ -9,13 +9,15 @@ import { t, Language } from '@/lib/i18n';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import Image from 'next/image';
+import { resetGlobalDiscoveries } from '@/lib/discovery';
+import { MatchHistory } from '@/components/MatchHistory';
 
 export default function ProfilePage() {
   const { regalias, wildcards, language, setLanguage, playMusicInBattle, setPlayMusicInBattle, discoveryUsername, setDiscoveryUsername } = usePlayerStore();
   const { volume, setVolume } = useMusicPlayer();
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [mounted, setMounted] = useState(false);
-  
+
   // Email/Password state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,6 +64,14 @@ export default function ProfilePage() {
     }
   };
 
+  const handleResetGlobal = async () => {
+    if (confirm(t(language, 'profile', 'resetGlobalConfirm'))) {
+      toast.info('Borrando colección global...');
+      await resetGlobalDiscoveries();
+      toast.success('Colección global borrada. Todas las nuevas cartas usarán el sistema 1.5.');
+    }
+  };
+
   const handleAuth = async () => {
     try {
       if (user) {
@@ -80,7 +90,7 @@ export default function ProfilePage() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    
+
     setIsLoading(true);
     try {
       if (isRegistering) {
@@ -120,36 +130,36 @@ export default function ProfilePage() {
           <h2 className="text-xl font-bold">{user ? user.displayName : t(language, 'profile', 'guest')}</h2>
           <p className="text-sm text-gray-400">{user ? user.email : t(language, 'profile', 'loginPrompt')}</p>
         </div>
-        
+
         {!user && showEmailAuth ? (
           <form onSubmit={handleEmailAuth} className="w-full flex flex-col gap-3 mt-4 animate-in fade-in slide-in-from-top-4">
             {isRegistering && (
-              <input 
-                type="text" 
-                placeholder="Nombre de usuario" 
+              <input
+                type="text"
+                placeholder="Nombre de usuario"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
                 required
               />
             )}
-            <input 
-              type="email" 
-              placeholder="Correo electrónico" 
+            <input
+              type="email"
+              placeholder="Correo electrónico"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
               required
             />
-            <input 
-              type="password" 
-              placeholder="Contraseña" 
+            <input
+              type="password"
+              placeholder="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-white/30"
               required
             />
-            <button 
+            <button
               type="submit"
               disabled={isLoading}
               className="w-full py-2 bg-white text-black rounded-full font-bold text-sm hover:bg-gray-200 transition-colors disabled:opacity-50"
@@ -157,14 +167,14 @@ export default function ProfilePage() {
               {isLoading ? 'Cargando...' : (isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión')}
             </button>
             <div className="flex justify-between items-center px-2">
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsRegistering(!isRegistering)}
                 className="text-xs text-gray-400 hover:text-white underline"
               >
                 {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={() => setShowEmailAuth(false)}
                 className="text-xs text-gray-400 hover:text-white"
@@ -175,7 +185,7 @@ export default function ProfilePage() {
           </form>
         ) : (
           <div className="flex flex-col gap-2 w-full mt-2">
-            <button 
+            <button
               onClick={handleAuth}
               className={`w-full py-2 rounded-full font-bold flex items-center justify-center gap-2 transition-colors ${user ? 'bg-[#242424] text-white hover:bg-[#333]' : 'bg-white text-black hover:bg-gray-200'}`}
             >
@@ -191,9 +201,9 @@ export default function ProfilePage() {
                 </>
               )}
             </button>
-            
+
             {!user && (
-              <button 
+              <button
                 onClick={() => setShowEmailAuth(true)}
                 className="w-full py-2 rounded-full font-bold flex items-center justify-center gap-2 bg-[#242424] text-white hover:bg-[#333] transition-colors border border-white/5"
               >
@@ -235,11 +245,11 @@ export default function ProfilePage() {
             </div>
             <span className="text-xs text-gray-400">{Math.round(volume * 100)}%</span>
           </div>
-          <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.01" 
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
             value={volume}
             onChange={(e) => setVolume(parseFloat(e.target.value))}
             className="w-full accent-white"
@@ -255,14 +265,14 @@ export default function ProfilePage() {
             </div>
           </div>
           <form onSubmit={handleUpdateUsername} className="flex gap-2">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={localUsername}
               onChange={(e) => setLocalUsername(e.target.value)}
               placeholder={user?.displayName || 'Nombre de descubridor'}
               className="flex-1 bg-[#242424] text-white text-sm rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-white/30"
             />
-            <button 
+            <button
               type="submit"
               className="bg-white text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
             >
@@ -279,8 +289,8 @@ export default function ProfilePage() {
               <Globe size={18} className="text-gray-400" />
               <span className="text-sm font-bold">{t(language, 'profile', 'language')}</span>
             </div>
-            <select 
-              value={language} 
+            <select
+              value={language}
               onChange={(e) => setLanguage(e.target.value)}
               className="bg-[#242424] text-white text-sm rounded-lg px-3 py-1 border border-white/10 outline-none"
             >
@@ -301,9 +311,9 @@ export default function ProfilePage() {
               <span className="text-sm font-bold">Música en Combate</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
+              <input
+                type="checkbox"
+                className="sr-only peer"
                 checked={playMusicInBattle}
                 onChange={(e) => setPlayMusicInBattle(e.target.checked)}
               />
@@ -312,12 +322,23 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Historial de Partidas */}
+        {user && (
+          <>
+            <hr className="border-white/10" />
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-lg font-bold">Historial de Partidas</h2>
+            </div>
+            <MatchHistory userId={user.uid} />
+          </>
+        )}
+
         <hr className="border-white/10" />
 
         {/* Danger Zone */}
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-red-500">{t(language, 'profile', 'dangerZone')}</h3>
-          <button 
+          <button
             onClick={handleResetData}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors border border-red-500/20"
           >
@@ -326,6 +347,20 @@ export default function ProfilePage() {
           </button>
           <p className="text-xs text-gray-500 text-center">
             {t(language, 'profile', 'resetWarning')}
+          </p>
+
+          <hr className="border-white/5 my-2" />
+
+          <h3 className="text-sm font-bold text-orange-500">{t(language, 'profile', 'resetGlobal')}</h3>
+          <button
+            onClick={handleResetGlobal}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-orange-500 bg-orange-500/10 hover:bg-orange-500/20 transition-colors border border-orange-500/20"
+          >
+            <Globe size={18} />
+            <span>{t(language, 'profile', 'resetGlobal')}</span>
+          </button>
+          <p className="text-xs text-gray-500 text-center">
+            {t(language, 'profile', 'resetGlobalWarning')}
           </p>
         </div>
       </div>

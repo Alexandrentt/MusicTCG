@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, setDoc, getDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, serverTimestamp, query, orderBy, limit, getDocs, deleteDoc } from 'firebase/firestore';
 import { CardData } from './engine/generator';
 
 export async function logDiscovery(card: CardData, discovererName: string = 'Anonymous') {
@@ -67,7 +67,20 @@ export async function getGlobalStats() {
       rarityCounts
     };
   } catch (error) {
-    console.error('Error getting global stats:', error);
     return null;
+  }
+}
+
+/**
+ * Resetea todos los descubrimientos globales (Admin Only).
+ */
+export async function resetGlobalDiscoveries() {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'discovered_songs'));
+    const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+    console.log('Global discoveries reset successfully.');
+  } catch (error) {
+    console.error('Error resetting global discoveries:', error);
   }
 }

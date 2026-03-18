@@ -5,14 +5,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { useMusicPlayer, Track } from '@/store/useMusicPlayer';
 import Card from '@/components/cards/Card';
-import { Play, Volume2, Swords, Trophy, Skull, Zap, Star, ShieldAlert, Mic2, Settings, X, LogOut, VolumeX } from 'lucide-react';
+import { User, Swords, Shield, Zap, Sparkles, Trophy, Music, Disc3, Settings, LogOut, ChevronRight, Library, Mic2, Skull, Play, Volume2, ShieldAlert, X, VolumeX } from 'lucide-react';
 import { useGameEngine, BoardCard, hasKw } from '@/hooks/useGameEngine';
 import { generateCard, CardData } from '@/lib/engine/generator';
-import { calculateDeckPower, getDifficultyLevel, generateBotDeck, botPlayTurn, botReplicaResponse, DifficultyLevel, BotAction } from '@/lib/engine/botAI';
+import { calculateDeckPower, getDifficultyLevel, generateBotDeck, botPlayTurn, botReplicaResponse, DifficultyLevel, BotAction } from '@/lib/engine/singleplayerBot';
 import { playSound } from '@/lib/audio';
 import { t } from '@/lib/i18n';
 import { TurnPhase } from '@/lib/engine/gameState';
 import CardBack from '@/components/CardBack';
+import { useRanking } from '@/hooks/useRanking';
+import { audioEngine } from '@/lib/engine/audioEngine';
 
 // ── Sub-Components ──
 
@@ -99,18 +101,36 @@ function SettingsModal({ isOpen, onClose, onConcede, volume, setVolume, language
   );
 }
 
-function BackstageSlot({ card, onClick }: { card: BoardCard; onClick?: () => void }) {
+function BackstageSlot({ card, onClick, energy, disabled }: { card: BoardCard; onClick?: () => void; energy: number; disabled: boolean }) {
+  const isEvent = card.type === 'EVENT';
+  const cost = isEvent ? card.cost : 2;
+  const canAfford = energy >= cost;
+
   return (
     <motion.div
       layout
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0, opacity: 0 }}
-      onClick={onClick}
-      className="w-16 h-24 rounded-lg border border-purple-500/50 bg-purple-900/20 flex items-center justify-center cursor-pointer hover:border-purple-400 hover:bg-purple-800/40 transition-colors relative overflow-hidden"
+      onClick={() => !disabled && canAfford && onClick?.()}
+      className={`w-16 h-24 rounded-lg border flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden group ${isEvent ? 'border-purple-500/50 bg-purple-900/20' : 'border-blue-500/50 bg-blue-900/20'
+        } ${!canAfford || disabled ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
     >
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
-      <span className="text-purple-300/50 font-black text-xs rotate-[-45deg] tracking-widest text-center px-1">EVENTO</span>
+
+      {/* Miniature representation */}
+      <div className="w-10 h-14 rounded-sm overflow-hidden mb-1 shadow-2xl opacity-80 group-hover:opacity-100 transition-opacity">
+        <Card data={card} className="origin-top-left transform scale-[0.16] pointer-events-none" />
+      </div>
+
+      <div className="flex flex-col items-center z-10">
+        <div className={`text-[8px] font-black px-1 rounded-full mb-0.5 ${canAfford ? 'bg-white text-black' : 'bg-red-500 text-white'}`}>
+          {cost}⚡
+        </div>
+        <span className={`text-[7px] font-black uppercase tracking-widest text-center ${isEvent ? 'text-purple-300' : 'text-blue-300'}`}>
+          {isEvent ? 'EFECTO' : 'ACTIVA'}
+        </span>
+      </div>
     </motion.div>
   );
 }
@@ -138,6 +158,8 @@ function BoardCardSlot({
   const hasFrenzy = hasKw(card, 'frenzy');
   const hasDistortion = hasKw(card, 'distortion');
 
+  const [isRetiring, setIsRetiring] = useState(false);
+
   return (
     <motion.div
       layout
@@ -148,6 +170,8 @@ function BoardCardSlot({
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
+      onMouseEnter={() => owner === 'player' && setIsRetiring(true)}
+      onMouseLeave={() => setIsRetiring(false)}
       className={[
         'relative w-24 h-32 rounded-xl border-2 flex items-center justify-center cursor-pointer transition-all duration-200 select-none group',
         card.isTapped ? 'opacity-60' : '',
@@ -161,6 +185,17 @@ function BoardCardSlot({
       <div className="absolute inset-0 rounded-[10px] overflow-hidden">
         <Card data={card} className="origin-top-left transform scale-[0.375] pointer-events-none" />
       </div>
+
+      {/* Retire action overlay */}
+      {owner === 'player' && isRetiring && !card.isTapped && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onClick?.(e); }}
+          className="absolute inset-0 z-40 bg-purple-900/60 backdrop-blur-[2px] rounded-[10px] flex flex-col items-center justify-center gap-1 group-hover:opacity-100 opacity-0 transition-opacity"
+        >
+          <div className="bg-white text-black text-[8px] font-black px-2 py-0.5 rounded-full mb-1">Coste: 1⚡</div>
+          <span className="text-[10px] font-black uppercase tracking-tighter">Retirar</span>
+        </button>
+      )}
 
       {/* Stat overlay */}
       <div className="absolute bottom-1 left-1 right-1 flex justify-between z-10 pointer-events-none">
@@ -209,7 +244,7 @@ export default function PlayPage() {
 
   const {
     player, bot, turn, turnCount, phase, gameOver, pendingAttack,
-    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, endTurn, doMulligan,
+    startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, retireCard, endTurn, doMulligan,
     playerRef, botRef,
   } = useGameEngine();
 
@@ -224,6 +259,9 @@ export default function PlayPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('novato');
   const inspectTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const { awardWin, awardLoss, grantXP } = useRanking();
+  const hasAwardedRewards = useRef(false);
 
   // Bot AI action queue — executes actions one at a time with delays
   const botActionQueue = useRef<BotAction[]>([]);
@@ -252,6 +290,7 @@ export default function PlayPage() {
   // Sync TabBar visibility across the app to only hide during match
   useEffect(() => {
     setIsInBattle(matchStarted);
+    return () => setIsInBattle(false);
   }, [matchStarted, setIsInBattle]);
 
   // Derived gameState for potential engine compatibility or debug
@@ -265,6 +304,23 @@ export default function PlayPage() {
     pendingAttack,
     activePlayer: turn === 'player' ? 'PLAYER' : 'BOT'
   }), [player, bot, turn, turnCount, phase, gameOver, pendingAttack]);
+
+  // ── Handle Game Over Rewards ──
+  useEffect(() => {
+    if (gameOver && !hasAwardedRewards.current) {
+      hasAwardedRewards.current = true;
+      if (gameOver === 'player') {
+        awardWin();
+        // Constant bonus for finishing a match
+        grantXP('FIRST_WIN_OF_DAY');
+      } else if (gameOver === 'bot') {
+        awardLoss();
+        grantXP('CASUAL_LOSS');
+      } else {
+        grantXP('CASUAL_LOSS');
+      }
+    }
+  }, [gameOver, awardWin, awardLoss, grantXP]);
 
   // ── Player Replica Timer ──
   const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
@@ -298,10 +354,10 @@ export default function PlayPage() {
 
         const response = botReplicaResponse(b, attackerCard, isDirectAttack, difficulty);
 
-        if (response.action === 'backstage') {
-          activateBackstage('bot', response.backstageIdx);
-        } else if (response.action === 'intercept') {
-          intercept(response.interceptorIdx);
+        if (response.action === 'backstage' && response.backstageIdx !== undefined) {
+          activateBackstage('bot', response.backstageIdx!);
+        } else if (response.action === 'intercept' && response.interceptorIdx !== undefined) {
+          intercept(response.interceptorIdx!);
         } else {
           skipReplica();
         }
@@ -367,7 +423,16 @@ export default function PlayPage() {
 
     if (turn !== 'player' || phase !== TurnPhase.MAIN) return;
     const card = player.board[i];
-    if (!card || card.isTapped || card.stageFright) return;
+    if (!card) return;
+
+    // Handle "Retire" to backstage
+    if (!card.isTapped && player.energy >= 1 && !card.stageFright) {
+      playSound('play');
+      retireCard('player', i);
+      return;
+    }
+
+    if (card.isTapped || card.stageFright) return;
     playSound('play');
     setSelectedAttackerIndex(i === selectedAttackerIndex ? null : i);
     setSelectedHandIndex(null);
@@ -472,19 +537,20 @@ export default function PlayPage() {
 
     const power = calculateDeckPower(playerDeckArr);
     setDifficulty(getDifficultyLevel(power));
+    hasAwardedRewards.current = false;
     startGame(playerDeckArr.slice(0, 40), generateBotDeck(power));
 
     if (tracks.length > 0) {
       setQueue([...tracks]);
       playNext();
-      setVolume(0.5);
+      audioEngine.setVolume('music', 50);
     }
 
     setMatchStarted(true);
     setLoadingMatch(false);
   };
 
-  const decksList = Object.values(decks);
+  const decksList = Object.values(usePlayerStore.getState().decks);
 
   const handlePromote = () => {
     if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || selectedHandIndex === null) return;
@@ -496,26 +562,61 @@ export default function PlayPage() {
 
   if (!matchStarted) {
     return (
-      <div className="flex flex-col gap-6 min-h-[70vh] p-8">
-        <h1 className="text-4xl font-black uppercase tracking-[0.2em] text-white underline decoration-green-500 decoration-4 underline-offset-8">El Escenario</h1>
-        <p className="text-gray-400 text-lg">Selecciona tu Sello Discográfico para el duelo.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
+      <div className="flex flex-col gap-10 min-h-[85vh] p-8 max-w-6xl mx-auto items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-6xl font-black uppercase tracking-[0.25em] text-white italic drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+            El Escenario
+          </h1>
+          <p className="text-gray-400 text-xl font-medium max-w-2xl">
+            Tu Playlist cobra vida. Selecciona el Sello Discográfico que definirá tu destino en el duelo.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full mt-8">
           {decksList.map(deck => {
             const cardCount = Object.values(deck.cards).reduce((a, b) => a + b, 0);
-            const isValid = cardCount >= 40;
+            const isValid = cardCount === 40; // Arena focus: exact 40
+
             return (
-              <div
+              <motion.div
                 key={deck.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={isValid ? { scale: 1.02, y: -8 } : {}}
                 onClick={() => isValid && !loadingMatch && startMatch(deck.id)}
-                className={`group relative bg-[#121212] border border-white/10 rounded-2xl p-8 overflow-hidden transition-all duration-500 ${isValid ? 'cursor-pointer hover:border-green-500/50 hover:shadow-[0_0_30px_rgba(34,197,94,0.1)]' : 'opacity-40 cursor-not-allowed'}`}
+                className={`group relative bg-zinc-900/40 backdrop-blur-sm border-2 rounded-[2.5rem] p-8 overflow-hidden transition-all duration-500 flex flex-col items-center text-center ${isValid ? 'cursor-pointer border-white/5 hover:border-green-500/40 shadow-2xl hover:shadow-green-500/10' : 'opacity-60 cursor-not-allowed border-red-900/30 bg-red-950/5'}`}
               >
-                {deck.coverArt && <img src={deck.coverArt} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-40 transition-opacity" crossOrigin="anonymous" />}
-                <div className="relative z-10">
-                  <Swords className="w-10 h-10 mb-4 text-green-500" />
-                  <h3 className="text-2xl font-black uppercase tracking-wider">{deck.name}</h3>
-                  <p className={`font-bold ${isValid ? 'text-green-400' : 'text-red-400'}`}>{cardCount} Cartas {!isValid && '(Min. 40)'}</p>
+                {deck.coverArt && (
+                  <div className="absolute inset-0 z-0">
+                    <img src={deck.coverArt} alt="" className="w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" crossOrigin="anonymous" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
+                  </div>
+                )}
+
+                <div className="relative z-10 w-full flex flex-col items-center">
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 border-2 transition-transform duration-500 group-hover:rotate-12 ${isValid ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                    <Library className={`w-8 h-8 ${isValid ? 'text-green-500' : 'text-red-500'}`} />
+                  </div>
+
+                  <h3 className="text-3xl font-black uppercase tracking-tight mb-2 group-hover:text-green-400 transition-colors">{deck.name}</h3>
+                  <div className="flex flex-col gap-1 items-center mb-8">
+                    <span className={`text-sm font-black tracking-widest uppercase ${isValid ? 'text-green-400' : 'text-red-400'}`}>
+                      {cardCount} / 40 CARS
+                    </span>
+                    {!isValid && <span className="text-[10px] text-gray-500 uppercase font-black tracking-tighter italic">Se requieren 40 cartas</span>}
+                  </div>
+
+                  {isValid ? (
+                    <button className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs group-hover:bg-green-500 transition-colors shadow-lg">
+                      Lanzar Concierto
+                    </button>
+                  ) : (
+                    <div className="w-full bg-white/5 text-gray-600 py-4 rounded-2xl font-black uppercase tracking-widest text-xs border border-white/5">
+                      Playlist Incompleta
+                    </div>
+                  )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -608,10 +709,18 @@ export default function PlayPage() {
             </div>
 
             <div className="flex flex-col items-center gap-2">
-              <div className="flex flex-wrap gap-1 justify-center w-16">
-                {player.backstage.map((c, i) => <BackstageSlot key={c.instanceId} card={c} onClick={() => (player.energy >= c.cost) && activateBackstage('player', i)} />)}
+              <div className="flex flex-wrap gap-2 justify-center w-full max-w-[200px]">
+                {player.backstage.map((c, i) => (
+                  <BackstageSlot
+                    key={c.instanceId}
+                    card={c}
+                    energy={player.energy}
+                    disabled={turn !== 'player' || phase !== TurnPhase.MAIN || gameOver !== null}
+                    onClick={() => activateBackstage('player', i)}
+                  />
+                ))}
               </div>
-              <span className="text-[8px] text-gray-600 font-bold uppercase">Backstage</span>
+              <span className="text-[8px] text-gray-600 font-bold uppercase">Backstage / Reservas</span>
             </div>
           </div>
 

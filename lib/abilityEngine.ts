@@ -13,93 +13,16 @@
 // TIPOS Y INTERFACES
 // ============================================
 
-export enum Trigger {
-    // Gatillos Base (GDD 8.2.A)
-    INTRO = 'intro', // Cuando es invocada
-    OUTRO = 'outro', // Cuando es destruida
-    ATTACK = 'attack', // Cada vez que ataca
-    SOLO = 'solo', // Habilidad Activa
-    AURA = 'aura', // Pasiva Continua
-}
-
-export enum Effect {
-    // Efectos Base (GDD 8.2.B)
-    DAMAGE = 'damage',
-    HEAL = 'heal',
-    BUFF = 'buff',
-    DEBUFF = 'debuff',
-    HYPE = 'hype',
-    DRAW = 'draw',
-    MILL = 'mill',
-    SILENCE = 'silence',
-    TRAMPLE = 'trample',        // Línea 265
-    STEALTH = 'stealth',        // Línea 308
-    HASTE = 'haste',            // Línea 339
-    ALL_CARDS = 'all_cards',    // Línea 347
-    // Efectos Expandidos (GDD 8.4 - Mecánicas Avanzadas)
-    ENCORE = 'encore', // Costo adicional opcional
-    SOUNDCHECK = 'soundcheck', // Mirar el tope del mazo
-    FEATURING = 'featuring', // Acoplar a otra carta
-    CANCELLED = 'cancelled', // Remover del juego
-    DISCO_ORO = 'disco_oro', // Contadores permanentes
-    // Efectos Anti-Meta (GDD 9.4)
-    BOICOT = 'boicot', // Robar/Reducir Hype
-    HEAL_REPUTATION = 'heal_reputation', // Curación de Reputación
-    NERF = 'nerf', // Reducir stats
-    MANA_DISRUPTION = 'mana_disruption', // Retrasar Energía
-    MIND_CONTROL = 'mind_control', // Tomar control
-}
-
-export enum Target {
-    // Objetivos Base (GDD 8.2.C)
-    ENEMY_REPUTATION = 'enemy_reputation',
-    RANDOM_ENEMY = 'random_enemy',
-    SAME_ALBUM_CARDS = 'same_album_cards',
-    TAPPED_CARDS = 'tapped_cards',
-    SELF = 'self',
-    // Objetivos Expandidos (Global & AoE - GDD expandida)
-    ALL_CARDS = 'all_cards', // Fuego Amigo
-    ALL_ENEMY_CARDS = 'all_enemy_cards', // Asimétrico
-    ALL_OWN_CARDS = 'all_own_cards', // Sinergia de Masas
-    CONDITIONAL_CARDS = 'conditional_cards', // Global Condicionado
-    ENEMY_BACKSTAGE = 'enemy_backstage', // Interferencia
-}
-
-export enum Keyword {
-    // Palabras Clave Estáticas (GDD 8.1)
-    PROVOKE = 'provoke', // Muro de Sonido
-    HASTE = 'haste', // Tempo / Frenesí
-    FLYING = 'flying', // VIP / Evasión
-    TRAMPLE = 'trample', // Distorsión / Arrollar
-    SUSTAIN = 'sustain', // Regeneración
-    STEALTH = 'stealth', // Acústico / Sigilo
-}
-
-export enum Condition {
-    // Condicionantes (GDD 8.4.A)
-    UNDERDOG = 'underdog', // Si tu Reputación <= 10
-    MAINSTREAM = 'mainstream', // Si tienes más Hype que el rival
-    SOLO = 'solo', // Si eres la única carta en el Escenario
-    EMPTY_HAND = 'empty_hand', // Si tienes 0 cartas en la mano
-}
-
-// ============================================
-// ESTRUCTURA DE HABILIDAD GENERADA
-// ============================================
-
-export interface GeneratedAbility {
-    id: string; // Hash único
-    trigger: Trigger;
-    effect: Effect;
-    target: Target;
-    value: number; // Magnitud del efecto (daño, hype, cartas robadas, etc)
-    condition?: Condition; // Opcional: condicionante
-    modifier?: string; // Opcional: modificador especial (Encore, Soundcheck, etc)
-    text: string; // Descripción humanizada (GDD 8.2)
-    mechanicTags: string[]; // Tags ocultos para búsqueda (GDD 10.1)
-    cost?: number; // Costo energía adicional (para Solo)
-    statPenalty: number; // Penalización de stats por esta habilidad
-}
+import {
+    Trigger,
+    Effect,
+    Target,
+    Keyword,
+    Condition,
+    GeneratedAbility,
+    MasterCardTemplate as Card,
+    CardRarity
+} from '../types/types';
 
 // ============================================
 // GENERADOR DE HABILIDADES CON HASH DETERMINISTA
@@ -131,25 +54,27 @@ export class AbilityGenerator {
         trackId: string,
         genre: string,
         cost: number,
-        rarity: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM'
+        rarity: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM',
+        def: number = 2
     ): GeneratedAbility | null {
         const seed = this.createDeterministicHash(trackId);
         const random = (this.seededRandom(seed) * 100) | 0;
 
         // GDD 8.1: Chance de recibir una Palabra Clave Estática (en lugar de dinámica)
         if (random < 15) {
-            return this.generateKeywordAbility(seed, genre, cost, rarity);
+            return this.generateKeywordAbility(seed, genre, cost, rarity, def);
         }
 
         // GDD 8.2: Constructor Dinámico
-        return this.generateDynamicAbility(seed, genre, cost, rarity);
+        return this.generateDynamicAbility(seed, genre, cost, rarity, def);
     }
 
     private static generateKeywordAbility(
         seed: number,
         genre: string,
         cost: number,
-        rarity: string
+        rarity: string,
+        def: number
     ): GeneratedAbility {
         const keywordPool = [
             { keyword: Keyword.PROVOKE, text: 'Muro de Sonido', penalty: 1 },
@@ -179,7 +104,8 @@ export class AbilityGenerator {
         seed: number,
         genre: string,
         cost: number,
-        rarity: string
+        rarity: string,
+        def: number
     ): GeneratedAbility {
         // GDD 8.2.A: Seleccionar Gatillo
         const triggers = Object.values(Trigger);
@@ -196,14 +122,20 @@ export class AbilityGenerator {
             (t) => t !== Target.CONDITIONAL_CARDS
         );
         const targetIndex = (this.seededRandom(seed + 2) * targets.length) | 0;
-        const target = targets[targetIndex];
+        let target = targets[targetIndex];
+
+        // GDD 9.3: REGLA DE USUARIO - 1-DEF cards cannot have SELF-HEAL
+        if (def === 1 && effect === Effect.HEAL && target === Target.SELF) {
+            // Cambiar objetivo a aliado aleatorio si es posible
+            target = Target.ALL_OWN_CARDS;
+        }
 
         // Calcular valor del efecto basado en coste
         const value = Math.max(1, Math.min(cost, 3));
 
         // GDD 8.4: Posible condicionante (baja probabilidad)
         let condition: Condition | undefined;
-        if (this.seededRandom(seed + 3) < 0.2) {
+        if (this.seededRandom(seed + 3) < 0.25) {
             const conditions = Object.values(Condition);
             const condIndex = (this.seededRandom(seed + 4) * conditions.length) | 0;
             condition = conditions[condIndex];
@@ -407,6 +339,15 @@ export class AbilityGenerator {
             [Effect.NERF]: ['debuff', 'stat_reduction'],
             [Effect.MANA_DISRUPTION]: ['tempo', 'resource_denial'],
             [Effect.MIND_CONTROL]: ['control', 'high_value'],
+            [Effect.ENERGY_RAMP]: ['energy', 'ramp', 'economy'],
+            [Effect.ENERGY_DENIAL]: ['energy', 'disruption', 'control'],
+            [Effect.ENERGY_BURST]: ['energy', 'temporary', 'burst'],
+            [Effect.ENERGY_RECOVERY]: ['energy', 'recursion', 'value'],
+            [Effect.ENERGY_LOCK]: ['energy', 'denial', 'stasis'],
+            [Effect.ENERGY_STEAL]: ['energy', 'theft', 'advantage'],
+            [Effect.FORCE_SACRIFICE]: ['sacrifice', 'removal', 'disruption'],
+            [Effect.SACRIFICE_PAYOFF]: ['sacrifice', 'synergy', 'value'],
+            [Effect.ENERGY_PROTECTION]: ['energy', 'protection', 'defense'],
         };
 
         return [
@@ -434,6 +375,12 @@ export class AbilityGenerator {
             text += 'Si eres la única carta en tu Escenario, ';
         } else if (condition === Condition.EMPTY_HAND) {
             text += 'Si tu mano está vacía, ';
+        } else if (condition === Condition.IF_MORE_ENERGY) {
+            text += 'Si tienes más energía máxima que tu rival, ';
+        } else if (condition === Condition.IF_LESS_ENERGY) {
+            text += 'Si tienes menos energía máxima que tu rival, ';
+        } else if (condition === Condition.IF_SACRIFICED_THIS_TURN) {
+            text += 'Si sacrificaste una carta este turno, ';
         }
 
         // Trigger
@@ -496,6 +443,30 @@ export class AbilityGenerator {
             case Effect.MIND_CONTROL:
                 text += `Toma control de una carta rival hasta fin de turno.`;
                 break;
+            case Effect.ENERGY_RAMP:
+                text += `Ganas +${value} de energía máxima permanente.`;
+                break;
+            case Effect.ENERGY_DENIAL:
+                text += `El rival pierde ${value} de energía máxima permanente.`;
+                break;
+            case Effect.ENERGY_BURST:
+                text += `Ganas +${value} de energía temporal este turno.`;
+                break;
+            case Effect.ENERGY_RECOVERY:
+                text += `Devuelve una carta de tu Zona de Energía a tu mano.`;
+                break;
+            case Effect.ENERGY_LOCK:
+                text += `El rival no puede sacrificar cartas este turno.`;
+                break;
+            case Effect.ENERGY_STEAL:
+                text += `Roba ${value} carta(s) de la Zona de Energía rival.`;
+                break;
+            case Effect.FORCE_SACRIFICE:
+                text += `El rival debe sacrificar ${value} carta(s).`;
+                break;
+            case Effect.ENERGY_PROTECTION:
+                text += `Tus cartas en la Zona de Energía tienen protección.`;
+                break;
             default:
                 text += 'Efecto especial.';
         }
@@ -532,6 +503,12 @@ export class AbilityGenerator {
                 return 'a todas tus cartas';
             case Target.ENEMY_BACKSTAGE:
                 return 'a todos los Eventos rivales';
+            case Target.RIVAL_ENERGY_ZONE_RANDOM:
+                return 'a una carta aleatoria de la Zona de Energía rival';
+            case Target.RIVAL_ENERGY_ZONE_ALL:
+                return 'a todas las cartas en la Zona de Energía rival';
+            case Target.YOUR_ENERGY_ZONE_ALL:
+                return 'a todas las cartas en tu Zona de Energía';
             default:
                 return 'a un objetivo';
         }

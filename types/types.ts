@@ -15,29 +15,42 @@ export enum CardState {
   UNTAPPED = 'UNTAPPED',
   TAPPED = 'TAPPED',
 }
+// Alias for consistency with spec
+export type Card = MasterCardTemplate;
+
 export interface MasterCardTemplate {
-  id: string;
-  appleId: string;
-  isrcCode: string;
+  // IDENTIFICACIÓN ÚNICA
+  id: string;                    // "card_queen_bohemian"
+
+  // METADATOS MUSICALES
   name: string;
   artist: string;
-  album: string;
+  album?: string;
   genre: string;
-  subGenres: string[];
-  trackNumber: number;
-  artworkUrl: string;
-  videoId?: string;
-  type: CardType;
-  rarity: CardRarity;
-  cost: number;
-  budget: number;
+  trackNumber?: number; // ← NUEVA: Para compatibilidad con CardComponents.tsx
+
+  // STATS BASE
   atk: number;
   def: number;
-  ability?: GeneratedAbility;
-  keywords: Keyword[];
-  youtubeViews?: number;
-  mechanicTags: string[];
+  cost: number;
+
+  // TIPO DE CARTA
+  type: 'CREATURE' | 'EVENT';
+
+  // HABILIDADES
+  abilities: GeneratedAbility[]; // Array de habilidades
+
+  // STATS EXTENDIDAS (ORIGINALES)
+  rarity: CardRarity;
+  artworkUrl: string;
   themeColor?: string;
+  keywords: Keyword[];
+
+  // HERENCIA (FASE 2)
+  heritage?: {
+    compositionId: string;
+    heritageRole: 'MASTER' | 'TRIBUTE';
+  };
 }
 
 // ============================================
@@ -50,6 +63,7 @@ export enum Trigger {
   ATTACK = 'attack',
   SOLO = 'solo',
   AURA = 'aura',
+  SACRIFICE = 'sacrifice', // NUEVO: Cuando tú sacrificas una carta
 }
 
 export enum Effect {
@@ -71,6 +85,23 @@ export enum Effect {
   NERF = 'nerf',
   MANA_DISRUPTION = 'mana_disruption',
   MIND_CONTROL = 'mind_control',
+
+  // NUEVOS: MECÁNICAS CORE
+  TRAMPLE = 'trample',
+  STEALTH = 'stealth',
+  HASTE = 'haste',
+  ALL_CARDS = 'all_cards',
+
+  // NUEVOS: ENERGÍA Y SACRIFICIO
+  ENERGY_RAMP = 'energy_ramp',           // +1 energía máxima
+  ENERGY_DENIAL = 'energy_denial',       // -1 energía rival
+  ENERGY_BURST = 'energy_burst',         // +X energía temporal
+  ENERGY_RECOVERY = 'energy_recovery',   // Recuperar de zona de energía
+  ENERGY_LOCK = 'energy_lock',           // Bloquear sacrificios
+  ENERGY_STEAL = 'energy_steal',         // Robar energía
+  FORCE_SACRIFICE = 'force_sacrifice',   // Obligar a sacrificar
+  SACRIFICE_PAYOFF = 'sacrifice_payoff', // Efecto por sacrificios
+  ENERGY_PROTECTION = 'energy_protection', // Protección de zona energía
 }
 
 export enum Target {
@@ -84,6 +115,11 @@ export enum Target {
   ALL_OWN_CARDS = 'all_own_cards',
   CONDITIONAL_CARDS = 'conditional_cards',
   ENEMY_BACKSTAGE = 'enemy_backstage',
+
+  // NUEVOS: TARGETS DE ENERGÍA
+  RIVAL_ENERGY_ZONE_RANDOM = 'rival_energy_zone_random',
+  RIVAL_ENERGY_ZONE_ALL = 'rival_energy_zone_all',
+  YOUR_ENERGY_ZONE_ALL = 'your_energy_zone_all',
 }
 
 export enum Keyword {
@@ -100,6 +136,11 @@ export enum Condition {
   MAINSTREAM = 'mainstream',
   SOLO = 'solo',
   EMPTY_HAND = 'empty_hand',
+
+  // NUEVOS: CONDICIONES DE ENERGÍA
+  IF_MORE_ENERGY = 'if_more_energy',
+  IF_LESS_ENERGY = 'if_less_energy',
+  IF_SACRIFICED_THIS_TURN = 'if_sacrificed_this_turn',
 }
 
 export interface GeneratedAbility {
@@ -167,11 +208,28 @@ export enum GameEndCondition {
   DRAW = 'draw',
 }
 
-export interface PlayedCard {
-  cardId: string;
-  card: MasterCardTemplate;
-  state: CardState;
+export interface PlayedCard extends Card {
+  // INSTANCIA ÚNICA en el juego
+  instanceId: string;            // Único por cada vez que se juega
+
+  // STATS ACTUALES
+  currentAtk: number;
   currentDef: number;
+
+  // ESTADO DE COMBATE
+  isTapped: boolean;             // ¿Atacó?
+  isTapped90: boolean;           // Pánico Escénico
+  damageThisTurn: number;
+
+  // UBICACIÓN
+  laneId?: string;               // ID de la lane en combate
+  inBackstage?: boolean;
+
+  // ESTADO VISUAL
+  isSelected?: boolean;
+  visualEffect?: string;
+
+  // MEJORAS (LEGACY/RESONANCIA)
   temporaryBoosts?: {
     atkBonus: number;
     defBonus: number;
@@ -181,21 +239,35 @@ export interface PlayedCard {
   isSilenced?: boolean;
 }
 
-export interface PlayerZones {
-  deckCount: number;
-  handCount: number;
-  promotionZone: PlayedCard[];
-  mainStage: PlayedCard[];
-  backstage: PlayedCard[];
-}
-
 export interface PlayerState {
   playerId: string;
+  userId?: string;
   reputation: number;
   hype: number;
-  energyCurrent: number;
-  energyMax: number;
+  energy: {
+    basePerTurn: number;         // 1, 2, 3... crece cada turno
+    sacrificesThisTurn: number;  // 0 o 1
+    permanentFromSacrifices: number; // Historial de +1s
+    current: number;             // Disponible real
+    max: number;                 // UI
+  };
   zones: PlayerZones;
+}
+
+export interface PlayerZones {
+  deck: Card[];
+  hand: Card[];
+  board: PlayedCard[];
+  backstage: PlayedCard[];
+
+  // NUEVO: Zona de Energía
+  energyZone: {
+    cards: Card[];
+    currentCount: number;
+  };
+
+  deckCount: number;
+  handCount: number;
 }
 
 export interface GameState {
@@ -213,6 +285,17 @@ export interface GameState {
   pendingReaction?: ReactionState;
   history: GameAction[];
   _phaseState?: any;  // ← ESTA LÍNEA DEBE ESTAR
+  board: BoardState;
+}
+
+export interface Lane {
+  laneId: string;
+  yourCard?: PlayedCard;
+  rivalCard?: PlayedCard;
+}
+
+export interface BoardState {
+  lanes: Lane[];
 }
 
 export interface ReactionState {

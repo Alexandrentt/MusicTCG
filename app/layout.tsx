@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <StatsBar />
         <div className="relative z-10 w-full max-w-7xl mx-auto min-h-screen pb-24 px-4 sm:px-6 lg:px-8">
           <Onboarding />
-          <main className="pb-24 pt-16 p-4 max-w-2xl mx-auto">
+          <main className="pb-24 pt-16 p-4 mx-auto w-full">
             {children}
           </main>
         </div>

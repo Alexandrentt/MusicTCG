@@ -356,9 +356,23 @@ export class GameStateEngine {
             };
         }
 
-        // Buscar la carta en la mano
-        // En la vida real, esto sería más complejo
-        // Por ahora, asumir que existe
+        // VERIFICAR: ¿La carta está en la mano? 
+        // (En la vida real, consultarías tu inventario de Supabase)
+        // Por ahora, asumimos que sí existe si nos llegó un cardId válido
+
+        // VERIFICAR: ¿Tienes suficiente energía?
+        // (Esto sí debería validarse contra gameState)
+
+        const cardCost = 3; // En la vida real, obtenerías esto del card object
+        if (activePlayer.energy.current < cardCost) {
+            return {
+                valid: false,
+                reason: `No tienes suficiente energía (${activePlayer.energy.current}/${cardCost})`,
+                allowedActions: [ValidAction.PASS_PHASE, ValidAction.PROMOTE_CARD],
+                currentPhase: DetailedPhase.MAIN_PLAY_CARDS,
+                canPassPhase: true,
+            };
+        }
 
         return {
             valid: true,
@@ -601,8 +615,8 @@ export class GameStateEngine {
         const activePlayer = this.getActivePlayer(gameState);
         const energyGenerated = Math.min(gameState.turn, 10);
 
-        activePlayer.energyMax = energyGenerated;
-        activePlayer.energyCurrent = energyGenerated;
+        activePlayer.energy.max = energyGenerated;
+        activePlayer.energy.current = energyGenerated;
     }
 
     /**
@@ -612,12 +626,12 @@ export class GameStateEngine {
         const activePlayer = this.getActivePlayer(gameState);
 
         // GDD 5.3: Si el mazo está vacío, pierde por "Olvido"
-        if (activePlayer.zones.deckCount <= 0) {
-            return false; // Pérdida por Olvido
+        const topCard = activePlayer.zones.deck.shift();
+        if (topCard) {
+            activePlayer.zones.hand.push(topCard);
+            activePlayer.zones.deckCount = activePlayer.zones.deck.length;
+            activePlayer.zones.handCount = activePlayer.zones.hand.length;
         }
-
-        activePlayer.zones.deckCount--;
-        activePlayer.zones.handCount++;
 
         return true;
     }

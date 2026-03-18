@@ -158,13 +158,13 @@ function applyEffect(state: GameState, effect: EffectContext) {
             }
             break;
         case EffectType.BUFF_ATK:
-            const atkTarget = [...ownerState.board, ...opponentState.board].find(c => c.instanceId === effect.payload.target);
-            if (atkTarget && !atkTarget.isSilenced) atkTarget.atk += effect.payload.amount;
+            const atkTarget = [...ownerState.board, ...opponentState.board].find(c => (c as any).instanceId === effect.payload.target);
+            if (atkTarget && !atkTarget.isSilenced) atkTarget.currentAtk += effect.payload.amount;
             break;
         case EffectType.BUFF_DEF:
             if (effect.payload.target === 'ALL_FRIENDLIES') {
                 ownerState.board.forEach(card => {
-                    if (!card.isSilenced) card.def += effect.payload.amount;
+                    if (!card.isSilenced) card.currentDef += effect.payload.amount;
                 });
             }
             break;

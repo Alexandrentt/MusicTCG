@@ -61,7 +61,7 @@ export class TurnPhaseManager {
                     logs.push('⚡ Generando energía...');
                     GameStateEngine.generateEnergy(gameState);
                     logs.push(
-                        `   → ${activePlayer.playerId} recibe ${activePlayer.energyMax} de energía`
+                        `   → ${activePlayer.playerId} recibe ${activePlayer.energy.max} de energía`
                     );
                     break;
 
@@ -91,7 +91,7 @@ export class TurnPhaseManager {
                 case DetailedPhase.MAIN_PLAY_CARDS:
                     logs.push('🎭 Fase Principal iniciada');
                     logs.push(
-                        `   → Energía disponible: ${activePlayer.energyCurrent} / ${activePlayer.energyMax}`
+                        `   → Energía disponible: ${activePlayer.energy.current} / ${activePlayer.energy.max}`
                     );
                     logs.push(`   → Cartas en mano: ${activePlayer.zones.handCount}`);
                     // No hay lógica automática, el jugador elige acciones
@@ -184,9 +184,9 @@ export class TurnPhaseManager {
     ): void {
         const activePlayer = this.getActivePlayer(gameState);
 
-        // Buscar cartas en el Escenario con trigger AURA
-        const auraCards = activePlayer.zones.mainStage.filter(
-            (card) => card.card.ability?.trigger === Trigger.AURA
+        // Buscar cartas en el Tablero con trigger AURA
+        const auraCards = activePlayer.zones.board.filter(
+            (card) => card.abilities.some(a => a.trigger === Trigger.AURA)
         );
 
         if (auraCards.length === 0) {
@@ -197,9 +197,10 @@ export class TurnPhaseManager {
         logs.push(`   → ${auraCards.length} efecto(s) de aura resuelto(s)`);
 
         for (const card of auraCards) {
-            if (card.card.ability) {
+            const firstAura = card.abilities.find(a => a.trigger === Trigger.AURA);
+            if (firstAura) {
                 logs.push(
-                    `   • ${card.card.name}: ${card.card.ability.text.substring(0, 50)}...`
+                    `   • ${card.name}: ${firstAura.text.substring(0, 50)}...`
                 );
 
                 // En la vida real, ejecutar el efecto según Effect
@@ -214,26 +215,22 @@ export class TurnPhaseManager {
     private static untapAllCards(player: PlayerState, logs: string[]): void {
         let untappedCount = 0;
 
-        // Escenario
-        player.zones.mainStage.forEach((card) => {
-            if (card.state === CardState.TAPPED) {
-                card.state = CardState.UNTAPPED;
+        // Tablero
+        player.zones.board.forEach((card) => {
+            if (card.isTapped) {
+                card.isTapped = false;
+                untappedCount++;
+            }
+            if (card.isTapped90) {
+                card.isTapped90 = false;
                 untappedCount++;
             }
         });
 
         // Backstage
         player.zones.backstage.forEach((card) => {
-            if (card.state === CardState.TAPPED) {
-                card.state = CardState.UNTAPPED;
-                untappedCount++;
-            }
-        });
-
-        // Zona de Promoción
-        player.zones.promotionZone.forEach((card) => {
-            if (card.state === CardState.TAPPED) {
-                card.state = CardState.UNTAPPED;
+            if (card.isTapped) {
+                card.isTapped = false;
                 untappedCount++;
             }
         });
@@ -268,10 +265,10 @@ export class TurnPhaseManager {
                 continue;
             }
 
-            logs.push(`   ⚔️  ${attacker.card.name} (${attacker.card.atk} ATK)`);
+            logs.push(`   ⚔️  ${attacker.name} (${attacker.atk} ATK)`);
 
             // El atacante entra en estado Girado
-            attacker.state = CardState.TAPPED;
+            attacker.isTapped = true;
 
             // Aquí se llamaría a CombatResolver.declareAttack()
             // que genera la pendingReaction si es necesario
@@ -295,18 +292,18 @@ export class TurnPhaseManager {
         const cardsToDestroy: PlayedCard[] = [];
 
         // Buscar cartas destruidas (DEF <= 0)
-        activePlayer.zones.mainStage.forEach((card: PlayedCard) => {
+        activePlayer.zones.board.forEach((card: PlayedCard) => {
             if (card.currentDef <= 0) {
                 cardsToDestroy.push(card);
-                logs.push(`   💀 ${card.card.name} destruida (DEF: ${card.currentDef})`);
+                logs.push(`   💀 ${card.name} destruida (DEF: ${card.currentDef})`);
             }
         });
 
         // Mover cartas destruidas al Archivo
         cardsToDestroy.forEach((card) => {
-            const index = activePlayer.zones.mainStage.indexOf(card);
+            const index = activePlayer.zones.board.indexOf(card);
             if (index > -1) {
-                activePlayer.zones.mainStage.splice(index, 1);
+                activePlayer.zones.board.splice(index, 1);
                 // En la vida real, agregar al Archivo (Cementerio)
             }
         });
@@ -316,8 +313,8 @@ export class TurnPhaseManager {
         );
 
         // Resolver efectos de fin de turno
-        const outroCards = activePlayer.zones.mainStage.filter(
-            (card) => card.card.ability?.trigger === Trigger.OUTRO
+        const outroCards = activePlayer.zones.board.filter(
+            (card) => card.abilities.some(a => a.trigger === Trigger.OUTRO)
         );
 
         if (outroCards.length > 0) {
@@ -327,7 +324,7 @@ export class TurnPhaseManager {
 
         // Limpiar bonificadores temporales
         let cleanedBoosts = 0;
-        activePlayer.zones.mainStage.forEach((card: PlayedCard) => {
+        activePlayer.zones.board.forEach((card: PlayedCard) => {
             if (card.temporaryBoosts?.untilEndOfTurn) {
                 card.temporaryBoosts = undefined;
                 cleanedBoosts++;
@@ -343,9 +340,9 @@ export class TurnPhaseManager {
 
     private static resolveAbilityEffect(gameState: GameState, card: PlayedCard, logs: string[]): void {
 
-        if (!card.card.ability) return;
+        if (card.abilities.length === 0) return;
 
-        const ability = card.card.ability;
+        const ability = card.abilities[0]; // Simplificación
         const effect = ability.effect;
 
         // Aquí iría la lógica específica para cada Effect
@@ -411,10 +408,10 @@ export class TurnPhaseManager {
 
         logs.push(`📤 Sacrificando carta para energía`);
 
-        activePlayer.energyMax += 1;
-        activePlayer.energyCurrent += 1;
+        activePlayer.energy.max += 1;
+        activePlayer.energy.current += 1;
 
-        logs.push(`   → Energía máxima ahora: ${activePlayer.energyMax}`);
+        logs.push(`   → Energía máxima ahora: ${activePlayer.energy.max}`);
 
         return {
             success: true,
@@ -447,10 +444,10 @@ export class TurnPhaseManager {
             };
         }
 
-        if (card.state !== CardState.UNTAPPED) {
+        if (card.isTapped) {
             return {
                 success: false,
-                error: `${card.card.name} está girada, no puede atacar`,
+                error: `${card.name} está girada, no puede atacar`,
                 gameState,
                 phaseLogs: logs,
             };
@@ -463,7 +460,7 @@ export class TurnPhaseManager {
 
         phaseState.declaredAttackers.push(cardId);
 
-        logs.push(`⚔️  ${card.card.name} declarada como atacante`);
+        logs.push(`⚔️  ${card.name} declarada como atacante`);
         logs.push(`   → Objetivo: ${targetId}`);
         logs.push(
             `   → Atacantes declarados: ${phaseState.declaredAttackers.length}`
@@ -489,10 +486,9 @@ export class TurnPhaseManager {
         cardId: string
     ): PlayedCard | null {
         return (
-            player.zones.mainStage.find((c: PlayedCard) =>
-                c.cardId === cardId) ||
-            player.zones.backstage.find((c) => c.cardId === cardId) ||
-            player.zones.promotionZone.find((c) => c.cardId === cardId) ||
+            player.zones.board.find((c: PlayedCard) =>
+                c.id === cardId || c.instanceId === cardId) ||
+            player.zones.backstage.find((c) => c.id === cardId || c.instanceId === cardId) ||
             null
         );
     }

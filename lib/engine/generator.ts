@@ -15,6 +15,9 @@ export interface CardData {
   };
   abilities: { keyword?: string; description: string }[];
   themeColor: string;
+  videoId?: string;
+  trackNumber?: number;
+  lyrics?: string;
 }
 
 // Generador de números pseudoaleatorios basado en semilla (Mulberry32)
@@ -38,7 +41,7 @@ function hashString(str: string): number {
   return Math.abs(hash) || 1; // Ensure non-zero
 }
 
-export function generateCard(track: any, forcedRarity?: CardData['rarity']): CardData {
+export function generateCard(track: any, forcedRarity?: CardData['rarity'], youtubeData?: any): CardData {
   // 1. Semilla basada en el ID — soporta IDs numéricos y strings arbitrarios
   const rawId = track.trackId.toString();
   const parsed = parseInt(rawId, 10);
@@ -93,19 +96,33 @@ export function generateCard(track: any, forcedRarity?: CardData['rarity']): Car
   if (isEvent) {
     type = 'EVENT';
     cost = Math.max(1, Math.floor(cost / 2));
-    budget = 0; // Los eventos no tienen stats de combate
+    budget = Math.max(2, Math.floor(budget / 1.5));
 
-    // Habilidad de evento procedural básica
-    const eventEffects = [
-      'Restaura 2 de Defensa a todas tus cartas.',
-      'Reduce -1 ATK a todas las cartas rivales.',
-      'Roba 2 cartas de tu Playlist.',
-      'Inflige 2 de daño a una carta rival aleatoria.'
-    ];
-    abilities.push({
-      keyword: 'Backstage',
-      description: eventEffects[Math.floor(random() * eventEffects.length)],
-    });
+    // Habilidades de evento — detectar tipo de evento por nombre
+    const trackNameLower = track.trackName.toLowerCase();
+    const isLive = /live|en vivo|directo/i.test(trackNameLower);
+    const isRemix = /remix|remezcla/i.test(trackNameLower);
+    const isAcoustic = /acoustic|acústico|unplugged/i.test(trackNameLower);
+    const isOutro = /outro|interlude|intro/i.test(trackNameLower);
+
+    if (isLive) {
+      abilities.push({ keyword: 'Live', description: 'Energía del público: Cuesta -1 energía y otorga +1 Hype al jugador.' });
+    } else if (isRemix) {
+      abilities.push({ keyword: 'Remix', description: 'Reordena las próximas 3 cartas de tu Playlist antes de que suenen.' });
+    } else if (isAcoustic) {
+      abilities.push({ keyword: 'Acoustic', description: 'Versión íntima: No puede ser objetivo de efectos hasta que ataque primero.' });
+    } else if (isOutro) {
+      abilities.push({ keyword: 'Bridge', description: 'Transición: La próxima Criatura que juegues recibe +1 DEF este turno.' });
+    } else {
+      const eventEffects = [
+        { keyword: 'Backstage', description: 'Restaura 2 de Defensa a todas tus Criaturas en juego.' },
+        { keyword: 'Backstage', description: 'Reduce -1 ATK a una Criatura rival de tu elección.' },
+        { keyword: 'Backstage', description: 'Roba 2 cartas de tu Playlist.' },
+        { keyword: 'Backstage', description: 'Inflige 2 de daño a una Criatura rival aleatoria.' },
+        { keyword: 'Loop', description: 'Bis: Puedes volver a jugar este Evento en tu próximo turno sin pagar su coste.' },
+      ];
+      abilities.push(eventEffects[Math.floor(random() * eventEffects.length)]);
+    }
   } else {
     // 5. Sinergia de Género y Habilidades (GDD 6.4)
     const genre = track.primaryGenreName || 'Pop';
@@ -115,33 +132,70 @@ export function generateCard(track: any, forcedRarity?: CardData['rarity']): Car
     const isElectronic = /electronic|dance|house/i.test(genre);
     const isSoundtrack = /soundtrack|ost|score|película|motion picture/i.test(genre) || /soundtrack|ost|score/i.test(track.collectionName);
 
+    // Habilidades musicales por género — keywords temáticos del sistema de Playlist Combat
     if (isSoundtrack && random() > 0.3) {
-      abilities.push({ keyword: 'soundtrack', description: 'soundtrackDesc' });
+      abilities.push({ keyword: 'Crescendo', description: 'Al inicio de cada uno de tus turnos mientras esté en juego, gana +1 ATK.' });
       tax += 2;
     } else if (isRock && random() > 0.4) {
-      abilities.push({ keyword: 'distortion', description: 'distortionDesc' });
-      tax += 1;
+      const roll = random();
+      if (roll > 0.6) {
+        abilities.push({ keyword: 'Drop', description: 'La caída: Al entrar en juego, ataca inmediatamente con +2 ATK adicional (una vez).' });
+        tax += 2;
+      } else if (roll > 0.3) {
+        abilities.push({ keyword: 'Distorsión', description: 'Agresiva: Cuando ataca y derrota a una Criatura, inflige 1 de daño adicional al rival.' });
+        tax += 1;
+      } else {
+        abilities.push({ keyword: 'Bass Boost', description: 'Bajos potentes: +2 ATK pero -1 DEF. El ataque aplasta pero la defensa sufre.' });
+        tax += 1;
+      }
     } else if (isPop && random() > 0.4) {
-      abilities.push({ keyword: 'hypeEngine', description: 'hypeEngineDesc' });
-      tax += 2;
+      const roll = random();
+      if (roll > 0.6) {
+        abilities.push({ keyword: 'Hype Engine', description: 'Éxito viral: Al entrar en juego, otorga +1 Hype al jugador.' });
+        tax += 2;
+      } else if (roll > 0.3) {
+        abilities.push({ keyword: 'Falsetto', description: 'Evasiva: -1 ATK pero +2 DEF. Difícil de derrotar, esquiva lo que puede.' });
+        tax += 1;
+      } else {
+        abilities.push({ keyword: 'Featuring', description: 'Colaboración: Si controlas otra Criatura del mismo artista, gana +2 ATK.' });
+        tax += 2;
+      }
     } else if (isHipHop && random() > 0.4) {
-      abilities.push({ keyword: 'dissTrack', description: 'dissTrackDesc' });
-      tax += 2;
+      const roll = random();
+      if (roll > 0.6) {
+        abilities.push({ keyword: 'Diss Track', description: 'Al atacar una Criatura rival, reduce su DEF en 1 permanentemente.' });
+        tax += 2;
+      } else {
+        abilities.push({ keyword: 'Sample', description: 'Sample: Copia el ATK o el DEF de una de tus Criaturas en juego hasta fin de turno.' });
+        tax += 2;
+      }
     } else if (isElectronic && random() > 0.4) {
-      abilities.push({ keyword: 'frenzy', description: 'frenzyDesc' });
-      tax += 2;
+      const roll = random();
+      if (roll > 0.6) {
+        abilities.push({ keyword: 'Frenzy', description: 'Trance: Puede atacar dos veces por turno, pero la segunda vez con la mitad de ATK.' });
+        tax += 3;
+      } else if (roll > 0.3) {
+        abilities.push({ keyword: 'Autotune', description: 'Adaptable: Una vez por turno, puede intercambiar sus valores de ATK y DEF.' });
+        tax += 2;
+      } else {
+        abilities.push({ keyword: 'Radio Edit', description: 'Rápida: Su coste de invocación es 1 energía menos.' });
+        tax += 1;
+      }
     } else if (random() > 0.8) {
-      abilities.push({ keyword: 'sustain', description: 'sustainDesc' });
+      abilities.push({ keyword: 'Sustain', description: 'Al inicio de tu turno, recupera 1 de Defensa perdida (hasta su máximo original).' });
       tax += 1;
     } else if (random() > 0.8) {
-      abilities.push({ keyword: 'stealth', description: 'stealthDesc' });
+      abilities.push({ keyword: 'Acoustic', description: 'Íntima: No puede ser objetivo de efectos rivales hasta que declare un ataque.' });
       tax += 2;
     } else if (random() > 0.8) {
-      abilities.push({ keyword: 'vip', description: 'vipDesc' });
+      abilities.push({ keyword: 'Outro', description: 'Epílogo: Al ser destruida, inflige 2 de daño a una Criatura rival o al rival directamente.' });
       tax += 2;
     } else if (random() > 0.6) {
-      abilities.push({ keyword: 'taunt', description: 'tauntDesc' });
+      abilities.push({ keyword: 'Taunt', description: 'Provocación: Las Criaturas rivales deben atacar a esta carta si pueden.' });
       tax += 1;
+    } else if (random() > 0.85) {
+      abilities.push({ keyword: 'Encore', description: 'Bis: Una vez por juego, cuando sea destruida, puede regresar desde el Archivo con 1 DEF.' });
+      tax += 3;
     }
 
     // 6. El Privilegio de la Fama (Star Power Bonus) - GDD 9.3
@@ -156,7 +210,7 @@ export function generateCard(track: any, forcedRarity?: CardData['rarity']): Car
   let atk = 0;
   let def = 0;
 
-  if (type === 'CREATURE') {
+  if (type === 'CREATURE' || type === 'EVENT') {
     const genre = track.primaryGenreName || 'Pop';
     const isRock = /rock|metal|punk/i.test(genre);
     const isPop = /pop|r&b|soul/i.test(genre);
@@ -172,8 +226,23 @@ export function generateCard(track: any, forcedRarity?: CardData['rarity']): Car
       def = Math.ceil(budget / 2);
     }
 
-    if (atk < 0) atk = 0;
-    if (def < 1) def = 1;
+    // GDD REFINEMENT: Min 1 ATK and 1 DEF for Creatures
+    if (type === 'CREATURE') {
+      if (atk < 1) atk = 1;
+      if (def < 1) def = 1;
+
+      // GDD REFINEMENT: 1-DEF cards cannot have defense restoration (sustain)
+      if (def === 1) {
+        const idx = abilities.findIndex(a => a.keyword === 'sustain');
+        if (idx !== -1) {
+          abilities.splice(idx, 1);
+        }
+      }
+    } else {
+      // Events have 0 stats as per USER request
+      atk = 0;
+      def = 0;
+    }
   }
 
   // 8. Extracción de Color (Simulada determinísticamente)
@@ -190,12 +259,15 @@ export function generateCard(track: any, forcedRarity?: CardData['rarity']): Car
     artist: track.artistName,
     album: track.collectionName,
     genre: track.primaryGenreName,
-    artUrl,
+    artUrl: artUrl.replace('http://', 'https://'),
     previewUrl: track.previewUrl,
     rarity,
     cost,
     stats: { atk, def },
     abilities,
     themeColor,
+    videoId: youtubeData?.videoId || track.videoId,
+    trackNumber: track.trackNumber,
+    lyrics: track.lyrics || `${track.trackName}\n${track.artistName}\n\n[Música sonando...]\nEsta es una de las canciones más icónicas de ${track.artistName}.\nSu letra habla sobre la vida, el amor y la pasión por el sonido.\n\n"You're the music in my head,\nTurning pages of the records we've read.\"\n\n[Solo de Instrumentos]`,
   };
 }

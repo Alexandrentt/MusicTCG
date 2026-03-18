@@ -37,8 +37,8 @@ export interface PlayerState {
 export interface BoardEntity {
     instanceId: string;      // Unique ID for this instance on the board
     cardId: string;
-    atk: number;
-    def: number;
+    currentAtk: number;      // Changed from atk to align with hooks
+    currentDef: number;      // Changed from def
     maxDef: number;
     isSilenced: boolean;
     canAttack: boolean;

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CardData } from '@/lib/engine/generator';
+import { PlayerRank, PlayerLevel, createDefaultRank, createDefaultLevel, computeVictory, computeLoss, computeXPGain, XPSource } from '@/lib/engine/rankingSystem';
+import { ChestSlot, ChestType, CHEST_CONFIG } from '@/lib/monetization/chestSystem';
+import { UserRole } from '@/lib/auth/roleSystem';
 
 export interface Deck {
   id: string;
@@ -50,6 +53,17 @@ export interface PlayerState {
     GOLD: number;
     PLATINUM: number;
   };
+  rank: PlayerRank;
+  level: PlayerLevel;
+
+  // Chest System
+  chestQueue: ChestSlot[];
+  maxChestSlots: number;
+  premiumGold: number;
+
+  // Monetization
+  isPaying: boolean;
+  role: UserRole;
 
   // Actions
   addRegalias: (amount: number) => void;
@@ -78,13 +92,32 @@ export interface PlayerState {
   claimMissionReward: (missionId: string) => void;
   setLanguage: (lang: string) => void;
   setDiscoveryUsername: (username: string) => void;
+  updateRank: (won: boolean) => any;
+  updateXP: (source: XPSource, multiplier?: number) => any;
   setHasReceivedInitialPacks: (val: boolean) => void;
   setIsInBattle: (val: boolean) => void;
   setPlayMusicInBattle: (val: boolean) => void;
   incrementPity: (rarity: 'GOLD' | 'PLATINUM') => void;
   resetPity: (rarity: 'GOLD' | 'PLATINUM') => void;
   completeOnboarding: (deckName: string, cards: CardData[]) => void;
+  recalculateInventory: () => void;
+  resetAll: () => void;
+
+  // Chest Actions
+  addChest: (chest: ChestSlot) => boolean;
+  startChestUnlock: (chestId: string) => void;
+  openChest: (chestId: string) => void;
+  accelerateChest: (chestId: string) => void;
+  updateChestTimers: () => void;
+
+  // Monetization Actions
+  setPayingStatus: (val: boolean) => void;
+  addPremiumGold: (amount: number) => void;
+  // Store UI State
+  activeStoreTab: 'packs' | 'premium' | 'cosmetics';
+  setActiveStoreTab: (tab: 'packs' | 'premium' | 'cosmetics') => void;
 }
+
 
 export const usePlayerStore = create<PlayerState>()(
   persist(
@@ -118,6 +151,14 @@ export const usePlayerStore = create<PlayerState>()(
         GOLD: 0,
         PLATINUM: 0,
       },
+      rank: createDefaultRank('local-user'),
+      level: createDefaultLevel('local-user'),
+
+      chestQueue: [],
+      maxChestSlots: 4,
+      premiumGold: 50, // Starter premium gold
+      isPaying: false,
+      role: UserRole.FREE,
 
       addRegalias: (amount) => set((state) => ({ regalias: state.regalias + amount })),
 
@@ -133,7 +174,19 @@ export const usePlayerStore = create<PlayerState>()(
       addCard: (card) => {
         let result = { added: false, convertedToWildcard: false };
         set((state) => {
-          const existing = state.inventory[card.id];
+          // Master Card Logic: Find if we already own this exact song
+          let targetCardId = card.id;
+          const existingMaster = Object.values(state.inventory).find(
+            item =>
+              item.card.name.toLowerCase() === card.name.toLowerCase() &&
+              item.card.artist.toLowerCase() === card.artist.toLowerCase()
+          );
+
+          if (existingMaster) {
+            targetCardId = existingMaster.card.id;
+          }
+
+          const existing = state.inventory[targetCardId];
           const count = existing ? existing.count : 0;
 
           // Rule 7.1 & 7.2: Play-set limit is 4. 5th copy becomes a wildcard.
@@ -150,7 +203,8 @@ export const usePlayerStore = create<PlayerState>()(
             return {
               inventory: {
                 ...state.inventory,
-                [card.id]: { card, count: count + 1 }
+                // Use the master card if it exists to maintain consistency
+                [targetCardId]: { card: existing ? existing.card : card, count: count + 1 }
               }
             };
           }
@@ -159,14 +213,38 @@ export const usePlayerStore = create<PlayerState>()(
       },
 
       addCards: (cards) => {
-        let added = 0;
-        let converted = 0;
-        cards.forEach(card => {
-          const res = get().addCard(card);
-          if (res.added) added++;
-          if (res.convertedToWildcard) converted++;
+        let addedCount = 0;
+        let convertedCount = 0;
+
+        set((state) => {
+          const newInventory = { ...state.inventory };
+          const newWildcards = { ...state.wildcards };
+
+          cards.forEach(card => {
+            // Master Card Logic
+            const existingMaster = Object.values(newInventory).find(
+              item =>
+                item.card.name.toLowerCase() === card.name.toLowerCase() &&
+                item.card.artist.toLowerCase() === card.artist.toLowerCase()
+            );
+
+            const targetId = existingMaster ? existingMaster.card.id : card.id;
+            const existing = newInventory[targetId];
+            const count = existing ? existing.count : 0;
+
+            if (count >= 4) {
+              convertedCount++;
+              newWildcards[card.rarity] = (newWildcards[card.rarity] || 0) + 1;
+            } else {
+              addedCount++;
+              newInventory[targetId] = { card: existing ? existing.card : card, count: count + 1 };
+            }
+          });
+
+          return { inventory: newInventory, wildcards: newWildcards };
         });
-        return { added, converted };
+
+        return { added: addedCount, converted: convertedCount };
       },
 
       craftCard: (card) => {
@@ -452,6 +530,52 @@ export const usePlayerStore = create<PlayerState>()(
 
       setLanguage: (lang) => set({ language: lang }),
       setDiscoveryUsername: (username) => set({ discoveryUsername: username }),
+
+      updateRank: (won) => {
+        const { rank } = get();
+        if (won) {
+          const { result, updated } = computeVictory(rank);
+          set({ rank: updated });
+          if (result.reward) {
+            get().addRegalias(result.reward.regalias);
+            if (result.reward.wildcardRarity) {
+              const rarity = result.reward.wildcardRarity as keyof PlayerState['wildcards'];
+              set(state => ({
+                wildcards: {
+                  ...state.wildcards,
+                  [rarity]: state.wildcards[rarity] + 1
+                }
+              }));
+            }
+          }
+          return result;
+        } else {
+          const { result, updated } = computeLoss(rank);
+          set({ rank: updated });
+          return result;
+        }
+      },
+
+      updateXP: (source, multiplier = 1) => {
+        const { level } = get();
+        const { result, updated } = computeXPGain(level, source, multiplier);
+        set({ level: updated });
+
+        // Grant level rewards
+        result.rewards.forEach(({ reward }) => {
+          if (reward.regalias) get().addRegalias(reward.regalias);
+          if (reward.wildcardRarity) {
+            const rarity = reward.wildcardRarity as keyof PlayerState['wildcards'];
+            set(state => ({
+              wildcards: {
+                ...state.wildcards,
+                [rarity]: state.wildcards[rarity] + 1
+              }
+            }));
+          }
+        });
+        return result;
+      },
       setHasReceivedInitialPacks: (val) => set({ hasReceivedInitialPacks: val }),
       setIsInBattle: (val) => set({ isInBattle: val }),
       setPlayMusicInBattle: (val) => set({ playMusicInBattle: val }),
@@ -503,6 +627,129 @@ export const usePlayerStore = create<PlayerState>()(
           };
         });
       },
+
+      recalculateInventory: () => {
+        const { inventory } = get();
+        const { generateCard } = require('@/lib/engine/generator');
+
+        const newInventory = { ...inventory };
+        Object.keys(newInventory).forEach(id => {
+          const item = newInventory[id];
+          // Regeneramos la carta basándonos en su trackId original pero con la lógica nueva
+          const updatedCard = generateCard({
+            trackId: item.card.id,
+            trackName: item.card.name,
+            artistName: item.card.artist,
+            primaryGenreName: item.card.genre,
+            videoId: item.card.videoId,
+            trackNumber: item.card.trackNumber
+          }, item.card.rarity);
+
+          newInventory[id] = { ...item, card: updatedCard };
+        });
+
+        set({ inventory: newInventory });
+      },
+
+      resetAll: () => set({
+        inventory: {},
+        decks: {},
+        regalias: 1500,
+        wildcards: { BRONZE: 0, SILVER: 0, GOLD: 0, PLATINUM: 0 },
+        wildcardProgress: { BRONZE: 0, SILVER: 0, GOLD: 0, PLATINUM: 0 },
+        hasCompletedOnboarding: false,
+        hasReceivedInitialPacks: false
+      }),
+
+      addChest: (chest) => {
+        const { chestQueue, maxChestSlots } = get();
+        if (chestQueue.length >= maxChestSlots) return false;
+        set({ chestQueue: [...chestQueue, chest] });
+        return true;
+      },
+
+      startChestUnlock: (chestId) => set((state) => {
+        const now = Date.now();
+        const chest = state.chestQueue.find(c => c.id === chestId);
+        if (!chest || chest.status !== 'LOCKED') return state;
+
+        const isAnyUnlocking = state.chestQueue.some(c => c.status === 'UNLOCKING');
+        if (isAnyUnlocking) return state;
+
+        const duration = CHEST_CONFIG[chest.type].duration;
+        return {
+          chestQueue: state.chestQueue.map(c =>
+            c.id === chestId
+              ? { ...c, status: 'UNLOCKING' as const, unlocksAt: now + duration, timeRemainingMs: duration }
+              : c
+          )
+        };
+      }),
+
+      openChest: (chestId) => {
+        const { chestQueue } = get();
+        const chest = chestQueue.find(c => c.id === chestId);
+        if (!chest || chest.status !== 'READY') return;
+
+        // Give gold
+        get().addRegalias(chest.rewards.gold);
+
+        // Give wildcards
+        if (chest.rewards.wildcards) {
+          set(state => {
+            const newWildcards = { ...state.wildcards };
+            chest.rewards.wildcards!.forEach(wc => {
+              const r = wc.rarity as keyof typeof newWildcards;
+              newWildcards[r] = (newWildcards[r] || 0) + wc.count;
+            });
+            return { wildcards: newWildcards };
+          });
+        }
+
+        set({
+          chestQueue: chestQueue.filter(c => c.id !== chestId)
+        });
+      },
+
+      accelerateChest: (chestId) => {
+        const { chestQueue, premiumGold } = get();
+        const chest = chestQueue.find(c => c.id === chestId);
+        if (!chest || (chest.status !== 'UNLOCKING' && chest.status !== 'LOCKED')) return;
+
+        if (premiumGold >= chest.accelerateCost) {
+          set({
+            premiumGold: premiumGold - chest.accelerateCost,
+            chestQueue: chestQueue.map(c =>
+              c.id === chestId ? { ...c, status: 'READY' as const, timeRemainingMs: 0 } : c
+            )
+          });
+        }
+      },
+
+      updateChestTimers: () => set((state) => {
+        const now = Date.now();
+        let changed = false;
+        const newQueue = state.chestQueue.map(c => {
+          if (c.status === 'UNLOCKING') {
+            const remaining = Math.max(0, c.unlocksAt - now);
+            if (remaining === 0) {
+              changed = true;
+              return { ...c, status: 'READY' as const, timeRemainingMs: 0 };
+            }
+            if (Math.abs(c.timeRemainingMs - remaining) > 1000) {
+              changed = true;
+              return { ...c, timeRemainingMs: remaining };
+            }
+          }
+          return c;
+        });
+        return changed ? { chestQueue: newQueue } : state;
+      }),
+
+      setPayingStatus: (val) => set({ isPaying: val, role: val ? UserRole.PAYING : UserRole.FREE }),
+      addPremiumGold: (amount) => set(state => ({ premiumGold: (state.premiumGold || 0) + amount })),
+      activeStoreTab: 'packs',
+      setActiveStoreTab: (tab) => set({ activeStoreTab: tab }),
     }),
     {
       name: 'musictcg-player-storage',

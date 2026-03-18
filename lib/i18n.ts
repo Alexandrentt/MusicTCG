@@ -41,7 +41,10 @@ export const translations = {
       dangerZone: 'Zona de Peligro',
       resetData: 'Borrar Todos los Datos',
       resetWarning: 'Esto eliminará tu colección, mazos y progreso actual.',
-      resetConfirm: '¿Estás seguro de que quieres borrar todos tus datos? Esto eliminará tu colección, mazos y regalías. Esta acción no se puede deshacer.'
+      resetConfirm: '¿Estás seguro de que quieres borrar todos tus datos? Esto eliminará tu colección, mazos y regalías. Esta acción no se puede deshacer.',
+      resetGlobal: 'Reiniciar Colección Global (Firebase)',
+      resetGlobalWarning: 'Esto borrará todas las cartas descubiertas por todos los jugadores en el mundo. Úselo solo para mantenimiento de base de datos.',
+      resetGlobalConfirm: '¿ESTÁS SEGURO? Esto eliminará el progreso de descubrimiento de todos los jugadores. No se puede deshacer.',
     },
     nav: {
       home: 'Inicio',
@@ -128,7 +131,11 @@ export const translations = {
       rarity: 'Rareza',
       genre: 'Género',
       cost: 'Coste',
-      all: 'Todos'
+      all: 'Todos',
+      lyrics: 'Letras',
+      fullPlayback: 'Canción Completa (YouTube)',
+      syncMechanics: 'Sincronizar Mecánicas',
+      syncDesc: 'Recalcula las estadísticas de tu colección según las nuevas reglas del juego.'
     },
     abilities: {
       soundtrack: 'Banda Sonora',
@@ -193,7 +200,10 @@ export const translations = {
       dangerZone: 'Danger Zone',
       resetData: 'Delete All Data',
       resetWarning: 'This will delete your collection, decks, and current progress.',
-      resetConfirm: 'Are you sure you want to delete all your data? This will delete your collection, decks, and royalties. This action cannot be undone.'
+      resetConfirm: 'Are you sure you want to delete all your data? This will delete your collection, decks, and royalties. This action cannot be undone.',
+      resetGlobal: 'Reset Global Collection (Firebase)',
+      resetGlobalWarning: 'This will delete all cards discovered by all players in the world. Use only for database maintenance.',
+      resetGlobalConfirm: 'ARE YOU SURE? This will delete the discovery progress of all players. This cannot be undone.',
     },
     nav: {
       home: 'Home',
@@ -280,7 +290,11 @@ export const translations = {
       rarity: 'Rarity',
       genre: 'Genre',
       cost: 'Cost',
-      all: 'All'
+      all: 'All',
+      lyrics: 'Lyrics',
+      fullPlayback: 'Full Song (YouTube)',
+      syncMechanics: 'Sync Mechanics',
+      syncDesc: 'Recalculates your collection stats based on the new game rules.'
     },
     abilities: {
       soundtrack: 'Soundtrack',
@@ -407,7 +421,7 @@ export function t(lang: string, section: keyof typeof translations['es'], key: s
   const l = (translations[lang as Language] || translations['es']) as any;
   const es = translations['es'] as any;
   let text = l[section]?.[key] || es[section]?.[key] || key;
-  
+
   if (params) {
     Object.keys(params).forEach(p => {
       text = text.replace(`{${p}}`, String(params[p]));

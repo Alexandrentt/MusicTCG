@@ -8,13 +8,18 @@
  * - MusicBrainz: Metadatos profundos (subgéneros, BPM)
  * - YouTube Data API: Popularidad (vistas = rareza)
  */
-
 import {
   AbilityGenerator,
   AbilityValidator,
-  GeneratedAbility,
-  Keyword,
 } from './abilityEngine';
+
+import {
+  Keyword,
+  MasterCardTemplate,
+  GeneratedAbility,
+} from '../types/types';
+
+export type { Keyword, MasterCardTemplate, GeneratedAbility };
 
 // ============================================
 // TIPOS Y INTERFACES
@@ -47,44 +52,7 @@ export interface MusicBrainzData {
   hasFeatures?: boolean;
 }
 
-export interface MasterCardTemplate {
-  // Identifiers
-  id: string; // ID único: hash(trackId + artistId)
-  appleId: string;
-  isrcCode: string;
-
-  // Datos de la Canción
-  name: string;
-  artist: string;
-  album: string;
-  genre: string;
-  subGenres: string[];
-  trackNumber: number;
-  artworkUrl: string; // URL de la portada del disco
-  videoId?: string; // YouTube video ID para miniatura
-
-  // Datos de Juego
-  type: CardType;
-  rarity: CardRarity;
-  cost: number; // Coste de Energía para invocar
-  budget: number; // Presupuesto total de stats
-
-  // Estadísticas Base
-  atk: number;
-  def: number;
-
-  // Habilidades Procedurales
-  ability?: GeneratedAbility;
-  keywords: Keyword[];
-
-  // Datos de Popularidad
-  youtubeViews?: number;
-  lastfmPlaycount?: number;
-
-  // Meta para búsqueda (GDD 10.1)
-  mechanicTags: string[];
-  themeColor?: string; // Color dominante extraído de la portada
-}
+// MasterCardTemplate is now imported from ../types/types
 
 // ============================================
 // MÁQUINA DE RAREZA (GDD: Views = Rarity)
@@ -128,10 +96,19 @@ export function calculateBudget(cost: number): number {
 }
 
 export function distributeBudget(budget: number): { atk: number; def: number } {
-  // Distribución simple: split 50/50, con ligero sesgo aleatorio
-  const atkPercentage = 0.4 + Math.random() * 0.2;
-  const atk = Math.round(budget * atkPercentage);
-  const def = budget - atk;
+  // GDD: Asegurar mínimo 1 en ATK y DEF
+  if (budget < 2) return { atk: 1, def: 1 }; // Debería haber presupuesto de al menos 3
+
+  const atkPercentage = 0.3 + Math.random() * 0.4; // 30% a 70%
+  let atk = Math.max(1, Math.round(budget * atkPercentage));
+  let def = Math.max(1, budget - atk);
+
+  // Reajustar si al redondear nos pasamos o quedamos cortos
+  if (atk + def !== budget) {
+    if (atk + def < budget) atk += (budget - (atk + def));
+    else if (def > 1) def -= ((atk + def) - budget);
+    else atk -= ((atk + def) - budget);
+  }
 
   return { atk, def };
 }
@@ -214,7 +191,8 @@ export class CardGenerator {
       trackId,
       appleData.primaryGenreName,
       baseCost,
-      rarity
+      rarity,
+      baseDef
     );
 
     // 6. GDD 9.2: Validar balance y ajustar coste si es necesario
@@ -260,9 +238,9 @@ export class CardGenerator {
       rarity,
       cost: finalCost,
       budget: finalBudget,
-      atk: Math.max(0, atk),
-      def: Math.max(0, def),
-      ability,
+      atk: Math.max(1, atk),
+      def: Math.max(1, def),
+      abilities: ability ? [ability] : [],
       keywords,
       youtubeViews: viewCount,
       mechanicTags,
