@@ -1,6 +1,3 @@
-QUID: Una barra en la parte inferior que muestra información ÚTIL
-    */
-
 import React from 'react';
 
 interface BattleBarProps {
