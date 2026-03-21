@@ -13,6 +13,7 @@ import { t } from '@/lib/i18n';
 import { getRecentDiscoveries, logDiscovery, getGlobalStats } from '@/lib/discovery';
 import Pack from '@/components/store/Pack';
 import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
 import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
 import { getMythicTrackIds } from '@/lib/admin/mythicService';
 import RankingDisplay from '@/components/RankingDisplay';
@@ -342,7 +343,7 @@ export default function Home() {
               className="bg-zinc-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/30 transition-all group cursor-pointer"
             >
               <div className="aspect-square relative">
-                <img src={discovery.artworkUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                <Image src={discovery.artworkUrl} alt="" fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-2 right-2">
                   <p className="text-[8px] font-bold text-blue-400 uppercase tracking-tighter truncate">{discovery.discoveredBy || 'Anónimo'}</p>
@@ -437,8 +438,7 @@ export default function Home() {
                           >
                             {deck.coverArt && (
                               <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={deck.coverArt} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                <Image src={deck.coverArt} alt="" fill className="object-cover" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
                               </div>
                             )}

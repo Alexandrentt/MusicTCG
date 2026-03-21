@@ -13,6 +13,7 @@ import { t } from '@/lib/i18n';
 import useDebounce from '@/hooks/useDebounce';
 import { generateCard } from '@/lib/engine/generator';
 import { SearchResult } from '@/lib/search/searchEngine';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
@@ -252,7 +253,7 @@ export default function StudioPage() {
     };
 
     performSearch();
-  }, [debouncedGlobalQuery, inventoryList]);
+  }, [debouncedGlobalQuery, inventoryList, searchFilter]);
 
 
   const handleCreateDeck = () => {
@@ -764,8 +765,7 @@ export default function StudioPage() {
                     className="bg-[#121212] border border-white/10 rounded-xl p-4 aspect-square flex flex-col justify-end relative overflow-hidden cursor-pointer group"
                   >
                     {deck.coverArt && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={deck.coverArt} alt={deck.name} className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity" crossOrigin="anonymous" />
+                      <Image src={deck.coverArt} alt={deck.name} fill className="object-cover opacity-50 group-hover:opacity-70 transition-opacity" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10"></div>
                     <div className="relative z-20 group-hover:scale-105 transition-transform w-full">

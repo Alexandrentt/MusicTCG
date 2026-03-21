@@ -1,5 +1,6 @@
 import { CardData } from '@/lib/engine/generator';
 import { Music, Shield } from 'lucide-react';
+import Image from 'next/image';
 
 interface MiniCardProps {
   data: CardData;
@@ -43,11 +44,11 @@ export default function MiniCard({ data, className = '', count = 0, onArtistClic
         {/* Art */}
         <div className={`absolute inset-0 ${isEvent ? 'opacity-50' : ''}`}>
           {artSrc && artSrc !== '' ? (
-            <img
+            <Image
               src={artSrc}
               alt={data.name}
-              className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
-              crossOrigin="anonymous"
+              fill
+              className="object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (

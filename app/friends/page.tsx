@@ -7,6 +7,7 @@ import { usePlayerStore } from '@/store/usePlayerStore';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import Image from 'next/image';
 
 export default function FriendsPage() {
     const { friends, requests, loading, addFriend, acceptRequest, rejectRequest, removeFriend, blockUser } = useFriends();
@@ -222,7 +223,7 @@ export default function FriendsPage() {
                                             >
                                                 {deck.coverArt && (
                                                     <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
-                                                        <img src={deck.coverArt} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                        <Image src={deck.coverArt} alt="" fill className="object-cover" />
                                                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
                                                     </div>
                                                 )}

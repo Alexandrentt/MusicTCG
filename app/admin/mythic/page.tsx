@@ -6,6 +6,7 @@ import { SearchIcon, Star, Trash2, Plus, ShieldAlert, ArrowLeft } from 'lucide-r
 import { toast } from 'sonner';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function MythicAdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -134,8 +135,7 @@ export default function MythicAdminPage() {
               <div key={i} className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3 overflow-hidden">
                   {t.artworkUrl100 && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.artworkUrl100} alt={t.trackName} className="w-10 h-10 rounded-md flex-shrink-0" />
+                    <Image src={t.artworkUrl100} alt={t.trackName} width={40} height={40} className="rounded-md flex-shrink-0" />
                   )}
                   <div className="min-w-0">
                     <h3 className="font-black text-sm line-clamp-1">{t.trackName}</h3>

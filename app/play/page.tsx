@@ -13,6 +13,7 @@ import { generateCard, CardData } from '@/lib/engine/generator';
 import { calculateDeckPower, getDifficultyLevel, generateBotDeck as singleplayerGenerateBotDeck, botPlayTurn, botReplicaResponse, DifficultyLevel, BotAction } from '@/lib/engine/singleplayerBot';
 import { generateBotDeck } from '@/lib/engine/botDeckGenerator';
 import { BotDifficulty } from '@/types/multiplayer';
+import Image from 'next/image';
 import { playSound } from '@/lib/audio';
 import { t } from '@/lib/i18n';
 import CardBack from '@/components/CardBack';
@@ -206,7 +207,7 @@ function BoardCardSlot({
     >
       <div className="absolute inset-0 rounded-[6px] sm:rounded-[10px] bg-zinc-900 overflow-hidden pointer-events-none">
         {card.artworkUrl ? (
-          <img src={card.artworkUrl} alt={card.name} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+          <Image src={card.artworkUrl} alt={card.name} fill className="object-cover opacity-80" />
         ) : (
           <div className="w-full h-full flex justify-center items-center"><Music className="w-8 h-8 opacity-20" /></div>
         )}
@@ -393,7 +394,7 @@ function PlayPage() {
         }
       }).catch(console.error);
     }
-  }, [gameOver, awardWin, awardLoss, grantXP, mode, difficulty, turnCount]);
+  }, [gameOver, awardWin, awardLoss, grantXP, mode, difficulty, turnCount, addChest]);
 
   // ── Player Replica Timer ──
   const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
@@ -586,7 +587,7 @@ function PlayPage() {
       }
       processNextBotAction();
     }, delay);
-  }, [promoteCard, playCard, activateBackstage, declareAttack, endTurn]);
+  }, [promoteCard, playCard, activateBackstage, declareAttack, endTurn, botRef, gameOverRef, turnRef, phaseRef]);
 
   useEffect(() => {
     if (turn === 'bot' && phase === TurnPhase.MAIN && botActionQueue.current.length > 0 && !botProcessing.current) {
@@ -700,8 +701,7 @@ function PlayPage() {
               >
                 {deck.coverArt && (
                   <div className="absolute inset-0 z-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={deck.coverArt} alt="" className="w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" crossOrigin="anonymous" />
+                    <Image src={deck.coverArt} alt="" fill className="object-cover opacity-10 group-hover:opacity-20 transition-opacity" />
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
                   </div>
                 )}
