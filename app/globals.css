@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+}
+
+:root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+}
+
+@layer base {
+    body {
+        color: var(--foreground);
+        background: var(--background);
+        font-family: Arial, Helvetica, sans-serif;
+    }
+}
+
+/* 3D Card Flip Utilities */
+.perspective-1000 {
+    perspective: 1000px;
+}
+
+.preserve-3d {
+    transform-style: preserve-3d;
+}
+
+.backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+    transform: rotateY(180deg);
+}
+
+/* Custom Animations */
+@keyframes float {
+    0% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-10px) rotate(2deg);
+    }
+
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+}
+
+.animate-float {
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes particle-float {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(var(--tw-translate-x, 20px), var(--tw-translate-y, -100px)) scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes pack-shake {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(-1deg);
+    }
+
+    75% {
+        transform: rotate(1deg);
+    }
+}
+
+.animate-pack-shake {
+    animation: pack-shake 0.1s infinite;
+}
