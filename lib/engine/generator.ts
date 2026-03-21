@@ -80,7 +80,12 @@ function applyFormatModifiers(stats: { cost: number, atk: number, def: number },
   }
 }
 
-export function generateCard(track: any, forcedRarity?: CardRarity, youtubeData?: any): CardData {
+export function generateCard(
+  track: any,
+  forcedRarity?: CardRarity,
+  youtubeData?: any,
+  mythicTrackIds?: Set<string>
+): CardData {
   // 1. Identificación del Master (Artist + Song Name) para herencia de rareza
   const compositionId = `${track.artistName} - ${track.trackName.replace(/\(.*\)| - .*/g, '').trim()}`;
   const masterSeed = hashString(compositionId);
@@ -88,11 +93,19 @@ export function generateCard(track: any, forcedRarity?: CardRarity, youtubeData?
 
   // 2. Determinación de Rareza Heredada (Master Rarity)
   let masterRarity: CardRarity = 'BRONZE';
-  const rarityRoll = masterRandom();
-  if (rarityRoll > 0.999) masterRarity = 'MYTHIC';
-  else if (rarityRoll > 0.95) masterRarity = 'PLATINUM';
-  else if (rarityRoll > 0.8) masterRarity = 'GOLD';
-  else if (rarityRoll > 0.5) masterRarity = 'SILVER';
+
+  // Si el admin marcó esta canción como mítica, siempre es MYTHIC
+  const trackIdStr = String(track.trackId || '');
+  if (mythicTrackIds?.has(trackIdStr)) {
+    masterRarity = 'MYTHIC';
+  } else {
+    // Lógica original de rareza
+    const rarityRoll = masterRandom();
+    if (rarityRoll > 0.999) masterRarity = 'MYTHIC';
+    else if (rarityRoll > 0.95) masterRarity = 'PLATINUM';
+    else if (rarityRoll > 0.8) masterRarity = 'GOLD';
+    else if (rarityRoll > 0.5) masterRarity = 'SILVER';
+  }
 
   // 3. Formato y Tipo Híbrido
   const format = detectFormat(track);

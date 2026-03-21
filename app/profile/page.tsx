@@ -131,6 +131,13 @@ export default function ProfilePage() {
           }
           return;
         }
+        // Success sign in
+        const { data: { user: signedInUser } } = await supabase.auth.getUser();
+        if (signedInUser?.user_metadata?.username) {
+          setDiscoveryUsername(signedInUser.user_metadata.username);
+        } else if (signedInUser?.user_metadata?.full_name) {
+          setDiscoveryUsername(signedInUser.user_metadata.full_name);
+        }
         toast.success('¡Sesión iniciada! Bienvenido de vuelta.');
       }
       setShowEmailAuth(false);

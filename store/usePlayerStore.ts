@@ -38,7 +38,7 @@ export interface PlayerState {
     PLATINUM: number;
     MYTHIC: number;
   };
-  inventory: Record<string, { card: CardData; count: number }>;
+  inventory: Record<string, { card: CardData; count: number; obtainedAt: number }>;
   decks: Record<string, Deck>;
 
   freePacksCount: number;
@@ -226,7 +226,11 @@ export const usePlayerStore = create<PlayerState>()(
               inventory: {
                 ...state.inventory,
                 // Use the master card if it exists to maintain consistency
-                [targetCardId]: { card: existing ? existing.card : card, count: count + 1 }
+                [targetCardId]: {
+                  card: existing ? existing.card : card,
+                  count: count + 1,
+                  obtainedAt: existing?.obtainedAt ?? Date.now(),
+                }
               }
             };
           }
@@ -259,7 +263,11 @@ export const usePlayerStore = create<PlayerState>()(
               newWildcards[card.rarity] = (newWildcards[card.rarity] || 0) + 1;
             } else {
               addedCount++;
-              newInventory[targetId] = { card: existing ? existing.card : card, count: count + 1 };
+              newInventory[targetId] = {
+                card: existing ? existing.card : card,
+                count: count + 1,
+                obtainedAt: existing?.obtainedAt ?? Date.now(),
+              };
             }
           });
 
@@ -286,7 +294,7 @@ export const usePlayerStore = create<PlayerState>()(
             },
             inventory: {
               ...state.inventory,
-              [card.id]: { card, count: count + 1 }
+              [card.id]: { card, count: count + 1, obtainedAt: Date.now() }
             }
           }));
           get().updateMissionProgress('craft', 1);
@@ -639,7 +647,7 @@ export const usePlayerStore = create<PlayerState>()(
             const existing = newInventory[card.id];
             const count = existing ? existing.count : 0;
             if (count < 4) {
-              newInventory[card.id] = { card, count: count + 1 };
+              newInventory[card.id] = { card, count: count + 1, obtainedAt: Date.now() };
               deckCards[card.id] = (deckCards[card.id] || 0) + 1;
             }
           });

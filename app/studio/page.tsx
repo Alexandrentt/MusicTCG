@@ -150,16 +150,19 @@ export default function StudioPage() {
 
   // Unified Filtered Inventory (Your Collection)
   const filteredInventory = useMemo(() => {
-    return inventoryList.filter((item) => {
-      const query = globalSearchQuery.toLowerCase();
-      const matchesSearch =
-        item.card.name.toLowerCase().includes(query) ||
-        item.card.artist.toLowerCase().includes(query);
-      const matchesRarity = rarityFilter === 'all' || item.card.rarity === rarityFilter;
-      const matchesGenre = genreFilter === 'all' || item.card.genre.toLowerCase() === genreFilter.toLowerCase();
-      const matchesCost = costFilter === 'all' || item.card.cost === parseInt(costFilter);
-      return matchesSearch && matchesRarity && matchesGenre && matchesCost;
-    });
+    return inventoryList
+      .filter((item) => {
+        const query = globalSearchQuery.toLowerCase();
+        const matchesSearch =
+          item.card.name.toLowerCase().includes(query) ||
+          item.card.artist.toLowerCase().includes(query);
+        const matchesRarity = rarityFilter === 'all' || item.card.rarity === rarityFilter;
+        const matchesGenre = genreFilter === 'all' || item.card.genre.toLowerCase() === genreFilter.toLowerCase();
+        const matchesCost = costFilter === 'all' || item.card.cost === parseInt(costFilter);
+        return matchesSearch && matchesRarity && matchesGenre && matchesCost;
+      })
+      // Más reciente primero
+      .sort((a, b) => (b.obtainedAt ?? 0) - (a.obtainedAt ?? 0));
   }, [inventoryList, globalSearchQuery, rarityFilter, genreFilter, costFilter]);
 
   // Handle Search (Global API)
@@ -712,13 +715,14 @@ export default function StudioPage() {
             <div className="grid grid-cols-4 gap-2">
               {Object.entries(wildcards).map(([rarity, count]) => {
                 const progress = wildcardProgress?.[rarity as keyof typeof wildcards] || 0;
-                const colors = {
+                const colors: Record<string, string> = {
                   BRONZE: 'bg-[#cd7f32]',
                   SILVER: 'bg-[#c0c0c0]',
                   GOLD: 'bg-[#ffd700]',
-                  PLATINUM: 'bg-cyan-400'
+                  PLATINUM: 'bg-cyan-400',
+                  MYTHIC: 'bg-purple-500'
                 };
-                const colorClass = colors[rarity as keyof typeof colors];
+                const colorClass = colors[rarity] || 'bg-gray-500';
 
                 return (
                   <div key={rarity} className="flex flex-col items-center bg-[#242424] p-2 rounded-lg">
@@ -838,6 +842,7 @@ export default function StudioPage() {
                     >
                       <MiniCard
                         data={item.card}
+                        count={item.count}
                         className="w-full group-hover:scale-105 transition-transform"
                         onArtistClick={(artist) => {
                           setGlobalSearchQuery(artist);
@@ -1006,7 +1011,7 @@ export default function StudioPage() {
                     </div>
 
                     {/* Right Col: Lyrics & Music Player SidePanel */}
-                    {(selectedCard.videoId || (lyrics && !(!ownedMasterCard && typeof lyrics === 'string' && lyrics.includes('Debes poseer')))) && (
+                    {(selectedCard.videoId || lyrics) && (
                       <div className="flex flex-col gap-6 w-full lg:max-w-md xl:max-w-lg shrink-0">
                         {/* YouTube Player */}
                         {selectedCard.videoId && (
@@ -1078,13 +1083,6 @@ export default function StudioPage() {
                                 <p className="text-base text-gray-300 leading-relaxed whitespace-pre-wrap font-serif italic pb-8 opacity-80">
                                   {lyrics}
                                 </p>
-                              ) : !ownedMasterCard ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-500 text-xs text-center italic gap-4">
-                                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                                    <Music size={24} className="opacity-20" />
-                                  </div>
-                                  <p className="max-w-[200px]">Debes poseer esta carta en tu colección para descifrar su letra.</p>
-                                </div>
                               ) : (
                                 <div className="h-full flex items-center justify-center text-gray-600 text-xs text-center italic">
                                   No se encontraron letras para esta canción.

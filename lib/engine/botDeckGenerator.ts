@@ -66,12 +66,12 @@ async function generateCardsByStrategy(
         return []; // Sin cartas
     }
 
-    // Número de cartas para cada coste - Max 40
+    // Número de cartas para cada coste - Max 20
     const costDistribution = {
-        aggro: { 1: 12, 2: 12, 3: 8, 4: 5, 5: 3 },
-        control: { 1: 5, 2: 8, 3: 12, 4: 10, 5: 5 },
-        combo: { 1: 8, 2: 10, 3: 10, 4: 8, 5: 4 },
-        tempo: { 1: 10, 2: 12, 3: 10, 4: 6, 5: 2 },
+        aggro: { 1: 6, 2: 6, 3: 4, 4: 2, 5: 2 },
+        control: { 1: 3, 2: 4, 3: 6, 4: 4, 5: 3 },
+        combo: { 1: 4, 2: 5, 3: 5, 4: 4, 5: 2 },
+        tempo: { 1: 5, 2: 6, 3: 5, 4: 3, 5: 1 },
     };
 
     const distribution = costDistribution[strategy];
@@ -116,10 +116,10 @@ async function generateCardsByStrategy(
         }
     }
 
-    // Rellenar hasta 40 si faltan
-    while (selectedCards.length < 40 && allCards.length > 0) {
+    // Rellenar hasta 20 si faltan
+    while (selectedCards.length < 20 && allCards.length > 0) {
         selectedCards.push(allCards[Math.floor(Math.random() * allCards.length)]);
     }
 
-    return selectedCards.slice(0, 40);
+    return selectedCards.slice(0, 20);
 }

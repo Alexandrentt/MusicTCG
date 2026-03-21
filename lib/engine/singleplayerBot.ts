@@ -22,7 +22,7 @@ export function getDifficultyLevel(power: number): DifficultyLevel {
 
 export function generateBotDeck(playerPower: number): CardData[] {
     const arr: CardData[] = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 20; i++) {
         // Generar cartas de bot balanceadas
         arr.push(generateCard({
             trackId: 'bot_' + i,

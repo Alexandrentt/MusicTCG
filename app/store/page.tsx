@@ -14,6 +14,8 @@ import { supabase } from '@/lib/supabase';
 import Pack from '@/components/store/Pack';
 import { processPurchase } from '@/lib/auth/paymentSystem';
 import { UserRole } from '@/lib/auth/roleSystem';
+import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
+import { getMythicTrackIds } from '@/lib/admin/mythicService';
 
 // ═════════════════════════════════════════
 // TIPOS DE SOBRE
@@ -349,6 +351,8 @@ export default function StorePage() {
       const shuffled = allTracks.sort(() => 0.5 - Math.random());
       const selectedTracks = shuffled.slice(0, 5 * quantity);
 
+      const mythicTrackIds = await getMythicTrackIds();
+
       const newCards: CardData[] = [];
 
       for (let i = 0; i < selectedTracks.length; i++) {
@@ -358,10 +362,14 @@ export default function StorePage() {
         // Apply guarantee for the last card of EACH pack
         const isLastCardOfPack = (i + 1) % 5 === 0;
 
-        if (pack.id === 'legends' && isLastCardOfPack) {
+        if (pack.id === 'legends' && packPhase === 'pack' && isLastCardOfPack) { // packPhase use is legacy but keeping logic stable
           forcedRarity = Math.random() > 0.75 ? 'PLATINUM' : 'GOLD';
         }
-        if (pack.id === 'hiphop' && isLastCardOfPack && !forcedRarity) {
+        // Simplified check since packPhase is now managed by Modal
+        if (pack.id === 'legends' && (i + 1) === selectedTracks.length) {
+          forcedRarity = Math.random() > 0.75 ? 'PLATINUM' : 'GOLD';
+        }
+        if (pack.id === 'hiphop' && (i + 1) === selectedTracks.length && !forcedRarity) {
           forcedRarity = 'GOLD';
         }
 
@@ -375,7 +383,7 @@ export default function StorePage() {
           resetPity('GOLD');
         }
 
-        const card = generateCard(track, forcedRarity);
+        const card = generateCard(track, forcedRarity, undefined, mythicTrackIds);
 
         if (card.rarity === 'PLATINUM') {
           resetPity('PLATINUM'); resetPity('GOLD');
@@ -394,10 +402,10 @@ export default function StorePage() {
       }
 
       if (spendRegalias(totalCost)) {
-        const results = newCards.map((card) => {
+        const results: OpenedCardItem[] = newCards.map((card) => {
           const res = addCard(card);
-          // Reveal automatically if not Platinum
-          const revealed = card.rarity !== 'PLATINUM';
+          // Reveal automatically if not Platinum/Mythic
+          const revealed = card.rarity !== 'PLATINUM' && card.rarity !== 'MYTHIC';
           return { card, isDuplicate: res.convertedToWildcard, revealed };
         });
 
@@ -406,7 +414,6 @@ export default function StorePage() {
 
         setOpenedCards(results);
         setCurrentPack(pack);
-        setPackPhase('pack');
         setRevealingAll(false);
         setIsOpening(true);
       }
@@ -551,9 +558,19 @@ export default function StorePage() {
                       <Pack type={pack.id.toUpperCase() as any} className="scale-75 origin-right" />
                     </div>
                   </div>
-                  <div className="relative z-10 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-0.5">Garantía</p>
-                    <p className="text-xs font-bold text-white">{pack.guarantee}</p>
+                  <div className="relative z-10 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex flex-col gap-2">
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-0.5">Garantía</p>
+                      <p className="text-xs font-bold text-white">{pack.guarantee}</p>
+                    </div>
+                    {/* Feature 7: Miniaturas de cartas de ejemplo */}
+                    <div className="flex gap-1 overflow-hidden pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="w-8 h-12 bg-white/10 rounded border border-white/5 flex items-center justify-center">
+                          <Music2 className="w-3 h-3" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex gap-2 relative z-10">
                     <button onClick={() => handleBuyPack(pack, 1)} disabled={!!loading || !canAfford} className="flex-1 bg-white text-black font-black text-sm py-3 rounded-2xl disabled:opacity-40 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg">
@@ -616,181 +633,21 @@ export default function StorePage() {
       )}
 
       {/* ══════════════════════════════════════
-          MODAL DE APERTURA DE SOBRE
+          MODAL DE APERTURA DE SOBRE (UNIFICADO)
       ══════════════════════════════════════ */}
+      <PackOpenModal
+        isOpen={isOpening}
+        cards={openedCards}
+        onClose={closeOpening}
+        onRevealCard={revealCard}
+        onRevealAll={revealAll}
+        isRevealingAll={revealingAll}
+        title={currentPack ? (t(language, 'store', currentPack.nameKey) || currentPack.nameKey) : 'Sobre Abierto'}
+        subtitle={currentPack?.guarantee}
+      />
+
+      {/* Inspection Modal in Store */}
       <AnimatePresence>
-        {isOpening && openedCards.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex flex-col bg-black/97 backdrop-blur-2xl overflow-hidden"
-          >
-            {/* Partículas estáticas */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {[...Array(40)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-0.5 h-0.5 bg-white/20 rounded-full"
-                  style={{
-                    left: `${(i * 7.3) % 100}%`,
-                    top: `${(i * 13.7) % 100}%`,
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* ── FASE 1: Muestra el sobre ── */}
-            {packPhase === 'pack' && (
-              <div className="flex-1 flex flex-col items-center justify-center gap-10 relative z-10 p-8">
-                <div>
-                  <p className="text-gray-400 text-center text-sm uppercase tracking-widest font-bold mb-2">
-                    {currentPack?.emoji} {t(language, 'store', currentPack?.nameKey || '') || currentPack?.nameKey}
-                  </p>
-                  <h2 className="text-4xl sm:text-5xl font-black text-white text-center tracking-tighter italic uppercase">
-                    ¡Sobre Listo!
-                  </h2>
-                </div>
-
-                <motion.div
-                  animate={{ y: [0, -12, 0], rotate: [0, 1, -1, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative cursor-pointer group"
-                  onClick={() => setPackPhase('cards')}
-                >
-                  <div className="absolute -inset-12 bg-white/10 blur-3xl rounded-full animate-pulse" />
-                  <Pack
-                    type={(currentPack?.id || 'basic').toUpperCase() as any}
-                    className="scale-150 relative z-10"
-                  />
-                </motion.div>
-
-                <motion.button
-                  animate={{ scale: [1, 1.03, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  onClick={() => setPackPhase('cards')}
-                  className="bg-white text-black font-black text-lg py-4 px-12 rounded-full shadow-[0_0_40px_rgba(255,255,255,0.2)] uppercase tracking-tighter italic"
-                >
-                  ¡Abrir! →
-                </motion.button>
-              </div>
-            )}
-
-            {/* ── FASE 2: Muestra las cartas en Abanico ── */}
-            {packPhase === 'cards' && (
-              <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
-                {/* Cabecera */}
-                <div className="shrink-0 text-center pt-8 pb-4">
-                  <motion.h2
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="text-3xl font-black text-white tracking-widest italic uppercase"
-                  >
-                    {openedCards.length} DESCUBRIMIENTOS
-                  </motion.h2>
-                  <p className="text-gray-400 text-xs font-bold mt-2 uppercase tracking-widest opacity-60">
-                    {allRevealed ? 'Inspecciona tus nuevas adquisiciones' : 'Toca el mazo para revelar'}
-                  </p>
-                </div>
-
-                {/* Display Area (Fanned Layout) */}
-                <div className="flex-1 relative flex items-center justify-center p-4">
-                  <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-                    {openedCards.map((item, idx) => {
-                      const total = openedCards.length;
-                      const angle = (idx - (total - 1) / 2) * 6; // Fan angle
-                      const xOffset = (idx - (total - 1) / 2) * 50; // Horizontal spread
-                      const zIndex = idx;
-                      const card = item.card;
-                      const isMythic = card.rarity === 'MYTHIC';
-                      const isRevealed = item.revealed || allRevealed;
-
-                      return (
-                        <motion.div
-                          key={idx}
-                          initial={{
-                            scale: 0.1,
-                            opacity: 0,
-                            y: 300,
-                            rotate: 0,
-                            x: 0
-                          }}
-                          animate={{
-                            scale: isRevealed ? 1 : 0.9,
-                            opacity: 1,
-                            y: isRevealed ? 0 : 20,
-                            rotate: isRevealed ? angle : angle / 2,
-                            x: isRevealed ? xOffset : xOffset / 2,
-                            transition: {
-                              delay: idx * 0.1,
-                              type: "spring",
-                              stiffness: 120,
-                              damping: 14
-                            }
-                          }}
-                          className="absolute cursor-pointer group"
-                          style={{ zIndex }}
-                          onClick={() => {
-                            if (!isRevealed) revealCard(idx);
-                            else setSelectedCard(card);
-                          }}
-                        >
-                          {isMythic && isRevealed && (
-                            <div className="absolute -inset-8 bg-purple-500/30 blur-3xl animate-pulse rounded-full z-[-1]" />
-                          )}
-
-                          <div className={`relative transition-all duration-500 transform-gpu ${isRevealed ? 'scale-100 hover:scale-110 hover:-translate-y-12 hover:rotate-0 hover:z-[60]' : 'scale-95'}`}>
-                            {isRevealed ? (
-                              <div className="shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-2xl overflow-hidden ring-1 ring-white/10 group-hover:ring-white/40">
-                                <Card data={card} isBig={true} />
-                                {isMythic && (
-                                  <div className="absolute -top-4 -right-4 bg-purple-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-2xl border border-white/20 z-50 animate-bounce">
-                                    MYTHIC
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="w-56 h-80 sm:w-64 sm:h-96 shadow-2xl">
-                                <CardBack />
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Footer / Continue Button */}
-                <div className="shrink-0 p-8 pb-16 flex flex-col items-center gap-6 bg-gradient-to-t from-black via-black/80 to-transparent sticky bottom-0 z-[100]">
-                  {!allRevealed && (
-                    <button
-                      onClick={revealAll}
-                      disabled={revealingAll}
-                      className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-full border border-white/20 transition-all text-xs uppercase tracking-widest backdrop-blur-md"
-                    >
-                      Revelar Todo
-                    </button>
-                  )}
-
-                  <motion.button
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 1.5 }}
-                    onClick={closeOpening}
-                    className="group relative px-16 py-5 bg-white text-black font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-zinc-200 transition-all shadow-[0_20px_60px_rgba(255,255,255,0.15)] active:scale-95"
-                  >
-                    <span className="relative z-10 flex items-center gap-3 text-sm">
-                      CONTINUAR <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                    <div className="absolute inset-0 bg-white blur-2xl opacity-0 group-hover:opacity-20 transition-opacity rounded-2xl" />
-                  </motion.button>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-        {/* Inspection Modal in Store */}
         {selectedCard && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -805,20 +662,14 @@ export default function StorePage() {
               className="flex flex-col items-center gap-8 max-w-lg w-full"
               onClick={e => e.stopPropagation()}
             >
-              <Card data={selectedCard} className="w-80 sm:w-96 shadow-[0_0_60px_rgba(255,255,255,0.1)]" />
+              <Card data={selectedCard} isBig={true} className="w-80 sm:w-96 shadow-[0_0_60px_rgba(255,255,255,0.1)]" />
 
               <div className="flex gap-4 w-full max-w-md">
                 <button
                   onClick={() => setSelectedCard(null)}
                   className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-sm"
                 >
-                  Volver
-                </button>
-                <button
-                  onClick={() => setSelectedCard(null)}
-                  className="flex-1 bg-white text-black font-black py-4 rounded-2xl hover:scale-105 active:scale-95 transition-all uppercase tracking-widest text-sm shadow-xl"
-                >
-                  Continuar
+                  Cerrar
                 </button>
               </div>
             </motion.div>

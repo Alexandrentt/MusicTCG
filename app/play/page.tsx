@@ -7,7 +7,7 @@ import { usePlayerStore } from '@/store/usePlayerStore';
 import { useMusicPlayer, Track } from '@/store/useMusicPlayer';
 import Card from '@/components/cards/Card';
 import { User, Swords, Shield, Zap, Sparkles, Trophy, Music, Disc3, Settings, LogOut, ChevronRight, Library, Mic2, Skull, Play, Volume2, ShieldAlert, X, VolumeX, Star } from 'lucide-react';
-import { useGameEngine, BoardCard, hasKw } from '@/hooks/useGameEngine';
+import { useGameEngine, BoardCard, hasKw, TurnPhase } from '@/hooks/useGameEngine';
 import { checkCoincidenceBonus, getSharedPlaylist } from '@/lib/engine/sharedPlaylistService';
 import { generateCard, CardData } from '@/lib/engine/generator';
 import { calculateDeckPower, getDifficultyLevel, generateBotDeck as singleplayerGenerateBotDeck, botPlayTurn, botReplicaResponse, DifficultyLevel, BotAction } from '@/lib/engine/singleplayerBot';
@@ -15,7 +15,6 @@ import { generateBotDeck } from '@/lib/engine/botDeckGenerator';
 import { BotDifficulty } from '@/types/multiplayer';
 import { playSound } from '@/lib/audio';
 import { t } from '@/lib/i18n';
-import { TurnPhase } from '@/lib/engine/gameState';
 import CardBack from '@/components/CardBack';
 import { useRanking } from '@/hooks/useRanking';
 import { audioEngine } from '@/lib/engine/audioEngine';
@@ -253,7 +252,7 @@ function PlayPage() {
   const {
     player, bot, turn, turnCount, phase, gameOver, pendingAttack,
     startGame, playCard, promoteCard, declareAttack, resolvePendingAttack, skipReplica, intercept, activateBackstage, retireCard, endTurn, doMulligan,
-    playerRef, botRef, nextDraws,
+    playerRef, botRef, turnRef, phaseRef, gameOverRef, nextDraws,
   } = useGameEngine();
 
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -290,6 +289,13 @@ function PlayPage() {
       setSelectedHandIndex(null);
       setSelectedAttackerIndex(null);
       setShowTurnIndicator(true);
+
+      // LIMPIAR COLA DEL BOT AL CAMBIAR DE TURNO
+      if (turn === 'player') {
+        botActionQueue.current = [];
+        botProcessing.current = false;
+      }
+
       const timer = setTimeout(() => setShowTurnIndicator(false), 1800);
       return () => clearTimeout(timer);
     }
@@ -498,7 +504,14 @@ function PlayPage() {
 
   // ── Bot AI behavior ──
   const processNextBotAction = useCallback(() => {
-    if (botActionQueue.current.length === 0 || gameOver) {
+    // 1. Verificaciones cruciales de estado
+    if (gameOverRef.current || turnRef.current !== 'bot' || phaseRef.current !== TurnPhase.MAIN) {
+      botActionQueue.current = [];
+      botProcessing.current = false;
+      return;
+    }
+
+    if (botActionQueue.current.length === 0) {
       botProcessing.current = false;
       return;
     }
@@ -507,27 +520,29 @@ function PlayPage() {
     const delay = action.type === 'ATTACK' ? 1200 : action.type === 'END_TURN' ? 600 : 800;
 
     setTimeout(() => {
-      if (gameOver) { botProcessing.current = false; return; }
+      // Re-verificar tras el delay
+      if (gameOverRef.current || turnRef.current !== 'bot') {
+        botProcessing.current = false;
+        return;
+      }
 
-      // Validate indices before calling engine
       switch (action.type) {
         case 'PROMOTE':
           if (botRef.current.hand[action.cardIndex]) promoteCard('bot', action.cardIndex);
-          else console.warn('Bot tried to promote invalid card index:', action.cardIndex);
           break;
         case 'PLAY_CARD':
           if (botRef.current.hand[action.cardIndex]) playCard('bot', action.cardIndex);
-          else console.warn('Bot tried to play invalid card index:', action.cardIndex);
           break;
         case 'ACTIVATE_BACKSTAGE':
           if (botRef.current.backstage[action.backstageIndex]) activateBackstage('bot', action.backstageIndex);
           break;
         case 'ATTACK':
-          // Re-verify attacker exists and is not tapped
           const attacker = botRef.current.board[action.attackerIndex];
           if (attacker && !attacker.isTapped && !attacker.stageFright) {
             declareAttack(action.attackerIndex, action.targetIndex);
-            return; // Engine will call processNextBotAction after delay or replica
+            // El bot se detiene aquí hasta que la REPLICA resuelva o el MAIN vuelva.
+            botProcessing.current = false;
+            return;
           }
           break;
         case 'END_TURN':
@@ -537,11 +552,18 @@ function PlayPage() {
       }
       processNextBotAction();
     }, delay);
-  }, [gameOver, promoteCard, playCard, activateBackstage, declareAttack, endTurn, botRef]);
+  }, [promoteCard, playCard, activateBackstage, declareAttack, endTurn]);
+
+  useEffect(() => {
+    if (turn === 'bot' && phase === TurnPhase.MAIN && botActionQueue.current.length > 0 && !botProcessing.current) {
+      botProcessing.current = true;
+      processNextBotAction();
+    }
+  }, [turn, phase, processNextBotAction]);
 
   useEffect(() => {
     if (turn !== 'bot' || !matchStarted || gameOver || phase !== TurnPhase.MAIN) return;
-    if (botProcessing.current) return;
+    if (botProcessing.current || botActionQueue.current.length > 0) return;
 
     const startTimer = setTimeout(() => {
       const actions = botPlayTurn({ botState: botRef.current, playerState: playerRef.current, turnCount }, difficulty);
@@ -571,10 +593,6 @@ function PlayPage() {
       }
     });
 
-    while (playerDeckArr.length < 40) {
-      playerDeckArr.push(generateCard({ trackId: 'f_' + playerDeckArr.length, trackName: 'Filler', artistName: '?', collectionName: 'F', primaryGenreName: 'Rock', artworkUrl100: '' }));
-    }
-
     const power = calculateDeckPower(playerDeckArr);
 
     let botDeckArr: CardData[];
@@ -588,8 +606,8 @@ function PlayPage() {
     setDifficulty(customDifficulty || getDifficultyLevel(power));
     hasAwardedRewards.current = false;
 
-    // Convert to strict CardData if needed (already mostly matching)
-    startGame(playerDeckArr.slice(0, 40), botDeckArr.slice(0, 40));
+    // EL HOOK YA SE ENCARGA DE RELLENAR HASTA 20 SI ES NECESARIO
+    startGame(playerDeckArr, botDeckArr);
 
     if (tracks.length > 0) {
       setQueue([...tracks]);
@@ -635,7 +653,7 @@ function PlayPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full mt-8">
           {decksList.map(deck => {
             const cardCount = Object.values(deck.cards).reduce((a, b) => a + b, 0);
-            const isValid = cardCount === 40; // Arena focus: exact 40
+            const isValid = cardCount >= 20;
 
             return (
               <motion.div
@@ -662,9 +680,9 @@ function PlayPage() {
                   <h3 className="text-3xl font-black uppercase tracking-tight mb-2 group-hover:text-green-400 transition-colors">{deck.name}</h3>
                   <div className="flex flex-col gap-1 items-center mb-8">
                     <span className={`text-sm font-black tracking-widest uppercase ${isValid ? 'text-green-400' : 'text-red-400'}`}>
-                      {cardCount} / 40 CARS
+                      {cardCount} / 20 CARDS
                     </span>
-                    {!isValid && <span className="text-[10px] text-gray-500 uppercase font-black tracking-tighter italic">Se requieren 40 cartas</span>}
+                    {!isValid && <span className="text-[10px] text-gray-500 uppercase font-black tracking-tighter italic">Se requieren 20 cartas</span>}
                   </div>
 
                   {isValid ? (
@@ -732,6 +750,38 @@ function PlayPage() {
             <Settings className="w-5 h-5 text-gray-400" />
           </button>
         </div>
+
+        {/* Replica Phase Overlay */}
+        <AnimatePresence>
+          {phase === TurnPhase.REPLICA && pendingAttack && turn === 'bot' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none"
+            >
+              <div className="bg-zinc-900 border-2 border-cyan-500/50 p-8 rounded-3xl shadow-[0_0_50px_rgba(6,182,212,0.2)] flex flex-col items-center gap-6 pointer-events-auto max-w-sm text-center">
+                <div className="w-20 h-20 rounded-full border-4 border-cyan-500/20 flex items-center justify-center relative">
+                  <div className="absolute inset-0 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                  <Swords className="w-10 h-10 text-cyan-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tighter text-white mb-2 italic">Fase de Réplica</h2>
+                  <p className="text-gray-400 text-xs">¡Escenario en peligro! El oponente ha declarado un ataque. ¿Interfieres con tu Reserva o dejas que resuelva?</p>
+                </div>
+                <div className="flex flex-col w-full gap-2">
+                  <button
+                    onClick={() => skipReplica()}
+                    className="w-full py-3 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-cyan-500 hover:text-white transition-all shadow-xl active:scale-95 text-xs"
+                  >
+                    Entregar Escenario (Omitir)
+                  </button>
+                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-2 animate-pulse italic">Decidiendo intervención...</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Global Soundtrack Info */}
         {getSharedPlaylist().currentTrack && (
@@ -818,8 +868,14 @@ function PlayPage() {
                       key={c.instanceId}
                       card={c}
                       energy={player.energy}
-                      disabled={turn !== 'player' || phase !== TurnPhase.MAIN || gameOver !== null}
-                      onClick={() => activateBackstage('player', i)}
+                      disabled={(turn === 'player' && phase === TurnPhase.MAIN) || (turn === 'bot' && phase === TurnPhase.REPLICA) ? false : true}
+                      onClick={() => {
+                        if (phase === TurnPhase.REPLICA) {
+                          intercept(i);
+                        } else {
+                          activateBackstage('player', i);
+                        }
+                      }}
                     />
                   ))}
                   {player.backstage.length > 4 && (

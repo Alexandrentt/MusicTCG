@@ -14,6 +14,8 @@ import { t } from '@/lib/i18n';
 import { getRecentDiscoveries, logDiscovery, getGlobalStats } from '@/lib/discovery';
 import Pack from '@/components/store/Pack';
 import { supabase } from '@/lib/supabase';
+import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
+import { getMythicTrackIds } from '@/lib/admin/mythicService';
 import RankingDisplay from '@/components/RankingDisplay';
 import ChestQueue from '@/components/monetization/ChestQueue';
 import CosmeticShopBanner from '@/components/monetization/CosmeticShopBanner';
@@ -30,74 +32,7 @@ import { getOnboardingState } from '@/lib/onboarding/onboardingState';
 // ═════════════════════════════════════════
 // COMPONENTE DE CARTA EN SOBRE (flip CSS puro)
 // ═════════════════════════════════════════
-function FreePackCard({
-  item,
-  index,
-  revealed,
-  onReveal,
-}: {
-  item: { card: CardData; isDuplicate: boolean };
-  index: number;
-  revealed: boolean;
-  onReveal: (i: number) => void;
-}) {
-  const isRare = item.card.rarity === 'GOLD' || item.card.rarity === 'PLATINUM';
-
-  return (
-    <motion.div
-      initial={{ scale: 0, opacity: 0, y: 40 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, type: 'spring', stiffness: 280, damping: 22 }}
-      className="relative perspective-1000 cursor-pointer shrink-0"
-      onClick={() => !revealed && onReveal(index)}
-    >
-      <div
-        className="preserve-3d transition-all duration-700"
-        style={{
-          transform: revealed ? 'rotateY(0deg)' : 'rotateY(180deg)',
-          width: 'clamp(140px, 30vw, 220px)',
-          aspectRatio: '2.5 / 3.5',
-          position: 'relative',
-        }}
-      >
-        {/* Frente */}
-        <div className="absolute inset-0 backface-hidden rounded-xl overflow-hidden">
-          <Card data={item.card} className="w-full h-full" disableHover={!revealed} />
-          {item.isDuplicate && (
-            <div className="absolute -top-2 -right-2 bg-amber-500 text-black text-[9px] font-black px-2 py-0.5 rounded-full z-10 border border-black">
-              COMODÍN
-            </div>
-          )}
-        </div>
-        {/* Reverso */}
-        <div
-          className="absolute inset-0 backface-hidden rounded-xl overflow-hidden"
-          style={{ transform: 'rotateY(180deg)' }}
-        >
-          <CardBack className="w-full h-full" isRare={isRare} size="full" />
-          {!revealed && (
-            <div className="absolute inset-0 flex items-end justify-center pb-2">
-              <span className="text-[9px] text-white/50 font-bold uppercase tracking-widest animate-pulse">Toca</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {isRare && revealed && (
-        <motion.div
-          animate={{ opacity: [0.2, 0.6, 0.2] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute -inset-1 rounded-xl blur-sm pointer-events-none"
-          style={{
-            background: item.card.rarity === 'PLATINUM'
-              ? 'rgba(0,255,255,0.2)'
-              : 'rgba(255,215,0,0.2)',
-          }}
-        />
-      )}
-    </motion.div>
-  );
-}
+// Feature 5: FreePackCard is now handled by PackOpenModal. FlipCard in PackOpenModal replaces it.
 
 // ═════════════════════════════════════════
 // HOME PAGE
@@ -121,9 +56,9 @@ export default function Home() {
 
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [openedCards, setOpenedCards] = useState<{ card: CardData; isDuplicate: boolean }[]>([]);
-  const [revealedSet, setRevealedSet] = useState<Set<number>>(new Set());
+  const [openedCards, setOpenedCards] = useState<OpenedCardItem[]>([]);
   const [isOpening, setIsOpening] = useState(false);
+  const [revealingAll, setRevealingAll] = useState(false);
   const [recentDiscoveries, setRecentDiscoveries] = useState<any[]>([]);
   const [globalStats, setGlobalStats] = useState<any>(null);
 
@@ -145,7 +80,7 @@ export default function Home() {
     }
   };
 
-  const allRevealed = openedCards.length > 0 && revealedSet.size === openedCards.length;
+  const allRevealed = openedCards.length > 0 && openedCards.every(c => c.revealed);
 
   useEffect(() => {
     setMounted(true);
@@ -182,75 +117,60 @@ export default function Home() {
     if (freePacksCount <= 0) return;
     setLoading(true);
     try {
+      const mythicTrackIds = await getMythicTrackIds();
       const packsToOpen = freePacksCount;
       const totalCards = packsToOpen * 5;
 
-      // ── Extreme Randomization Logic ──
-      // We mix "Superhits" with "Deep Cuts" and "Random Characters" to ensure a wild variety.
-      const superhits = ['billboard hot 100', 'top tracks 2024', 'legendary rock hits', 'reggaeton classics', 'pop superstars'];
-      const hiddenGems = ['experimental underground', 'lofi indie records', 'obscure electronic', 'undiscovered jazz', 'garage band archives'];
-      const searchLetters = "abcdefghijklmnopqrstuvwxyz";
-      const randomChar = searchLetters.charAt(Math.floor(Math.random() * searchLetters.length));
+      const resultsPool = await Promise.all([
+        fetch(`https://itunes.apple.com/search?term=pop&entity=song&limit=50`).then(r => r.json()),
+        fetch(`https://itunes.apple.com/search?term=rock&entity=song&limit=50`).then(r => r.json())
+      ]);
 
-      const pools = [
-        superhits[Math.floor(Math.random() * superhits.length)],
-        hiddenGems[Math.floor(Math.random() * hiddenGems.length)],
-        randomChar
-      ];
-
-      // Fetch from multiple sources to mix the results
-      const results = await Promise.all(pools.map(term =>
-        fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=50`).then(r => r.json())
-      ));
-
-      const allTracks = results.flatMap(r => r.results || []);
-      if (!allTracks.length) throw new Error('No records retrieved from the cloud');
-
-      // Shuffle and pick
+      const allTracks = resultsPool.flatMap(r => r.results || []);
       const shuffled = allTracks.sort(() => 0.5 - Math.random());
       const selectedTracks = shuffled.slice(0, totalCards);
-      const newCards = selectedTracks.map((track: any) => generateCard(track));
 
+      const items: OpenedCardItem[] = selectedTracks.map((track: any) => {
+        const card = generateCard(track, undefined, undefined, mythicTrackIds);
+        const res = usePlayerStore.getState().addCard(card);
+        const revealed = card.rarity !== 'PLATINUM' && card.rarity !== 'MYTHIC';
+        const playerName = discoveryUsername || 'Un Jugador';
+        logDiscovery(card, playerName);
+        return { card, isDuplicate: res.convertedToWildcard, revealed };
+      });
+
+      const rarityOrder = { BRONZE: 0, SILVER: 1, GOLD: 2, PLATINUM: 3, MYTHIC: 4 };
+      items.sort((a, b) => (rarityOrder[a.card.rarity] || 0) - (rarityOrder[b.card.rarity] || 0));
 
       if (consumeFreePack(packsToOpen)) {
-        const { data: { session } } = await supabase.auth.getSession();
-        const results = newCards.map((card: CardData) => {
-          const r = usePlayerStore.getState().addCard(card);
-          const playerName = discoveryUsername || session?.user?.user_metadata?.full_name || 'Un Jugador';
-          logDiscovery(card, playerName);
-          return { card, isDuplicate: r.convertedToWildcard };
-        });
-        setRevealedSet(new Set(
-          results
-            .map((r, idx) => (r.card.rarity !== 'PLATINUM' ? idx : -1))
-            .filter(idx => idx !== -1)
-        ));
-        setOpenedCards(results);
+        setOpenedCards(items);
         setIsOpening(true);
       }
     } catch (err) {
       console.error(err);
-      toast.error('Error al abrir sobres. Intenta de nuevo.');
+      toast.error('Error al abrir sobres gratis');
     } finally {
       setLoading(false);
     }
   };
 
   const revealCard = (index: number) => {
-    setRevealedSet(prev => new Set([...prev, index]));
+    setOpenedCards(prev => prev.map((c, i) => i === index ? { ...c, revealed: true } : c));
   };
 
   const revealAll = async () => {
+    if (revealingAll) return;
+    setRevealingAll(true);
     for (let i = 0; i < openedCards.length; i++) {
-      setRevealedSet(prev => new Set([...prev, i]));
-      await new Promise(r => setTimeout(r, 120));
+      setOpenedCards(prev => prev.map((c, idx) => idx === i ? { ...c, revealed: true } : c));
+      await new Promise(r => setTimeout(r, 150));
     }
+    setRevealingAll(false);
   };
 
   const closeOpening = () => {
     setIsOpening(false);
     setOpenedCards([]);
-    setRevealedSet(new Set());
   };
 
   return (
@@ -443,79 +363,15 @@ export default function Home() {
       {/* ══════════════════════════════════════
           MODAL DE APERTURA DE SOBRES GRATIS
       ══════════════════════════════════════ */}
-      <AnimatePresence>
-        {isOpening && openedCards.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex flex-col bg-black/97 backdrop-blur-2xl overflow-hidden"
-          >
-            {/* Partículas estáticas */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {[...Array(30)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-0.5 h-0.5 bg-white/15 rounded-full"
-                  style={{ left: `${(i * 11.3) % 100}%`, top: `${(i * 17.7) % 100}%` }}
-                />
-              ))}
-            </div>
-
-            <div className="flex-1 flex flex-col overflow-hidden relative z-10">
-              {/* Cabecera */}
-              <div className="shrink-0 text-center pt-6 pb-3 px-4">
-                <motion.h2
-                  initial={{ y: -20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  className="text-2xl font-black text-white tracking-tighter italic uppercase"
-                >
-                  🎁 {openedCards.length} Cartas Gratis
-                </motion.h2>
-                <p className="text-gray-500 text-xs mt-1">
-                  {allRevealed ? '✅ ¡Todas reveladas!' : 'Toca cada carta para revelarla'}
-                </p>
-              </div>
-
-              {/* Grid de cartas */}
-              <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">
-                <div className="flex flex-wrap gap-3 justify-center py-4">
-                  {openedCards.map((item, i) => (
-                    <FreePackCard
-                      key={i}
-                      item={item}
-                      index={i}
-                      revealed={revealedSet.has(i)}
-                      onReveal={revealCard}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="shrink-0 p-6 border-t border-white/5 flex flex-col gap-3 bg-black/90 backdrop-blur-xl sticky bottom-0 z-[600] pb-32">
-                {!allRevealed && (
-                  <button
-                    onClick={revealAll}
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/20 text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-widest"
-                  >
-                    <Eye className="w-5 h-5" />
-                    Revelar Rarezas
-                  </button>
-                )}
-                <motion.button
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  onClick={closeOpening}
-                  className="w-full bg-white text-black font-black py-5 rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)] uppercase tracking-tighter text-base border-4 border-white/10"
-                >
-                  {allRevealed ? 'CONTINUAR →' : 'OMITIR Y CONTINUAR'}
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <PackOpenModal
+        isOpen={isOpening}
+        cards={openedCards}
+        onClose={closeOpening}
+        onRevealCard={revealCard}
+        onRevealAll={revealAll}
+        isRevealingAll={revealingAll}
+        title="Regalo Diario"
+      />
 
       {/* MODAL: Selector de dificultad del bot */}
       <AnimatePresence>

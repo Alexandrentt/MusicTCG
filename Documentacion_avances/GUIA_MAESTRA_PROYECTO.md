@@ -1,4 +1,4 @@
-# 🎸 GUÍA MAESTRA DEFINITIVA - MusicTCG (V. 2.9.0)
+# 🎸 GUÍA MAESTRA DEFINITIVA - MusicTCG (V. 3.0.0)
 
 Este documento es la **Única Fuente de Verdad (SSOT)** de MusicTCG. Consolida toda la arquitectura, lógica, diseño y evolución técnica del proyecto. Reemplaza a todos los documentos anteriores.
 
@@ -6,7 +6,24 @@ Este documento es la **Única Fuente de Verdad (SSOT)** de MusicTCG. Consolida t
 
 ## 🚀 RESUMEN DE CAMBIOS RECIENTES
 
-#### [v2.9.0] - Supabase Real, Game Loop, Letras y Diamantes
+#### [v3.0.0] - Combat System Rewrite & Unified State
+
+**Reescritura completa de `useGameEngine.ts`:**
+- **Estado Unificado:** Se eliminó la duplicidad entre `BoardCard` y `BoardEntity`. Todo el estado del tablero, mano, mazo y vida se gestiona en un único hook centralizado.
+- **Motor de Efectos Puro:** `applyKeywordEffects` ahora es una función pura que opera sobre copias del estado, garantizando predictibilidad y evitando bugs de sincronización.
+- **Resolución de Combate Robusta:** `resolveAttackPure` maneja interacciones complejas de keywords (`PROVOKE`, `STEALTH`, `DISTORTION`, `SUSTAIN`) en un solo paso lógico.
+- **Fases de Turno Deterministas:** Implementación estricta de fases `START`, `DRAW`, `MAIN`, `REPLICA`, `END`.
+- **Soporte para Mazos de 20 Cartas:** El mínimo para jugar se redujo a 20 cartas. El motor rellena automáticamente mazos incompletos para asegurar que el juego siempre inicie.
+
+**IA del Bot Renovada:**
+- **Manejo de Réplica:** El bot ahora puede interceptar ataques usando su reserva o cartas en tablero durante la fase de réplica.
+- **Reanudación de Cola:** Se arregló el bug donde el bot se detenía tras declarar un ataque. Ahora reanuda sus acciones pendientes cuando el combate resuelve.
+- **Validación de Estado:** Chequeos robustos de `gameOver` y `turn` evitan que el bot actúe fuera de su tiempo o tras el fin de la partida.
+
+**Mejoras en la Experiencia de Juego (UX):**
+- **Fase de Réplica del Jugador:** Timer de 5 segundos para que el jugador decida si interceptar un ataque rival.
+- **Visualización de Keywords:** Badges específicos para `TAUNT` (Provocación) y efectos visuales de `Tapped` mejorados.
+- **Sincronización de Letras:** Se mantiene el módulo de letras sincronizadas con `lrclib.net`.
 
 **Letras sincronizadas restauradas:**
 - El módulo de letras ahora muestra la letra **siempre que `lrclib.net` la devuelva** (sincronizada o plana).
@@ -111,7 +128,7 @@ Este documento es la **Única Fuente de Verdad (SSOT)** de MusicTCG. Consolida t
 
 ---
 ---
-*Última actualización: v2.8.0 - 2026*
+*Última actualización: v3.0.0 - 2026*
 
 © 2026 MusicTCG Development Team.
 
