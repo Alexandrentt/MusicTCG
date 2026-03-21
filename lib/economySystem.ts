@@ -281,6 +281,7 @@ export class RecordLabelCrafter {
       SILVER: 'silver',
       GOLD: 'gold',
       PLATINUM: 'platinum',
+      MYTHIC: 'platinum', // Use platinum for mythic wildcards
     };
 
     const wildcardType = wildcardTypeMap[cardRarity];
@@ -398,6 +399,7 @@ export function getRarityWildcardCount(
     SILVER: 'silver',
     GOLD: 'gold',
     PLATINUM: 'platinum',
+    MYTHIC: 'platinum', // Use platinum for mythic wildcards
   };
 
   return inventory.wildcards[map[rarity]];

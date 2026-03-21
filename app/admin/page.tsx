@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ShieldAlert, Lock, KeyRound, Star, CheckCircle, ChevronRight, Trash2, Globe, AlertTriangle, DollarSign, Palette, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,16 +19,11 @@ export default function AdminGatePage() {
     const [email, setEmail] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [password, setPassword] = useState('');
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(isAdminAuthenticated());
     const [error, setError] = useState('');
     const [shake, setShake] = useState(false);
 
     useEffect(() => {
-        // Verificar si ya hay sesión de admin activa
-        if (isAdminAuthenticated()) {
-            setIsAuthenticated(true);
-        }
-
         // Obtener email del usuario logueado
         supabase.auth.getSession().then(({ data: { session } }) => {
             setEmail(session?.user?.email ?? null);
@@ -36,7 +31,12 @@ export default function AdminGatePage() {
         });
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const triggerShake = useCallback(() => {
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+    }, []);
+
+    const handleSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
@@ -54,20 +54,16 @@ export default function AdminGatePage() {
         }
 
         // Guardar sesión admin en sessionStorage
-        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        const sessionData = {
             authenticated: true,
             email,
             timestamp: Date.now(),
-        }));
+        };
+        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessionData));
 
         setIsAuthenticated(true);
         toast.success('Acceso de administrador concedido');
-    };
-
-    const triggerShake = () => {
-        setShake(true);
-        setTimeout(() => setShake(false), 500);
-    };
+    }, [email, password, triggerShake]);
 
     const handleResetData = () => {
         if (confirm('¿Estás seguro de que quieres borrar todos tus datos? Esto eliminará tu colección, mazos y regalías. Esta acción no se puede deshacer.')) {
