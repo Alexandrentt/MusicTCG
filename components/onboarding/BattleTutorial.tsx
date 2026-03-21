@@ -49,9 +49,24 @@ const STEPS = [
     }
 ];
 
+// Datos mock para el tutorial
+const mockHand: CardData[] = [
+    { id: 'c1', name: 'Synth Pulse', artist: 'Cyber', genre: 'Electronic', rarity: 'GOLD', type: 'CREATURE', atk: 5, def: 5, stats: { atk: 5, def: 5 }, cost: 2, album: 'Neon City', artworkUrl: '', abilities: [], keywords: [], themeColor: '#00ffff' },
+    { id: 'c2', name: 'Bass Drop', artist: 'Sub', genre: 'Electronic', rarity: 'PLATINUM', type: 'EVENT', atk: 0, def: 0, stats: { atk: 0, def: 0 }, cost: 3, album: 'Neon City', artworkUrl: '', abilities: [], keywords: [], themeColor: '#ff00ff' },
+];
+
+const mockDeckA: CardData[] = [
+    { id: 'd1', name: 'Tutorial Track 1', artist: 'Demo', genre: 'Electronic', rarity: 'GOLD', type: 'CREATURE', atk: 4, def: 4, stats: { atk: 4, def: 4 }, cost: 2, album: 'Tutorial', artworkUrl: '', previewUrl: 'https://example.com/1.mp3', abilities: [], keywords: [], themeColor: '#00ffff' },
+    { id: 'd2', name: 'Tutorial Track 2', artist: 'Demo', genre: 'Pop', rarity: 'SILVER', type: 'CREATURE', atk: 3, def: 3, stats: { atk: 3, def: 3 }, cost: 1, album: 'Tutorial', artworkUrl: '', previewUrl: 'https://example.com/2.mp3', abilities: [], keywords: [], themeColor: '#ff00ff' },
+];
+
+const mockDeckB: CardData[] = [
+    { id: 'd3', name: 'Rival Track 1', artist: 'Rival', genre: 'Rock', rarity: 'GOLD', type: 'CREATURE', atk: 5, def: 3, stats: { atk: 5, def: 3 }, cost: 2, album: 'Rival', artworkUrl: '', previewUrl: 'https://example.com/3.mp3', abilities: [], keywords: [], themeColor: '#ffff00' },
+];
+
 export default function BattleTutorial({ onComplete }: BattleTutorialProps) {
     const [currentStepIdx, setCurrentStepIdx] = useState(0);
-    const [sharedPlaylist, setSharedPlaylist] = useState(getSharedPlaylist());
+    const [sharedPlaylist] = useState(getSharedPlaylist(mockDeckA, mockDeckB, true));
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     const step = STEPS[currentStepIdx];
@@ -64,11 +79,8 @@ export default function BattleTutorial({ onComplete }: BattleTutorialProps) {
         }
     };
 
-    // Datos mock para el tutorial
-    const mockHand: CardData[] = [
-        { id: 'c1', name: 'Synth Pulse', artist: 'Cyber', genre: 'Electronic', rarity: 'GOLD', type: 'CREATURE', atk: 5, def: 5, stats: { atk: 5, def: 5 }, cost: 2, album: 'Neon City', artworkUrl: '', abilities: [], keywords: [], themeColor: '#00ffff' },
-        { id: 'c2', name: 'Bass Drop', artist: 'Sub', genre: 'Electronic', rarity: 'PLATINUM', type: 'EVENT', atk: 0, def: 0, stats: { atk: 0, def: 0 }, cost: 3, album: 'Neon City', artworkUrl: '', abilities: [], keywords: [], themeColor: '#ff00ff' },
-    ];
+    // Get current track from shared playlist (first track)
+    const currentTrack = sharedPlaylist.length > 0 ? sharedPlaylist[0] : null;
 
     return (
         <div className="min-h-screen bg-black/95 flex flex-col pt-20 relative overflow-hidden">
@@ -117,12 +129,12 @@ export default function BattleTutorial({ onComplete }: BattleTutorialProps) {
                         <div className="flex items-center gap-8 px-6">
                             <div className="space-y-1">
                                 <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block">GENERO ACTUAL</span>
-                                <span className="text-2xl font-black text-cyan-400 italic tracking-tighter uppercase">{sharedPlaylist.currentTrack?.genre}</span>
+                                <span className="text-2xl font-black text-cyan-400 italic tracking-tighter uppercase">{currentTrack?.genre || 'N/A'}</span>
                             </div>
                             <div className="h-10 w-[1px] bg-white/10" />
                             <div className="space-y-1">
                                 <span className="text-[9px] font-black text-white/30 uppercase tracking-widest block">BONO ACTIVO</span>
-                                <span className="text-2xl font-black text-white italic tracking-tighter uppercase">+{sharedPlaylist.currentTrack?.bonusValue} {sharedPlaylist.currentTrack?.bonusType}</span>
+                                <span className="text-2xl font-black text-white italic tracking-tighter uppercase">+2 ATK</span>
                             </div>
                         </div>
                     </div>

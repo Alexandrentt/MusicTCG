@@ -523,7 +523,7 @@ export const BoosterPackCard: React.FC<{
   // Rareza más alta en el sobre
   const highestRarity = pack.cards.reduce(
     (highest, card) => {
-      const rarityOrder = { PLATINUM: 4, GOLD: 3, SILVER: 2, BRONZE: 1 };
+      const rarityOrder = { MYTHIC: 5, PLATINUM: 4, GOLD: 3, SILVER: 2, BRONZE: 1 };
       return rarityOrder[card.rarity] > rarityOrder[highest.rarity]
         ? card
         : highest;

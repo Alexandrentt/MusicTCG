@@ -22,17 +22,19 @@ interface SetlistViewProps {
 
 // Colores por rareza
 const RARITY_COLORS = {
-    BRONZE: 'text-amber-700 bg-amber-900/30 border-amber-700/50',
-    SILVER: 'text-gray-300 bg-gray-800/50 border-gray-500/50',
-    GOLD: 'text-yellow-400 bg-yellow-900/30 border-yellow-500/50',
+    MYTHIC: 'text-purple-300 bg-purple-900/30 border-purple-400/50',
     PLATINUM: 'text-cyan-300 bg-cyan-900/30 border-cyan-400/50',
+    GOLD: 'text-yellow-400 bg-yellow-900/30 border-yellow-500/50',
+    SILVER: 'text-gray-300 bg-gray-800/50 border-gray-500/50',
+    BRONZE: 'text-amber-700 bg-amber-900/30 border-amber-700/50',
 };
 
 const RARITY_DOT = {
-    BRONZE: 'bg-amber-700',
-    SILVER: 'bg-gray-400',
-    GOLD: 'bg-yellow-400',
+    MYTHIC: 'bg-purple-400',
     PLATINUM: 'bg-cyan-400',
+    GOLD: 'bg-yellow-400',
+    SILVER: 'bg-gray-400',
+    BRONZE: 'bg-amber-700',
 };
 
 function MiniTrackRow({ track, index }: { track: CardData; index: number }) {

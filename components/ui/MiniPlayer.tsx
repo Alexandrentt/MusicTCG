@@ -24,9 +24,15 @@ export default function MiniPlayer() {
         artist: currentTrack.artist,
         artworkUrl: currentTrack.artworkUrl,
         previewUrl: currentTrack.url,
-        rarity: 'BRONZE', // Default fallback
-        stats: { attack: 0, defense: 0, speed: 0 },
-        types: [],
+        genre: 'Pop',
+        rarity: 'BRONZE',
+        stats: { atk: 0, def: 0 },
+        atk: 0,
+        def: 0,
+        cost: 0,
+        type: 'CREATURE',
+        abilities: [],
+        keywords: [],
         videoId: ''
       });
       router.push('/studio');
