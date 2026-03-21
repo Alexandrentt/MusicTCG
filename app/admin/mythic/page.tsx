@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { SearchIcon, Star, Trash2, Plus, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { isAdminAuthenticated } from '../page';
+import { isAdminAuthenticated } from '@/lib/adminAuth';
 import Link from 'next/link';
 
 export default function MythicAdminPage() {

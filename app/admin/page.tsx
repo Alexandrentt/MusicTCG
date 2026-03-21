@@ -7,30 +7,12 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { resetGlobalDiscoveries } from '@/lib/discovery';
 import { usePlayerStore } from '@/store/usePlayerStore';
+import { isAdminAuthenticated, ADMIN_SESSION_KEY } from '@/lib/adminAuth';
 
 // Correos autorizados como administradores
 const AUTHORIZED_ADMINS = ['dretty156@gmail.com'];
 // Contraseña maestra de admin
 const ADMIN_PASSWORD = 'REMIX_MYTHIC_MASTER';
-// Key para sessionStorage
-const ADMIN_SESSION_KEY = 'musictcg_admin_session';
-
-export function isAdminAuthenticated(): boolean {
-    if (typeof window === 'undefined') return false;
-    const session = sessionStorage.getItem(ADMIN_SESSION_KEY);
-    if (!session) return false;
-    try {
-        const parsed = JSON.parse(session);
-        // Expira después de 2 horas
-        if (Date.now() - parsed.timestamp > 2 * 60 * 60 * 1000) {
-            sessionStorage.removeItem(ADMIN_SESSION_KEY);
-            return false;
-        }
-        return parsed.authenticated === true;
-    } catch {
-        return false;
-    }
-}
 
 export default function AdminGatePage() {
     const { language, featureFlags, updateFeatureFlag } = usePlayerStore();
