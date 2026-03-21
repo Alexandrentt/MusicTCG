@@ -1,5 +1,5 @@
 import { CardData } from '@/lib/engine/generator';
-import { Zap, Shield } from 'lucide-react';
+import { Music, Shield } from 'lucide-react';
 
 interface MiniCardProps {
   data: CardData;
@@ -32,24 +32,17 @@ export default function MiniCard({ data, className = '', count = 0, onArtistClic
     ? 'bg-gradient-to-b from-[#2a1b38] to-[#1a1025]'
     : 'bg-[#1a1a1a]';
 
-  const artSrc = data.artworkUrl?.replace('http://', 'https://') || '';
+  const artSrc = data.artworkUrl?.replace('http://', 'https://') || null;
 
   return (
     <div className={`relative ${className}`}>
-      {/* Diamond Count Overlay (Magic style) */}
-      {count > 1 && (
-        <div className="absolute -top-2 -right-2 z-[30] bg-[#1a1a1a] border-2 border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)] w-7 h-7 flex items-center justify-center transform rotate-45">
-          <span className="text-white text-[12px] font-black -rotate-45">{count}</span>
-        </div>
-      )}
 
       <div
         className={`relative aspect-[2.5/3.5] ${cardBg} rounded-xl overflow-hidden shadow-2xl border-2 ${rarityBorder} group transition-all duration-300`}
       >
         {/* Art */}
         <div className={`absolute inset-0 ${isEvent ? 'opacity-50' : ''}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {artSrc ? (
+          {artSrc && artSrc !== '' ? (
             <img
               src={artSrc}
               alt={data.name}
@@ -59,7 +52,7 @@ export default function MiniCard({ data, className = '', count = 0, onArtistClic
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-white/5">
-              <Zap className="w-8 h-8 text-white/10" />
+              <Music className="w-8 h-8 text-white/10" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -68,18 +61,18 @@ export default function MiniCard({ data, className = '', count = 0, onArtistClic
         {/* Badges superiores: Energía + Rareza */}
         <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-start z-10">
           <div className="bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded-lg border border-white/10 flex items-center gap-1 shadow-lg">
-            <Zap className="w-2.5 h-2.5 text-yellow-500" />
+            <Music className="w-2.5 h-2.5 text-cyan-400" />
             <span className="text-[10px] font-black text-white">{data.cost}</span>
           </div>
           <div className={`px-1.5 py-0.5 rounded-lg bg-black/80 border border-white/10 text-[7px] font-black uppercase tracking-tighter ${rarityText}`}>
-            {isEvent ? 'EVENT' : data.rarity}
+            {isEvent ? 'EVENTO' : data.rarity}
           </div>
         </div>
 
-        {/* Icono purpura para eventos */}
+        {/* Icono temático para eventos */}
         {isEvent && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-            <Zap className="w-16 h-16 text-purple-400" />
+            <Music className="w-16 h-16 text-purple-400" />
           </div>
         )}
 

@@ -156,6 +156,8 @@ function BoardCardSlot({
   onClick,
   onPointerDown,
   onPointerUp,
+  onHoverStart,
+  onHoverEnd,
   owner,
 }: {
   card: BoardCard;
@@ -164,6 +166,8 @@ function BoardCardSlot({
   onClick?: (e?: React.MouseEvent) => void;
   onPointerDown?: () => void;
   onPointerUp?: () => void;
+  onHoverStart?: (card: BoardCard, rect: DOMRect) => void;
+  onHoverEnd?: () => void;
   owner: 'player' | 'bot';
 }) {
   const hasTaunt = hasKw(card, 'taunt');
@@ -179,9 +183,17 @@ function BoardCardSlot({
       onClick={onClick}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
-      onMouseEnter={() => owner === 'player' && setIsRetiring(true)}
-      onMouseLeave={() => setIsRetiring(false)}
+      onMouseEnter={(e) => {
+        if (owner === 'player') setIsRetiring(true);
+        if (onHoverStart) {
+          const rect = e.currentTarget.getBoundingClientRect();
+          onHoverStart(card, rect);
+        }
+      }}
+      onMouseLeave={() => {
+        setIsRetiring(false);
+        if (onHoverEnd) onHoverEnd();
+      }}
       className={[
         'relative w-16 h-24 sm:w-24 sm:h-32 rounded-lg sm:rounded-xl border flex items-center justify-center cursor-pointer transition-all duration-200 select-none group shrink-0',
         card.isTapped ? 'opacity-60' : '',
@@ -192,8 +204,26 @@ function BoardCardSlot({
         hasTaunt ? 'ring-2 ring-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : '',
       ].join(' ') + (card.isTapped ? (owner === 'bot' ? ' -rotate-6' : ' rotate-6') : '')}
     >
-      <div className="absolute inset-0 rounded-[6px] sm:rounded-[10px] overflow-hidden pointer-events-none">
-        <Card data={card} className="origin-top-left transform scale-[0.25] sm:scale-[0.375] pointer-events-none" />
+      <div className="absolute inset-0 rounded-[6px] sm:rounded-[10px] bg-zinc-900 overflow-hidden pointer-events-none">
+        {card.artworkUrl ? (
+          <img src={card.artworkUrl} alt={card.name} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+        ) : (
+          <div className="w-full h-full flex justify-center items-center"><Music className="w-8 h-8 opacity-20" /></div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
+
+        {/* Name and Stats overlay for better visibility on board */}
+        <div className="absolute bottom-1 left-1 right-1 flex flex-col gap-0.5">
+          <span className="text-[6px] sm:text-[8px] font-black text-white leading-tight line-clamp-1 overflow-hidden drop-shadow-md">{card.name}</span>
+          {!card.type || card.type === 'CREATURE' ? (
+            <div className="flex justify-between items-center text-[8px] sm:text-[10px] font-black w-full drop-shadow-md">
+              <span className="text-red-400 flex items-center"><Shield className="w-2 sm:w-3 h-2 sm:h-3 mr-0.5" />{card.atk}</span>
+              <span className="text-cyan-400 flex items-center"><Shield className="w-2 sm:w-3 h-2 sm:h-3 mr-0.5" />{card.def}</span>
+            </div>
+          ) : (
+            <div className="text-[7px] sm:text-[9px] text-purple-400 font-bold drop-shadow-md uppercase text-center w-full">Event</div>
+          )}
+        </div>
       </div>
 
       {/* Retire action overlay */}
@@ -243,7 +273,11 @@ function PlayPage() {
   const searchParams = useSearchParams();
   const roomId = searchParams.get('roomId');
   const mode = searchParams.get('mode');
-  const qsDifficulty = searchParams.get('difficulty') as DifficultyLevel;
+  const [inspectingBoardCard, setInspectingBoardCard] = useState<{ card: BoardCard, rect: DOMRect } | null>(null);
+
+  // Custom difficulty config
+  const qsDifficulty = searchParams.get('difficulty') as string as DifficultyLevel;
+
   const qsDeckId = searchParams.get('deckId');
 
   const { decks, inventory, setIsInBattle, language, addChest } = usePlayerStore();
@@ -784,14 +818,14 @@ function PlayPage() {
         </AnimatePresence>
 
         {/* Global Soundtrack Info */}
-        {getSharedPlaylist().currentTrack && (
+        {currentTrack && (
           <div className="bg-gradient-to-r from-cyan-950 via-cyan-900 to-cyan-950 border-y border-cyan-500/20 py-1 text-center overflow-hidden">
             <motion.div
               animate={{ x: [0, -100, 0] }}
               transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
               className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em] whitespace-nowrap"
             >
-              SINCRONIZACIÓN ACTIVA: {getSharedPlaylist().currentTrack?.genre} (+{getSharedPlaylist().currentTrack?.bonusType} {getSharedPlaylist().currentTrack?.bonusValue})
+              SONANDO: {currentTrack.title} - {currentTrack.artist}
             </motion.div>
           </div>
         )}
@@ -800,6 +834,19 @@ function PlayPage() {
         <div className="flex-1 flex flex-col overflow-y-auto px-4 sm:px-6 relative gap-1">
           {/* Bot Side */}
           <div className="flex flex-col gap-2 pt-2">
+
+            {/* Bot Hand Indicator */}
+            <div className="flex justify-center -mb-2">
+              <div className="flex sm:gap-1 scale-75 origin-top opacity-80 h-10 overflow-hidden px-4">
+                {bot.hand.map((_, i) => (
+                  <div key={`bothand-${i}`} className="w-12 h-16 shrink-0 transition-transform hover:-translate-y-2">
+                    <CardBack className="w-full h-full" />
+                  </div>
+                ))}
+                {bot.hand.length === 0 && <span className="text-[10px] text-gray-500 mt-2 uppercase">Mano Vacía</span>}
+              </div>
+            </div>
+
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-16 sm:w-16 sm:h-24 bg-red-950/20 border border-red-500/20 rounded-lg flex items-center justify-center relative shadow-inner shrink-0 cursor-pointer"
@@ -817,8 +864,8 @@ function PlayPage() {
                       owner="bot"
                       canTarget={selectedAttackerIndex !== null}
                       onClick={() => handleBotCardClick(i)}
-                      onPointerDown={() => handlePointerDown(card)}
-                      onPointerUp={handlePointerUp}
+                      onHoverStart={(c, rect) => setInspectingBoardCard({ card: c, rect })}
+                      onHoverEnd={() => setInspectingBoardCard(null)}
                     />
                   ))}
                 </AnimatePresence>
@@ -852,8 +899,8 @@ function PlayPage() {
                       owner="player"
                       isSelected={selectedAttackerIndex === i}
                       onClick={(e) => handlePlayerBoardCardClick(i, e!)}
-                      onPointerDown={() => handlePointerDown(card)}
-                      onPointerUp={handlePointerUp}
+                      onHoverStart={(c, rect) => setInspectingBoardCard({ card: c, rect })}
+                      onHoverEnd={() => setInspectingBoardCard(null)}
                     />
                   ))}
                 </AnimatePresence>
@@ -1002,6 +1049,21 @@ function PlayPage() {
             </motion.div>
           )}
 
+          {/* Inspect Hover Overlay */}
+          {inspectingBoardCard && (
+            <div
+              className="fixed z-[300] pointer-events-none drop-shadow-2xl"
+              style={{
+                top: inspectingBoardCard.rect.top - (280 - inspectingBoardCard.rect.height) / 2,
+                left: inspectingBoardCard.rect.left - (190 - inspectingBoardCard.rect.width) / 2,
+              }}
+            >
+              <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="w-56 h-80 origin-center bg-black rounded-3xl overflow-hidden border">
+                <Card data={inspectingBoardCard.card} className="w-full h-full shadow-2xl" />
+              </motion.div>
+            </div>
+          )}
+
           {gameOver && (
             <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center p-8 backdrop-blur-xl">
               {gameOver === 'player' ? <Trophy className="w-24 h-24 text-yellow-500 mb-6 drop-shadow-[0_0_30px_rgba(234,179,8,0.5)]" /> : <Skull className="w-24 h-24 text-red-600 mb-6" />}
@@ -1025,7 +1087,7 @@ function PlayPage() {
           setVolume={setVolume}
           language={language}
         />
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

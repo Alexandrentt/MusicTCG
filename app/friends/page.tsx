@@ -13,6 +13,8 @@ export default function FriendsPage() {
     const { language } = usePlayerStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [user, setUser] = useState<SupabaseUser | null>(null);
+    const [selectedFriendForMatch, setSelectedFriendForMatch] = useState<any>(null);
+    const decksObj = usePlayerStore(state => state.decks);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -148,6 +150,7 @@ export default function FriendsPage() {
                                         <div className="flex gap-1">
                                             {friend.isOnline && (
                                                 <button
+                                                    onClick={() => setSelectedFriendForMatch(friend)}
                                                     className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
                                                     title="Invitar a Combate"
                                                 >
@@ -166,6 +169,76 @@ export default function FriendsPage() {
                                 ))}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Selector de mazo para PVP */}
+            {selectedFriendForMatch && (
+                <div
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[300] p-4"
+                    onClick={() => setSelectedFriendForMatch(null)}
+                >
+                    <div
+                        className="bg-[#0a0a0a] border border-white/10 rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-black text-white italic tracking-tight gap-2 flex items-center uppercase">
+                                <Users className="w-6 h-6 text-purple-400" />
+                                RETAR A {selectedFriendForMatch.username}
+                            </h2>
+                            <button
+                                onClick={() => setSelectedFriendForMatch(null)}
+                                className="text-white/50 hover:text-white transition-colors text-2xl leading-none"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-6 mb-6">
+                            <div className="text-center space-y-2">
+                                <p className="text-gray-400 text-lg font-medium">
+                                    Elige el Sello Discográfico (Mazo) que llevarás al escenario.
+                                </p>
+                            </div>
+                            {Object.keys(decksObj).length === 0 ? (
+                                <div className="text-sm text-gray-400 p-8 bg-white/5 rounded-2xl border border-white/10 text-center font-bold tracking-widest">
+                                    NO TIENES MAZOS CREADOS. VE AL ESTUDIO PARA CREAR UNO.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {Object.values(decksObj).map(deck => {
+                                        const count = Object.values(deck.cards).reduce((a, b) => a + b, 0);
+                                        const isValid = count >= 20;
+                                        return (
+                                            <div
+                                                key={deck.id}
+                                                onClick={() => {
+                                                    if (!isValid) return;
+                                                    window.location.href = `/play?mode=PVP&targetUser=${selectedFriendForMatch.userId}&deckId=${deck.id}`;
+                                                }}
+                                                className={`group relative overflow-hidden rounded-2xl border-2 transition-all p-4 flex flex-col items-center justify-center text-center ${isValid ? 'cursor-pointer border-white/10 bg-white/5 hover:border-purple-500 hover:bg-purple-500/10' : 'opacity-50 cursor-not-allowed border-red-500/20 bg-red-500/5'}`}
+                                            >
+                                                {deck.coverArt && (
+                                                    <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
+                                                        <img src={deck.coverArt} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                                                    </div>
+                                                )}
+                                                <div className="relative z-10">
+                                                    <h3 className="text-xl font-black uppercase tracking-tighter mb-1 text-white">{deck.name}</h3>
+                                                    <p className={`text-xs font-bold tracking-widest ${isValid ? 'text-purple-400' : 'text-red-400'}`}>
+                                                        {count} / 20 CARTAS
+                                                    </p>
+                                                    {!isValid && <p className="text-[9px] uppercase tracking-widest text-red-500 mt-2">Faltan cartas</p>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

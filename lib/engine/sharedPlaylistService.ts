@@ -1,59 +1,24 @@
-// src/lib/engine/sharedPlaylistService.ts
+import { CardData } from '@/lib/engine/generator';
 
-import { GlobalTrack, SharedPlaylistState, GlobalBonusType } from '@/types/sharedPlaylist';
-import { generateUUID } from '@/lib/onboarding/onboardingState';
+// Combine and shuffle the decks to create the game's shared playlist
+export function getSharedPlaylist(deckA: CardData[], deckB: CardData[], isLocalPvP: boolean): CardData[] {
+    // Collect all cards that have a preview URL to build the playlist
+    const combined = [...deckA, ...(deckB || [])].filter(card => !!card.previewUrl);
 
-const GENRES = ['Rock', 'Electronic', 'Jazz', 'Pop', 'Lo-Fi', 'Metal', 'Synthwave', 'Classical'];
-const BONUSES: GlobalBonusType[] = ['ATK', 'DEF', 'HYPE', 'DRAW', 'ENERGY'];
+    // Remove duplicates to avoid playing the exact same preview multiple times in a row
+    const uniqueMap = new Map<string, CardData>();
+    combined.forEach(card => uniqueMap.set(card.id, card));
+    const unique = Array.from(uniqueMap.values());
 
-function generateMockTrack(): GlobalTrack {
-    const genre = GENRES[Math.floor(Math.random() * GENRES.length)];
-    const bonus = BONUSES[Math.floor(Math.random() * BONUSES.length)];
-
-    return {
-        id: generateUUID(),
-        title: `Sync Wave - ${Math.floor(Math.random() * 100)}`,
-        artist: `Artist-${Math.floor(Math.random() * 20)}`,
-        genre,
-        bpm: 80 + Math.floor(Math.random() * 100),
-        bonusType: bonus,
-        bonusValue: bonus === 'DRAW' || bonus === 'ENERGY' ? 1 : 2,
-        durationSeconds: 20 + Math.floor(Math.random() * 10),
-        startTime: Date.now(),
-    };
-}
-
-let globalState: SharedPlaylistState = {
-    currentTrack: null,
-    upcomingTracks: Array.from({ length: 5 }, generateMockTrack),
-    history: [],
-};
-
-export function getSharedPlaylist(): SharedPlaylistState {
-    const now = Date.now();
-
-    // Si no hay track actual o expiró, rotar
-    if (!globalState.currentTrack || (now - globalState.currentTrack.startTime) / 1000 >= globalState.currentTrack.durationSeconds) {
-        if (globalState.currentTrack) {
-            globalState.history.push(globalState.currentTrack);
-        }
-
-        globalState.currentTrack = globalState.upcomingTracks.shift() || generateMockTrack();
-        globalState.currentTrack.startTime = now;
-        globalState.upcomingTracks.push(generateMockTrack());
+    // Shuffle the unique tracks
+    for (let i = unique.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [unique[i], unique[j]] = [unique[j], unique[i]];
     }
 
-    return { ...globalState };
+    return unique;
 }
 
-export function checkCoincidenceBonus(cardGenre: string): { type: GlobalBonusType; value: number } | null {
-    const track = globalState.currentTrack;
-    if (!track) return null;
-
-    // Coincidencia de género: 100% de bono
-    if (track.genre.toLowerCase() === cardGenre.toLowerCase()) {
-        return { type: track.bonusType, value: track.bonusValue };
-    }
-
+export function checkCoincidenceBonus(cardGenre: string) {
     return null;
 }

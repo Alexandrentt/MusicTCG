@@ -2,18 +2,17 @@
 
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { useMusicPlayer } from '@/store/useMusicPlayer';
-import { Settings, Volume2, Trash2, User, LogIn, LogOut, Globe } from 'lucide-react';
+import { Settings, Volume2, User, LogIn, LogOut, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
-import { t, Language } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import Image from 'next/image';
-import { resetGlobalDiscoveries } from '@/lib/discovery';
 import { MatchHistory } from '@/components/MatchHistory';
 
 export default function ProfilePage() {
-  const { regalias, wildcards, language, setLanguage, playMusicInBattle, setPlayMusicInBattle, discoveryUsername, setDiscoveryUsername, role, featureFlags, updateFeatureFlag } = usePlayerStore();
+  const { regalias, wildcards, language, setLanguage, playMusicInBattle, setPlayMusicInBattle, discoveryUsername, setDiscoveryUsername, role } = usePlayerStore();
   const { volume, setVolume } = useMusicPlayer();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -55,30 +54,12 @@ export default function ProfilePage() {
     if (!language) {
       const browserLang = navigator.language.split('-')[0];
       if (['es', 'en', 'it', 'fr', 'ja'].includes(browserLang)) {
-        setLanguage(browserLang as Language);
+        setLanguage(browserLang as any);
       } else {
         setLanguage('en');
       }
     }
   }, [language, setLanguage]);
-
-  const handleResetData = () => {
-    if (confirm(t(language, 'profile', 'resetConfirm'))) {
-      localStorage.removeItem('musictcg-player-storage');
-      window.location.reload();
-    }
-  };
-
-  const handleResetGlobal = async () => {
-    if (confirm(t(language, 'profile', 'resetGlobalConfirm'))) {
-      toast.info('Borrando colección global...');
-      await resetGlobalDiscoveries();
-      toast.success('Colección global borrada. Todas las nuevas cartas usarán el sistema 1.5.');
-    }
-  };
-
-  // handleAuth for Google is removed. Standard Email/Password auth handles everything via handleEmailAuth.
-
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,68 +331,7 @@ export default function ProfilePage() {
             <MatchHistory userId={user.id} />
           </>
         )}
-
-        <hr className="border-white/10" />
-
-        {/* Danger Zone */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-bold text-red-500">{t(language, 'profile', 'dangerZone')}</h3>
-          <button
-            onClick={handleResetData}
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors border border-red-500/20"
-          >
-            <Trash2 size={18} />
-            <span>{t(language, 'profile', 'resetData')}</span>
-          </button>
-          <p className="text-xs text-gray-500 text-center">
-            {t(language, 'profile', 'resetWarning')}
-          </p>
-
-          <hr className="border-white/5 my-2" />
-
-          <h3 className="text-sm font-bold text-orange-500">{t(language, 'profile', 'resetGlobal')}</h3>
-          <button
-            onClick={handleResetGlobal}
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-orange-500 bg-orange-500/10 hover:bg-orange-500/20 transition-colors border border-orange-500/20"
-          >
-            <Globe size={18} />
-            <span>{t(language, 'profile', 'resetGlobal')}</span>
-          </button>
-          <p className="text-xs text-gray-500 text-center">
-            {t(language, 'profile', 'resetGlobalWarning')}
-          </p>
-        </div>
       </div>
-      {/* Admin Panel (Visible only to Admin role) */}
-      {(role === 'ADMIN' || user?.email === 'admin@musictcg.com') && (
-        <div className="bg-red-900/10 border border-red-500/30 rounded-2xl p-6 flex flex-col gap-4">
-          <h3 className="text-xl font-bold text-red-400 flex items-center gap-2">
-            <Settings className="w-5 h-5" /> PANEL DE CONTROL
-          </h3>
-          <p className="text-xs text-gray-400">Control modular de funciones del juego (ADMIN).</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-            {[
-              { id: 'ads', label: 'Publicidad (Ads)', icon: '📺' },
-              { id: 'cosmetics', label: 'Cosméticos Skins', icon: '🎨' },
-              { id: 'battlePass', label: 'Pase de Batalla', icon: '🎟️' },
-            ].map((flag) => (
-              <div key={flag.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{flag.icon}</span>
-                  <span className="text-sm font-bold">{flag.label}</span>
-                </div>
-                <button
-                  onClick={() => updateFeatureFlag(flag.id as any, !featureFlags[flag.id as keyof typeof featureFlags])}
-                  className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${featureFlags[flag.id as keyof typeof featureFlags] ? 'bg-green-500 text-black' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}
-                >
-                  {featureFlags[flag.id as keyof typeof featureFlags] ? 'Activado' : 'Desactivado'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Match History */}
       <MatchHistory userId={user?.id || 'local-guest'} />

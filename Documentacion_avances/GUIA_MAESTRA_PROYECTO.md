@@ -1,10 +1,28 @@
-# 🎸 GUÍA MAESTRA DEFINITIVA - MusicTCG (V. 3.0.0)
+# 🎸 GUÍA MAESTRA DEFINITIVA - MusicTCG (V. 3.1.0)
 
 Este documento es la **Única Fuente de Verdad (SSOT)** de MusicTCG. Consolida toda la arquitectura, lógica, diseño y evolución técnica del proyecto. Reemplaza a todos los documentos anteriores.
 
 ---
 
 ## 🚀 RESUMEN DE CAMBIOS RECIENTES
+
+#### [v3.1.0] - Studio Refinement & Mythic Support
+
+**Refinamiento del Studio (La Disquera):**
+- **Inspección Global:** Se movió el modal de detalles de carta (`selectedCard`) fuera del flujo condicional de búsqueda. Ahora puedes inspeccionar cartas directamente desde los resultados de búsqueda global sin retroceder.
+- **Corrección de Hidratación:** Se reemplazó el `motion.button` anidado en `SearchCardResult.tsx` por un `motion.div`. Esto elimina el error de React sobre elementos interactivos anidados y asegura que el click para inspeccionar funcione en toda la tarjeta del buscador.
+- **Sintaxis y Estructura:** Se limpió el final de `app/studio/page.tsx`, eliminando cierres de etiquetas duplicados y código huérfano que causaba errores de compilación.
+
+**Motor de Rareza y Generación (`cardGenerator.ts`):**
+- **Soporte Completo para MYTHIC:** El generador ahora detecta y asigna correctamente la rareza `MYTHIC` para canciones con más de 1,000,000,000 de vistas.
+- **Corrección de Retornos:** Se añadieron sentencias `return` faltantes en funciones auxiliares como `rarityToColor`, `rarityToLabel` y `typeToLabel`, evitando valores `undefined` en la UI.
+- **Tipado Estricto:** Se importaron y aplicaron correctamente los tipos `CardRarity` y `CardType` de la definición central (`types/types.ts`).
+
+**Iconografía y Estética:**
+- **Iconos Temáticos:** Se reemplazó el icono de rayo (`Zap`) por el icono de nota musical (`Music`) en el distintivo de coste de energía tanto en `Card.tsx` como en `MiniCard.tsx` para mayor coherencia con el tema musical.
+- **Limpieza de MiniCard:** Se eliminaron los diamantes de las esquinas en `MiniCard.tsx` por ser redundantes con el contador central de Studio. También se eliminó el icono de rayo de fondo en cartas de evento.
+
+---
 
 #### [v3.0.0] - Combat System Rewrite & Unified State
 

@@ -911,194 +911,195 @@ export default function StudioPage() {
             </div>
           )}
 
-          {/* Card Details / Mill Modal */}
-          {selectedCard && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm overflow-y-auto" onClick={() => setSelectedCard(null)}>
-              {(() => {
-                const ownedMasterCard = Object.values(inventory).find(
-                  item =>
-                    item.card.name.toLowerCase() === selectedCard.name.toLowerCase() &&
-                    item.card.artist.toLowerCase() === selectedCard.artist.toLowerCase()
-                );
-                return (
-                  <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 max-w-5xl w-full animate-in fade-in zoom-in duration-200 py-8 lg:py-16 mx-auto" onClick={e => e.stopPropagation()}>
+        </div>
+      )}
 
-                    {/* Left Col: Target Card and Actions */}
-                    <div className="flex flex-col items-center gap-6 w-full max-w-md shrink-0">
-                      <div className="relative group" id="share-card-container">
-                        <Card
-                          data={selectedCard}
-                          className="w-72 sm:w-80"
-                          onArtistClick={(artist) => {
-                            setGlobalSearchQuery(artist);
-                            setSearchFilter('artist');
-                            setSelectedCard(null);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
+      {/* Card Details / Mill Modal */}
+      {selectedCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm overflow-y-auto" onClick={() => setSelectedCard(null)}>
+          {(() => {
+            const ownedMasterCard = Object.values(inventory).find(
+              item =>
+                item.card.name.toLowerCase() === selectedCard.name.toLowerCase() &&
+                item.card.artist.toLowerCase() === selectedCard.artist.toLowerCase()
+            );
+            return (
+              <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 max-w-5xl w-full animate-in fade-in zoom-in duration-200 py-8 lg:py-16 mx-auto" onClick={e => e.stopPropagation()}>
+
+                {/* Left Col: Target Card and Actions */}
+                <div className="flex flex-col items-center gap-6 w-full max-w-md shrink-0">
+                  <div className="relative group" id="share-card-container">
+                    <Card
+                      data={selectedCard}
+                      className="w-72 sm:w-80"
+                      onArtistClick={(artist) => {
+                        setGlobalSearchQuery(artist);
+                        setSearchFilter('artist');
+                        setSelectedCard(null);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    />
+                    {selectedCard.previewUrl && (
+                      <button
+                        onClick={() => {
+                          handlePlayPreview(selectedCard);
+                          setIsPlayerPlaying(!isPlayerPlaying);
+                        }}
+                        className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl"
+                      >
+                        <div className={`w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transition-all transform ${isPlayerPlaying ? 'opacity-0 scale-90 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100 group-hover:scale-110'}`}>
+                          {isPlayerPlaying ? (
+                            <div className="flex gap-1.5 items-center">
+                              <div className="w-1.5 h-6 bg-white rounded-full animate-pulse" />
+                              <div className="w-1.5 h-6 bg-white rounded-full animate-pulse delay-75" />
+                            </div>
+                          ) : (
+                            <Play size={32} className="text-white ml-1" fill="currentColor" />
+                          )}
+                        </div>
+                      </button>
+                    )}
+                  </div>
+
+
+                  {/* Wildcards for this rarity */}
+                  <div className="bg-[#121212]/80 backdrop-blur-md w-full p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${selectedCard.rarity === 'BRONZE' ? 'bg-[#cd7f32]' :
+                        selectedCard.rarity === 'SILVER' ? 'bg-[#c0c0c0]' :
+                          selectedCard.rarity === 'GOLD' ? 'bg-[#ffd700]' : 'bg-cyan-400'
+                        }`} />
+                      <p className="text-gray-300 text-[10px] font-bold uppercase tracking-wider">
+                        {t(language, 'studio', 'wildcards')}: <span className="text-white ml-2">{wildcards[selectedCard.rarity] || 0}</span>
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-gray-500 italic hidden sm:block">1.5 Rules Active</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 w-full">
+                    <button
+                      onClick={() => setSelectedCard(null)}
+                      className="flex-1 min-w-[100px] py-3 rounded-full font-bold text-white bg-[#242424] hover:bg-[#333] transition-colors"
+                    >
+                      {t(language, 'studio', 'close') || 'Cerrar'}
+                    </button>
+                    <button
+                      onClick={() => handleShare(selectedCard)}
+                      className="flex-1 min-w-[100px] py-3 rounded-full font-bold text-black bg-blue-400 hover:bg-blue-300 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Share2 size={18} />
+                      <span>{t(language, 'studio', 'share') || 'Compartir'}</span>
+                    </button>
+                    {ownedMasterCard && (
+                      <div className="flex flex-col gap-4 w-full">
+                        <button
+                          onClick={() => handleMillCard(selectedCard)}
+                          className="w-full py-3 rounded-full font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Trash2 size={18} />
+                          <span>{t(language, 'studio', 'mill') || 'Moler'}</span>
+                        </button>
+                        <p className="text-xs text-gray-400 text-center">
+                          {t(language, 'studio', 'millWarning') || 'Moler esta carta la eliminará de tu colección y aumentará tu progreso para obtener un comodín de su rareza.'}
+                        </p>
+                      </div>
+                    )}
+                    {!ownedMasterCard && (
+                      <div className="w-full bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl text-center">
+                        <p className="text-cyan-400 text-xs font-bold uppercase tracking-widest mb-1">CARTA NO POSEÍDA</p>
+                        <p className="text-gray-400 text-[10px]">Busca esta carta en sobres o canjéala con comodines para añadirla a tu colección.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Col: Lyrics & Music Player SidePanel */}
+                {(selectedCard.videoId || lyrics) && (
+                  <div className="flex flex-col gap-6 w-full lg:max-w-md xl:max-w-lg shrink-0">
+                    {/* YouTube Player */}
+                    {selectedCard.videoId && (
+                      <div className="w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl relative group/player">
+                        <ReactPlayer
+                          url={`https://www.youtube.com/watch?v=${selectedCard.videoId}`}
+                          width="100%"
+                          height="100%"
+                          playing={isPlayerPlaying}
+                          controls
+                          onPlay={() => setIsPlayerPlaying(true)}
+                          onPause={() => setIsPlayerPlaying(false)}
+                          onProgress={(progress: any) => {
+                            const playedSeconds = progress.playedSeconds;
+                            if (Array.isArray(lyrics)) {
+                              const index = lyrics.findIndex((line, i) => {
+                                const nextLine = lyrics[i + 1];
+                                return playedSeconds >= line.time && (!nextLine || playedSeconds < nextLine.time);
+                              });
+                              if (index !== -1 && index !== currentLyricIndex) {
+                                setCurrentLyricIndex(index);
+                                // Scroll to active lyric
+                                const el = document.getElementById(`lyric-${index}`);
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                              }
+                            }
                           }}
                         />
-                        {selectedCard.previewUrl && (
-                          <button
-                            onClick={() => {
-                              handlePlayPreview(selectedCard);
-                              setIsPlayerPlaying(!isPlayerPlaying);
-                            }}
-                            className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors rounded-xl"
-                          >
-                            <div className={`w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transition-all transform ${isPlayerPlaying ? 'opacity-0 scale-90 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100 group-hover:scale-110'}`}>
-                              {isPlayerPlaying ? (
-                                <div className="flex gap-1.5 items-center">
-                                  <div className="w-1.5 h-6 bg-white rounded-full animate-pulse" />
-                                  <div className="w-1.5 h-6 bg-white rounded-full animate-pulse delay-75" />
-                                </div>
-                              ) : (
-                                <Play size={32} className="text-white ml-1" fill="currentColor" />
-                              )}
-                            </div>
-                          </button>
-                        )}
-                      </div>
 
-
-                      {/* Wildcards for this rarity */}
-                      <div className="bg-[#121212]/80 backdrop-blur-md w-full p-3 rounded-xl border border-white/5 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${selectedCard.rarity === 'BRONZE' ? 'bg-[#cd7f32]' :
-                            selectedCard.rarity === 'SILVER' ? 'bg-[#c0c0c0]' :
-                              selectedCard.rarity === 'GOLD' ? 'bg-[#ffd700]' : 'bg-cyan-400'
-                            }`} />
-                          <p className="text-gray-300 text-[10px] font-bold uppercase tracking-wider">
-                            {t(language, 'studio', 'wildcards')}: <span className="text-white ml-2">{wildcards[selectedCard.rarity] || 0}</span>
-                          </p>
-                        </div>
-                        <p className="text-[10px] text-gray-500 italic hidden sm:block">1.5 Rules Active</p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-4 w-full">
-                        <button
-                          onClick={() => setSelectedCard(null)}
-                          className="flex-1 min-w-[100px] py-3 rounded-full font-bold text-white bg-[#242424] hover:bg-[#333] transition-colors"
-                        >
-                          {t(language, 'studio', 'close') || 'Cerrar'}
-                        </button>
-                        <button
-                          onClick={() => handleShare(selectedCard)}
-                          className="flex-1 min-w-[100px] py-3 rounded-full font-bold text-black bg-blue-400 hover:bg-blue-300 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Share2 size={18} />
-                          <span>{t(language, 'studio', 'share') || 'Compartir'}</span>
-                        </button>
-                        {ownedMasterCard && (
-                          <div className="flex flex-col gap-4 w-full">
-                            <button
-                              onClick={() => handleMillCard(selectedCard)}
-                              className="w-full py-3 rounded-full font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <Trash2 size={18} />
-                              <span>{t(language, 'studio', 'mill') || 'Moler'}</span>
-                            </button>
-                            <p className="text-xs text-gray-400 text-center">
-                              {t(language, 'studio', 'millWarning') || 'Moler esta carta la eliminará de tu colección y aumentará tu progreso para obtener un comodín de su rareza.'}
-                            </p>
-                          </div>
-                        )}
-                        {!ownedMasterCard && (
-                          <div className="w-full bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl text-center">
-                            <p className="text-cyan-400 text-xs font-bold uppercase tracking-widest mb-1">CARTA NO POSEÍDA</p>
-                            <p className="text-gray-400 text-[10px]">Busca esta carta en sobres o canjéala con comodines para añadirla a tu colección.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right Col: Lyrics & Music Player SidePanel */}
-                    {(selectedCard.videoId || lyrics) && (
-                      <div className="flex flex-col gap-6 w-full lg:max-w-md xl:max-w-lg shrink-0">
-                        {/* YouTube Player */}
-                        {selectedCard.videoId && (
-                          <div className="w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl relative group/player">
-                            <ReactPlayer
-                              url={`https://www.youtube.com/watch?v=${selectedCard.videoId}`}
-                              width="100%"
-                              height="100%"
-                              playing={isPlayerPlaying}
-                              controls
-                              onPlay={() => setIsPlayerPlaying(true)}
-                              onPause={() => setIsPlayerPlaying(false)}
-                              onProgress={(progress: any) => {
-                                const playedSeconds = progress.playedSeconds;
-                                if (Array.isArray(lyrics)) {
-                                  const index = lyrics.findIndex((line, i) => {
-                                    const nextLine = lyrics[i + 1];
-                                    return playedSeconds >= line.time && (!nextLine || playedSeconds < nextLine.time);
-                                  });
-                                  if (index !== -1 && index !== currentLyricIndex) {
-                                    setCurrentLyricIndex(index);
-                                    // Scroll to active lyric
-                                    const el = document.getElementById(`lyric-${index}`);
-                                    if (el) {
-                                      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    }
-                                  }
-                                }
-                              }}
-                            />
-
-                            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none opacity-0 group-hover/player:opacity-100 transition-opacity" />
-                          </div>
-                        )}
-
-                        {/* Lyrics Section — solo se oculta en error real */}
-                        {(loadingLyrics || lyrics) && (
-
-                          <div className="w-full p-6 bg-[#121212] border border-white/10 rounded-2xl h-[300px] lg:h-[500px] flex flex-col shadow-inner">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6 flex items-center gap-2 shrink-0">
-                              <Music size={12} className="text-cyan-500" />
-                              {t(language, 'studio', 'lyrics')}
-                            </h3>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 relative">
-                              {loadingLyrics ? (
-                                <div className="flex gap-1 py-8 justify-center">
-                                  <div className="w-1 h-6 bg-cyan-500/40 animate-bounce" />
-                                  <div className="w-1 h-6 bg-cyan-500/40 animate-bounce delay-75" />
-                                  <div className="w-1 h-6 bg-cyan-500/40 animate-bounce delay-150" />
-                                </div>
-                              ) : Array.isArray(lyrics) ? (
-                                <div className="flex flex-col gap-4 pb-12">
-                                  {lyrics.map((line, i) => (
-                                    <p
-                                      key={i}
-                                      id={`lyric-${i}`}
-                                      className={`text-base leading-relaxed whitespace-pre-wrap font-serif italic transition-all duration-500 ${i === currentLyricIndex
-                                        ? 'text-white font-bold scale-110 origin-left drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]'
-                                        : i < currentLyricIndex
-                                          ? 'text-white/20 blur-[0.5px]'
-                                          : 'text-white/40'
-                                        }`}
-                                    >
-                                      {line.text || '♪'}
-                                    </p>
-                                  ))}
-                                </div>
-                              ) : typeof lyrics === 'string' && lyrics.length > 0 ? (
-                                <p className="text-base text-gray-300 leading-relaxed whitespace-pre-wrap font-serif italic pb-8 opacity-80">
-                                  {lyrics}
-                                </p>
-                              ) : (
-                                <div className="h-full flex items-center justify-center text-gray-600 text-xs text-center italic">
-                                  No se encontraron letras para esta canción.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 to-transparent pointer-events-none opacity-0 group-hover/player:opacity-100 transition-opacity" />
                       </div>
                     )}
 
+                    {/* Lyrics Section — solo se oculta en error real */}
+                    {(loadingLyrics || lyrics) && (
+
+                      <div className="w-full p-6 bg-[#121212] border border-white/10 rounded-2xl h-[300px] lg:h-[500px] flex flex-col shadow-inner">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6 flex items-center gap-2 shrink-0">
+                          <Music size={12} className="text-cyan-500" />
+                          {t(language, 'studio', 'lyrics')}
+                        </h3>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 relative">
+                          {loadingLyrics ? (
+                            <div className="flex gap-1 py-8 justify-center">
+                              <div className="w-1 h-6 bg-cyan-500/40 animate-bounce" />
+                              <div className="w-1 h-6 bg-cyan-500/40 animate-bounce delay-75" />
+                              <div className="w-1 h-6 bg-cyan-500/40 animate-bounce delay-150" />
+                            </div>
+                          ) : Array.isArray(lyrics) ? (
+                            <div className="flex flex-col gap-4 pb-12">
+                              {lyrics.map((line, i) => (
+                                <p
+                                  key={i}
+                                  id={`lyric-${i}`}
+                                  className={`text-base leading-relaxed whitespace-pre-wrap font-serif italic transition-all duration-500 ${i === currentLyricIndex
+                                    ? 'text-white font-bold scale-110 origin-left drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]'
+                                    : i < currentLyricIndex
+                                      ? 'text-white/20 blur-[0.5px]'
+                                      : 'text-white/40'
+                                    }`}
+                                >
+                                  {line.text || '♪'}
+                                </p>
+                              ))}
+                            </div>
+                          ) : typeof lyrics === 'string' && lyrics.length > 0 ? (
+                            <p className="text-base text-gray-300 leading-relaxed whitespace-pre-wrap font-serif italic pb-8 opacity-80">
+                              {lyrics}
+                            </p>
+                          ) : (
+                            <div className="h-full flex items-center justify-center text-gray-600 text-xs text-center italic">
+                              No se encontraron letras para esta canción.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
-          )}
+                )}
+
+              </div>
+            );
+          })()}
         </div>
       )}
 

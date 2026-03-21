@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { useEffect, useState, useMemo } from 'react';
-import { Gift, CheckCircle, Loader2, Play, Star, Eye, Globe, Music, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
+import { Gift, CheckCircle, Loader2, Play, Star, Eye, Globe, Music, Sparkles, TrendingUp, ChevronRight, Shield, Settings as SettingsIcon, Radio, Music2, EyeOff, LayoutPanelTop } from 'lucide-react';
 import { toast } from 'sonner';
-import { Shield, Settings as SettingsIcon, Radio, Music2, EyeOff, LayoutPanelTop } from 'lucide-react';
 import { generateCard, CardData } from '@/lib/engine/generator';
 import Card from '@/components/cards/Card';
 import CardBack from '@/components/CardBack';
@@ -404,39 +403,56 @@ export default function Home() {
               </div>
 
               {!selectedBotDeck ? (
-                <div className="space-y-4 mb-6">
-                  <label className="block text-white/80 font-bold mb-2">Selecciona tu mazo para la batalla:</label>
+                <div className="space-y-6 mb-6">
+                  <div className="text-center space-y-2">
+                    <p className="text-gray-400 text-lg font-medium">
+                      Elige el Sello Discográfico (Mazo) que llevarás al escenario.
+                    </p>
+                  </div>
                   {Object.keys(decksObj).length === 0 ? (
-                    <div className="text-sm text-gray-400 p-4 bg-white/5 rounded-lg text-center">
-                      No tienes mazos creados. Ve al estudio para crear uno.
+                    <div className="text-sm text-gray-400 p-8 bg-white/5 rounded-2xl border border-white/10 text-center font-bold tracking-widest">
+                      NO TIENES MAZOS CREADOS. VE AL ESTUDIO PARA CREAR UNO.
                     </div>
                   ) : (
-                    <select
-                      onChange={(e) => {
-                        const deckId = e.target.value;
-                        const deck = decksObj[deckId];
-                        if (deck) {
-                          const cards: MasterCardTemplate[] = [];
-                          Object.entries(deck.cards).forEach(([cId, count]) => {
-                            const cData = inventoryObj[cId]?.card;
-                            if (cData) {
-                              for (let i = 0; i < count; i++) cards.push(cData);
-                            }
-                          });
-                          setSelectedBotDeck({ id: deckId, cards });
-                        } else {
-                          setSelectedBotDeck(null);
-                        }
-                      }}
-                      className="w-full p-3 bg-[#111] border border-white/20 rounded-xl text-white outline-none focus:border-cyan-500 transition-colors"
-                      defaultValue=""
-                    >
-                      <option value="" disabled>-- Selecciona un mazo --</option>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {Object.values(decksObj).map(deck => {
                         const count = Object.values(deck.cards).reduce((a, b) => a + b, 0);
-                        return <option key={deck.id} value={deck.id}>{deck.name} ({count} cartas)</option>
+                        const isValid = count >= 20;
+                        return (
+                          <motion.div
+                            key={deck.id}
+                            whileHover={isValid ? { scale: 1.02 } : {}}
+                            onClick={() => {
+                              if (!isValid) return;
+                              const cards: MasterCardTemplate[] = [];
+                              Object.entries(deck.cards).forEach(([cId, cCount]) => {
+                                const cData = inventoryObj[cId]?.card;
+                                if (cData) {
+                                  for (let i = 0; i < cCount; i++) cards.push(cData);
+                                }
+                              });
+                              setSelectedBotDeck({ id: deck.id, cards });
+                            }}
+                            className={`group relative overflow-hidden rounded-2xl border-2 transition-all p-4 flex flex-col items-center justify-center text-center ${isValid ? 'cursor-pointer border-white/10 bg-white/5 hover:border-cyan-500 hover:bg-cyan-500/10' : 'opacity-50 cursor-not-allowed border-red-500/20 bg-red-500/5'}`}
+                          >
+                            {deck.coverArt && (
+                              <div className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={deck.coverArt} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                              </div>
+                            )}
+                            <div className="relative z-10">
+                              <h3 className="text-xl font-black uppercase tracking-tighter mb-1 text-white">{deck.name}</h3>
+                              <p className={`text-xs font-bold tracking-widest ${isValid ? 'text-cyan-400' : 'text-red-400'}`}>
+                                {count} / 20 CARTAS
+                              </p>
+                              {!isValid && <p className="text-[9px] uppercase tracking-widest text-red-500 mt-2">Faltan cartas</p>}
+                            </div>
+                          </motion.div>
+                        );
                       })}
-                    </select>
+                    </div>
                   )}
                 </div>
               ) : (

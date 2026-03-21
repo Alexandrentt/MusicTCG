@@ -54,7 +54,7 @@ export class AbilityGenerator {
         trackId: string,
         genre: string,
         cost: number,
-        rarity: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM',
+        rarity: CardRarity,
         def: number = 2
     ): GeneratedAbility | null {
         const seed = this.createDeterministicHash(trackId);
@@ -83,6 +83,12 @@ export class AbilityGenerator {
             { keyword: Keyword.TRAMPLE, text: 'Distorsión', penalty: 2 },
             { keyword: Keyword.SUSTAIN, text: 'Sustain', penalty: 1 },
             { keyword: Keyword.STEALTH, text: 'Acústico', penalty: 1 },
+            { keyword: Keyword.CRESCENDO, text: 'Crescendo', penalty: 2 },
+            { keyword: Keyword.BASS_BOOST, text: 'Bass Boost', penalty: 1 },
+            { keyword: Keyword.HYPE_ENGINE, text: 'Bomba de Hype', penalty: 2 },
+            { keyword: Keyword.FALSETTO, text: 'Falsetto', penalty: 1 },
+            { keyword: Keyword.SAMPLE, text: 'Sampleo', penalty: 1 },
+            { keyword: Keyword.AUTOTUNE, text: 'Autotune (Escudo)', penalty: 2 },
         ];
 
         const selected =
@@ -196,11 +202,8 @@ export class AbilityGenerator {
             normalizedGenre.includes('punk')
         ) {
             return [
-                Effect.DAMAGE,
-                Effect.DAMAGE,
-                Effect.TRAMPLE,
-                Effect.DEBUFF,
-                Effect.SILENCE,
+                Effect.DAMAGE, Effect.TRAMPLE, Effect.DEBUFF, Effect.SILENCE,
+                Effect.FORCE_SACRIFICE, Effect.SACRIFICE_PAYOFF, Effect.HASTE, Effect.ALL_CARDS
             ];
         }
 
@@ -210,16 +213,17 @@ export class AbilityGenerator {
             normalizedGenre.includes('r&b') ||
             normalizedGenre.includes('soul')
         ) {
-            return [Effect.HEAL, Effect.HEAL, Effect.HYPE, Effect.BUFF, Effect.DRAW];
+            return [
+                Effect.HEAL, Effect.HYPE, Effect.BUFF, Effect.DRAW,
+                Effect.HEAL_REPUTATION, Effect.ENERGY_BURST, Effect.ENCORE, Effect.DISCO_ORO
+            ];
         }
 
         // Hip-Hop / Rap (Arquetipo: Debuff / Tempo)
         if (normalizedGenre.includes('hip') || normalizedGenre.includes('rap')) {
             return [
-                Effect.DEBUFF,
-                Effect.BOICOT,
-                Effect.NERF,
-                Effect.MANA_DISRUPTION,
+                Effect.DEBUFF, Effect.BOICOT, Effect.NERF, Effect.MANA_DISRUPTION,
+                Effect.ENERGY_STEAL, Effect.ENERGY_DENIAL, Effect.MIND_CONTROL, Effect.ENERGY_LOCK
             ];
         }
 
@@ -229,31 +233,29 @@ export class AbilityGenerator {
             normalizedGenre.includes('dance') ||
             normalizedGenre.includes('house')
         ) {
-            return [Effect.DRAW, Effect.MILL, Effect.DRAW, Effect.ENCORE, Effect.HYPE];
+            return [
+                Effect.DRAW, Effect.MILL, Effect.ENCORE, Effect.HYPE,
+                Effect.ENERGY_RAMP, Effect.ENERGY_RECOVERY, Effect.SOUNDCHECK, Effect.STEALTH
+            ];
         }
 
         // Classical / Jazz / Blues (Arquetipo: Estrategia Compleja)
         if (
             normalizedGenre.includes('classic') ||
             normalizedGenre.includes('jazz') ||
-            normalizedGenre.includes('blues')
+            normalizedGenre.includes('blues') ||
+            normalizedGenre.includes('soundtrack')
         ) {
             return [
-                Effect.SOUNDCHECK,
-                Effect.BUFF,
-                Effect.STEALTH,
-                Effect.HEAL,
-                Effect.SILENCE,
+                Effect.SOUNDCHECK, Effect.BUFF, Effect.STEALTH, Effect.HEAL, Effect.SILENCE,
+                Effect.ENERGY_PROTECTION, Effect.CANCELLED, Effect.FEATURING
             ];
         }
 
-        // Default: Pool equilibrada
+        // Default: Pool equilibrada que incluye bastantes mecánicas
         return [
-            Effect.DAMAGE,
-            Effect.HEAL,
-            Effect.HYPE,
-            Effect.DRAW,
-            Effect.DEBUFF,
+            Effect.DAMAGE, Effect.HEAL, Effect.HYPE, Effect.DRAW, Effect.DEBUFF,
+            Effect.ENERGY_RAMP, Effect.TRAMPLE, Effect.BOICOT, Effect.FEATURING
         ];
     }
 

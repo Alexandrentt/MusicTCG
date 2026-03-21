@@ -49,7 +49,7 @@ export default function SearchCardResult({
     };
 
     return (
-        <motion.button
+        <motion.div
             onClick={onClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -101,16 +101,9 @@ export default function SearchCardResult({
                                         {cardData.atk}
                                     </div>
                                     <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/5 text-[10px] font-black">
-                                        <Shield className="w-2.5 h-2.5 text-purple-400" />
+                                        <Shield className="w-2.5 h-2.5 text-cyan-400" />
                                         {cardData.def}
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Match score */}
-                            {result.matchScore > 0.7 && (
-                                <div className="px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/50 text-[9px] text-cyan-300 font-black">
-                                    {Math.round(result.matchScore * 100)}% SYNC
                                 </div>
                             )}
                         </div>
@@ -120,7 +113,7 @@ export default function SearchCardResult({
                             <h3 className="font-black text-white text-[11px] leading-tight line-clamp-1 uppercase tracking-tighter">
                                 {result.name}
                             </h3>
-                            <p 
+                            <p
                                 className={`text-white/50 text-[9px] line-clamp-1 font-bold ${onArtistClick ? 'hover:underline cursor-pointer hover:text-white transition-colors' : ''}`}
                                 onClick={(e) => {
                                     if (onArtistClick) {
@@ -149,7 +142,6 @@ export default function SearchCardResult({
             <div className="mt-2 px-1 space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-white/50 uppercase tracking-widest font-black">
                     <span className="truncate max-w-[70px]">{result.genre}</span>
-                    <span className="text-cyan-400/50">{result.matchType}</span>
                 </div>
                 {result.rarity && (
                     <div
@@ -166,6 +158,6 @@ export default function SearchCardResult({
                     </div>
                 )}
             </div>
-        </motion.button>
+        </motion.div>
     );
 }

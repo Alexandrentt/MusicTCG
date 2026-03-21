@@ -72,7 +72,7 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
     <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-20 pointer-events-none">
       {/* Cost Badge */}
       <div className="bg-black/80 backdrop-blur-xl px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-2xl">
-        <Zap className={`text-yellow-400 ${isBig ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
+        <Music className={`text-cyan-400 ${isBig ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
         <span className={`font-black text-white ${isBig ? 'text-xl' : 'text-sm'}`}>{data.cost}</span>
       </div>
     </div>
