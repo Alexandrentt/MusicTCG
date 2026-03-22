@@ -104,7 +104,6 @@ export default function MiniPlayer() {
       <div className="absolute top-0 left-0 h-0.5 bg-green-500 transition-all duration-100" style={{ width: `${progress}%` }}></div>
 
       <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleInspect}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <Image src={currentTrack.artworkUrl} alt={currentTrack.title} width={40} height={40} className="w-10 h-10 rounded object-cover" crossOrigin="anonymous" />
         <div className="flex flex-col min-w-0">
           <span className="text-white text-sm font-bold truncate">{currentTrack.title}</span>

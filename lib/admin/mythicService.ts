@@ -18,7 +18,7 @@ export async function addMythicSong(song: MythicSong): Promise<{ success: boolea
 
     // Verificar admin en cliente (el RLS lo verifica también en servidor)
     const { data: profile } = await supabase
-        .from('users')
+        .from('user_profile')
         .select('is_admin')
         .eq('id', session.user.id)
         .single();

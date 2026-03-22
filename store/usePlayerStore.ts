@@ -83,8 +83,9 @@ export interface PlayerState {
   // Actions
   addRegalias: (amount: number) => void;
   spendRegalias: (amount: number) => boolean;
-  addCard: (card: CardData) => { added: boolean; convertedToWildcard: boolean };
+  addCard: (card: CardData, count?: number) => { added: boolean; convertedToWildcard: boolean };
   addCards: (cards: CardData[]) => { added: number; converted: number };
+  setInventory: (inventory: Record<string, any>) => void;
   craftCard: (card: CardData) => boolean;
   /**
    * Muele una carta del inventario.
@@ -92,7 +93,7 @@ export interface PlayerState {
    * Aumenta el progreso del comodín de la rareza correspondiente.
    * Si el progreso llega a 5, se otorga un comodín y se reinicia el progreso.
    */
-  millCard: (cardId: string) => boolean;
+  millCard: (cardId: string, count?: number) => boolean;
   millAllDuplicates: () => number;
 
   createDeck: (name: string) => void;
@@ -212,7 +213,7 @@ export const usePlayerStore = create<PlayerState>()(
         return false;
       },
 
-      addCard: (card) => {
+      addCard: (card, count) => {
         let result = { added: false, convertedToWildcard: false };
         set((state) => {
           // Master Card Logic: Find if we already own this exact song
@@ -322,7 +323,7 @@ export const usePlayerStore = create<PlayerState>()(
         return false;
       },
 
-      millCard: (cardId) => {
+      millCard: (cardId, count) => {
         let success = false;
         set((state) => {
           const item = state.inventory[cardId];
@@ -595,6 +596,7 @@ export const usePlayerStore = create<PlayerState>()(
 
       setLanguage: (lang) => set({ language: lang }),
       setDiscoveryUsername: (username) => set({ discoveryUsername: username }),
+      setInventory: (inventory) => set({ inventory }),
 
       updateRank: (won) => {
         const { rank } = get();

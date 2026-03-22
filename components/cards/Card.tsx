@@ -117,11 +117,18 @@ function formatAbility(ability: any) {
   const icon = ABILITY_ICON[type] || '◆';
   const color = ABILITY_COLOR[ability.category] || 'text-white/80';
   const badge = ABILITY_BADGE[type] || 'Habilidad';
+
+  // Magic Style Trigger handling
   const trigger = TRIGGER_TEXT[ability.trigger || 'PASSIVE'] || '';
   const desc = ability.description || '';
-  const fullDesc = trigger ? `${trigger}: ${desc}` : desc;
 
-  return { icon, keyword: ability.keyword || '', badge, description: fullDesc, color, type };
+  // Format description like Magic: [Trigger], [Sub-trigger] — [Effect]
+  let fullDesc = desc;
+  if (trigger) {
+    fullDesc = `${trigger} — ${desc}`;
+  }
+
+  return { icon, keyword: ability.keyword || '', badge, description: fullDesc, color, type, activationCost: ability.activationCost };
 }
 
 export default function Card({
@@ -279,48 +286,60 @@ export default function Card({
       </div>
 
       {/* ── ORACLE TEXT — Estilo Magic: The Gathering ─────────── */}
-      <div className={`flex-1 px-3 py-2 overflow-hidden flex flex-col ${isBig ? 'text-xs' : 'text-[10px]'} leading-snug`}>
-        <div className="h-px bg-white/10 mb-2" />
+      <div className={`flex-1 px-4 py-3 overflow-hidden flex flex-col ${isBig ? 'text-[13px]' : 'text-[10px]'} leading-relaxed`}>
+        {/* Subtle separator */}
+        <div className="h-px bg-white/10 mb-3 shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
 
         {hasAbilities ? (
-          <div className="space-y-2 overflow-y-auto pr-0.5 scrollbar-none flex-1">
+          <div className="space-y-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 flex-1">
             {data.abilities.map((ability: any, idx: number) => {
-              const { icon, keyword, badge, description, color, type } = formatAbility(ability);
+              const { icon, keyword, badge, description, color, type, activationCost } = formatAbility(ability);
               const isActivated = type === 'ACTIVATED';
+
               return (
                 <div
                   key={idx}
-                  className={`relative pl-3 border-l ${isEvent ? 'border-purple-500/50' : isActivated ? 'border-yellow-400/40' : 'border-white/10'}`}
+                  className={`
+                    relative pl-4 border-l-2
+                    ${isEvent ? 'border-purple-500/40 bg-purple-500/5' : isActivated ? 'border-yellow-400/30 bg-yellow-400/5' : 'border-white/10 bg-white/2'}
+                    py-1.5 rounded-r-lg
+                  `}
                 >
                   {/* Keyword header */}
-                  <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                    <span className="text-white/25 font-mono text-[9px] select-none shrink-0">{icon}</span>
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    <span className="text-white/30 font-mono text-[10px] select-none shrink-0">{icon}</span>
                     {keyword && (
-                      <span className={`font-black uppercase text-[9px] tracking-widest ${color} shrink-0`}>
+                      <span className={`font-black uppercase ${isBig ? 'text-[11px]' : 'text-[9px]'} tracking-widest ${color} shrink-0 drop-shadow-sm`}>
                         {keyword}
                       </span>
                     )}
-                    <span className="text-white/20 text-[8px] italic">({badge})</span>
+
+                    {isActivated && activationCost != null && activationCost > 0 && (
+                      <div className="inline-flex items-center gap-0.5 bg-yellow-400/20 border border-yellow-400/30 rounded px-1.5 py-0.5">
+                        <Zap className="w-2.5 h-2.5 text-yellow-400 fill-current" />
+                        <span className="text-yellow-300 text-[9px] font-black">{activationCost}</span>
+                      </div>
+                    )}
+
+                    <span className="text-white/20 text-[8px] italic ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                      {badge}
+                    </span>
                   </div>
-                  {/* Oracle description */}
-                  <p className="text-white/55 leading-relaxed">
+
+                  {/* Oracle description with better contrast */}
+                  <p className="text-white/70 font-medium tracking-tight">
                     {description}
                   </p>
-                  {/* Activation cost (only for ACTIVATED) */}
-                  {isActivated && ability.activationCost != null && ability.activationCost > 0 && (
-                    <div className="inline-flex items-center gap-0.5 mt-0.5 bg-yellow-400/10 border border-yellow-400/20 rounded px-1 py-0.5">
-                      <Zap className="w-2 h-2 text-yellow-400" />
-                      <span className="text-yellow-300 text-[8px] font-black">{ability.activationCost} Energía</span>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         ) : (
-          <p className="text-white/20 italic text-center mt-2 flex-1">
-            Sin habilidades rítmicas.
-          </p>
+          <div className="flex-1 flex flex-col items-center justify-center opacity-25 italic scale-95">
+            <div className="w-12 h-px bg-white/20 mb-2" />
+            <p className="text-[11px] uppercase tracking-widest">Frecuencia Base</p>
+            <div className="w-12 h-px bg-white/20 mt-2" />
+          </div>
         )}
       </div>
 

@@ -121,7 +121,6 @@ export const MusicCard: React.FC<MusicCardProps> = ({
             <div className="relative h-[72%] w-full overflow-hidden">
                 {albumArtUrl ? (
                     <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <Image
                             src={albumArtUrl}
                             alt={trackName}

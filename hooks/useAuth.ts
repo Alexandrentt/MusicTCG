@@ -25,15 +25,15 @@ export function useAuth(): AuthProfile {
     useEffect(() => {
         const loadProfile = async (u: User) => {
             const { data } = await supabase
-                .from('users')
-                .select('username, is_admin, role, is_paying')
+                .from('user_profile')
+                .select('username, discovery_username, is_admin, role, is_paying')
                 .eq('id', u.id)
                 .maybeSingle();
 
             if (data) {
-                setUsername(data.username || u.user_metadata?.username || '');
+                setUsername(data.discovery_username || data.username || u.user_metadata?.username || '');
                 setIsAdmin(data.is_admin ?? false);
-                setRole(data.role ?? 'FREE');
+                setRole((data.role as any) ?? 'FREE');
                 setIsPaying(data.is_paying ?? false);
             }
             setLoading(false);

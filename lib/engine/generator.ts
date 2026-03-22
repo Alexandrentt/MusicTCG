@@ -54,11 +54,7 @@ function detectFormat(track: any): CardFormat {
  */
 function getFormatType(format: CardFormat): CardType {
   switch (format) {
-    case 'EP':
     case 'SOUNDTRACK':
-    case 'FEATURE':
-    case 'REMIX':
-    case 'COMPILATION':
       return 'EVENT';
     default:
       return 'CREATURE';
@@ -174,16 +170,16 @@ export function generateCard(
   }
 
   // 9. Generación de Habilidades (SISTEMA EXPANDIDO CON CLASIFICACIÓN)
-  const abilities: any[] = [];  
+  const abilities: any[] = [];
   // Sistema de combinación: [Formato + Género + Rareza] = Habilidad única
   const abilitySeed = `${format}_${genre}_${rarity}`;
   const seedRandom = mulberry32(hashString(abilitySeed));
-  
+
   // Determinar si tendrá habilidades pasivas, activas o ambas
   const hasPassive = seedRandom() > 0.4; // 60% chance de tener pasiva
   const hasActive = seedRandom() > 0.6; // 40% chance de tener activa
   const hasActivated = rarity === 'MYTHIC' || (rarity === 'PLATINUM' && seedRandom() > 0.7);
-  
+
   // 1. Habilidades PASIVAS (siempre activas)
   if (hasPassive) {
     const passiveAbilities: Record<string, any> = {
@@ -208,7 +204,7 @@ export function generateCard(
         abilityType: 'PASSIVE',
         category: 'CONTROL_META'
       },
-      
+
       // RESOURCE GENERATION
       'ENERGY_AMPLIFIER': {
         keyword: 'Energy Amplifier',
@@ -223,7 +219,7 @@ export function generateCard(
         category: 'RESOURCE_DRAW',
         stackable: true
       },
-      
+
       // SYNERGY
       'GENRE_MASTER': {
         keyword: 'Genre Master',
@@ -244,7 +240,7 @@ export function generateCard(
         abilityType: 'PASSIVE',
         category: 'SYNERGY_PLAYLIST'
       },
-      
+
       // UTILITY
       'BACKSTAGE_MANAGER': {
         keyword: 'Backstage Manager',
@@ -259,7 +255,7 @@ export function generateCard(
         category: 'UTILITY_INFORMATION'
       }
     };
-    
+
     // Seleccionar 1-2 habilidades pasivas según rareza
     const passiveCount = rarity === 'MYTHIC' ? 2 : (rarity === 'PLATINUM' ? 1 : 1);
     const passiveKeys = Object.keys(passiveAbilities);
@@ -271,7 +267,7 @@ export function generateCard(
       });
     }
   }
-  
+
   // 2. Habilidades ACTIVAS (se activan por eventos)
   if (hasActive) {
     const activeAbilities: Record<string, any> = {
@@ -297,7 +293,7 @@ export function generateCard(
         category: 'COMBAT_OFFENSE',
         trigger: 'ON_PLAY'
       },
-      
+
       // COMBAT DEFENSE
       'PROTECTIVE_HARMONY': {
         keyword: 'Protective Harmony',
@@ -314,7 +310,7 @@ export function generateCard(
         trigger: 'ON_REACTION',
         activationCost: 2
       },
-      
+
       // RESOURCE
       'INSTANT_TUTOR': {
         keyword: 'Instant Tutor',
@@ -337,7 +333,7 @@ export function generateCard(
         category: 'RESOURCE_DRAW',
         trigger: 'ON_SACRIFICE'
       },
-      
+
       // CONTROL
       'SILENCE_SPELL': {
         keyword: 'Silence Spell',
@@ -361,7 +357,7 @@ export function generateCard(
         category: 'CONTROL_TARGET',
         trigger: 'ON_PLAY'
       },
-      
+
       // SYNERGY
       'GENRE_EXPLOSION': {
         keyword: 'Genre Explosion',
@@ -380,7 +376,7 @@ export function generateCard(
         condition: 'IF_COMPLETE_ALBUM'
       }
     };
-    
+
     // Seleccionar 1 habilidad activa según rareza
     const activeCount = rarity === 'MYTHIC' ? 2 : 1;
     const activeKeys = Object.keys(activeAbilities);
@@ -391,7 +387,7 @@ export function generateCard(
       });
     }
   }
-  
+
   // 3. Habilidades ACTIVADAS (costo adicional de energía)
   if (hasActivated) {
     const activatedAbilities: Record<string, any> = {
@@ -412,7 +408,7 @@ export function generateCard(
         activationCost: 4,
         isPermanent: false
       },
-      
+
       // RESOURCE
       'MASSIVE_DRAW': {
         keyword: 'Massive Draw',
@@ -428,7 +424,7 @@ export function generateCard(
         category: 'RESOURCE_ENERGY',
         activationCost: 1
       },
-      
+
       // CONTROL
       'MASSIVE_REMOVAL': {
         keyword: 'Massive Removal',
@@ -444,7 +440,7 @@ export function generateCard(
         category: 'CONTROL_TARGET',
         activationCost: 6
       },
-      
+
       // SPECIAL
       'TIME_STOP': {
         keyword: 'Time Stop',
@@ -461,26 +457,26 @@ export function generateCard(
         activationCost: 10
       }
     };
-    
+
     // Seleccionar 1 habilidad activada (solo para Mythic/Platinum)
     const activatedKey = Object.keys(activatedAbilities)[Math.floor(seedRandom() * Object.keys(activatedAbilities).length)];
     abilities.push({
       ...activatedAbilities[activatedKey]
     });
   }
-  
+
   // 4. Habilidades por Formato Musical (mantener compatibilidad)
   if (format === 'SOUNDTRACK') {
-    abilities.push({ 
-      keyword: 'Soundtrack', 
+    abilities.push({
+      keyword: 'Soundtrack',
       description: 'Atmosférico: Las Criaturas del mismo género reciben +1/+1 mientras esté en juego.',
       abilityType: 'PASSIVE',
       category: 'SYNERGY_PLAYLIST'
     });
     // Bonus adicional para soundtracks
     if (seedRandom() > 0.7) {
-      abilities.push({ 
-        keyword: 'Cinematic', 
+      abilities.push({
+        keyword: 'Cinematic',
         description: 'Al entrar, todas las cartas en juego ganan +1/+1 hasta tu próximo turno.',
         abilityType: 'TRIGGERED',
         category: 'SYNERGY_ALBUM',
@@ -488,16 +484,16 @@ export function generateCard(
       });
     }
   } else if (format === 'REMIX') {
-    abilities.push({ 
-      keyword: 'Remix', 
+    abilities.push({
+      keyword: 'Remix',
       description: 'Puedes copiar una habilidad de otra carta en juego.',
       abilityType: 'TRIGGERED',
       category: 'UTILITY_MANIPULATION',
       trigger: 'ON_PLAY'
     });
     if (rarity === 'MYTHIC' || rarity === 'PLATINUM') {
-      abilities.push({ 
-        keyword: 'Mashup', 
+      abilities.push({
+        keyword: 'Mashup',
         description: 'Combina las habilidades de 2 cartas diferentes.',
         abilityType: 'ACTIVATED',
         category: 'SPECIAL_TRANSFORM',
@@ -505,16 +501,16 @@ export function generateCard(
       });
     }
   } else if (format === 'LIVE') {
-    abilities.push({ 
-      keyword: 'Live Performance', 
+    abilities.push({
+      keyword: 'Live Performance',
       description: 'Gana +1/+1 por cada carta que controles.',
       abilityType: 'PASSIVE',
       category: 'SYNERGY_GENRE',
       stackable: true
     });
     if (seedRandom() > 0.6) {
-      abilities.push({ 
-        keyword: 'Encore', 
+      abilities.push({
+        keyword: 'Encore',
         description: 'Si esta carta es destruida, regresa a tu mano.',
         abilityType: 'TRIGGERED',
         category: 'UTILITY_MANIPULATION',
@@ -522,31 +518,31 @@ export function generateCard(
       });
     }
   } else if (format === 'ACOUSTIC') {
-    abilities.push({ 
-      keyword: 'Acoustic', 
+    abilities.push({
+      keyword: 'Acoustic',
       description: 'No puede ser objetivo de habilidades del oponente.',
       abilityType: 'PASSIVE',
       category: 'CONTROL_META'
     });
   } else if (format === 'FEATURE') {
-    abilities.push({ 
-      keyword: 'Featuring', 
+    abilities.push({
+      keyword: 'Featuring',
       description: 'Cuando entre, busca una carta del artista invitado.',
       abilityType: 'TRIGGERED',
       category: 'UTILITY_SEARCH',
       trigger: 'ON_PLAY'
     });
   } else if (format === 'EP') {
-    abilities.push({ 
-      keyword: 'Extended Play', 
+    abilities.push({
+      keyword: 'Extended Play',
       description: 'Puedes jugar cartas adicionales este turno.',
       abilityType: 'TRIGGERED',
       category: 'RESOURCE_ENERGY',
       trigger: 'ON_PLAY'
     });
   } else if (format === 'COMPILATION') {
-    abilities.push({ 
-      keyword: 'Greatest Hits', 
+    abilities.push({
+      keyword: 'Greatest Hits',
       description: 'Copia una habilidad de cada carta del mismo álbum en juego.',
       abilityType: 'PASSIVE',
       category: 'SYNERGY_ALBUM',
@@ -555,48 +551,48 @@ export function generateCard(
   } else {
     // Cartas ALBUM/SINGLE (default)
     if (isRock && seedRandom() > 0.3) {
-      abilities.push({ 
-        keyword: 'Drop', 
+      abilities.push({
+        keyword: 'Drop',
         description: 'Ataca inmediatamente al entrar al escenario.',
         abilityType: 'TRIGGERED',
         category: 'COMBAT_MOBILITY',
         trigger: 'ON_PLAY'
       });
     } else if (isPop && seedRandom() > 0.4) {
-      abilities.push({ 
-        keyword: 'Sync', 
+      abilities.push({
+        keyword: 'Sync',
         description: 'Al jugar esta carta, tu reputación aumenta en 3 si coincide con el género actual.',
         abilityType: 'TRIGGERED',
         category: 'SYNERGY_PLAYLIST',
         trigger: 'ON_PLAY'
       });
     } else if (genre.includes('Electronic') || genre.includes('Dance')) {
-      abilities.push({ 
-        keyword: 'Beat Drop', 
+      abilities.push({
+        keyword: 'Beat Drop',
         description: 'Cuando ataca, todas las criaturas del oponente pierden -1/-1.',
         abilityType: 'TRIGGERED',
         category: 'COMBAT_OFFENSE',
         trigger: 'ON_ATTACK'
       });
     } else if (genre.includes('Hip-Hop') || genre.includes('Rap')) {
-      abilities.push({ 
-        keyword: 'Freestyle', 
+      abilities.push({
+        keyword: 'Freestyle',
         description: 'Puedes reorganizar las 3 cartas superiores de tu mazo.',
         abilityType: 'ACTIVATED',
         category: 'UTILITY_MANIPULATION',
         activationCost: 1
       });
     } else if (genre.includes('Jazz') || genre.includes('Blues')) {
-      abilities.push({ 
-        keyword: 'Improvisation', 
+      abilities.push({
+        keyword: 'Improvisation',
         description: 'Gana una habilidad aleatoria al entrar en juego.',
         abilityType: 'TRIGGERED',
         category: 'SPECIAL_CONDITIONAL',
         trigger: 'ON_PLAY'
       });
     } else {
-      abilities.push({ 
-        keyword: 'Sustain', 
+      abilities.push({
+        keyword: 'Sustain',
         description: 'Recupera 1 de DEF al inicio de tu turno.',
         abilityType: 'PASSIVE',
         category: 'COMBAT_DEFENSE'
@@ -610,7 +606,7 @@ export function generateCard(
     try {
       // Importar motor procedural
       const { proceduralAbilityEngine, convertToGeneratedAbility } = require('./proceduralAbilityEngine');
-      
+
       // Generar habilidades procedurales
       const seed = `${compositionId}_${rarity}_${cost}`;
       const proceduralResult = proceduralAbilityEngine.generate(
@@ -619,16 +615,16 @@ export function generateCard(
         cost,
         seed
       );
-      
+
       // Convertir y agregar habilidades procedurales
       if (proceduralResult.abilities.length > 0) {
-        const proceduralAbilities = proceduralResult.abilities.map((ability: any) => 
+        const proceduralAbilities = proceduralResult.abilities.map((ability: any) =>
           convertToGeneratedAbility(ability, variantId)
         );
-        
+
         // Combinar con habilidades existentes (priorizar procedurales)
         abilities.splice(0, abilities.length, ...proceduralAbilities);
-        
+
         console.log(`🎯 Procedural abilities generated for ${track.trackName}:`, {
           count: proceduralResult.abilities.length,
           riskLevel: proceduralResult.riskLevel,
@@ -642,7 +638,57 @@ export function generateCard(
     }
   }
 
-  // 11. Limitar número máximo de habilidades por rareza
+  // 11. GARANTIZAR QUE TODAS LAS CARTAS TENGAN HABILIDADES (FALLBACK OBLIGATORIO)
+  if (abilities.length === 0) {
+    console.warn(`⚠️ No abilities generated for ${track.trackName}, adding guaranteed fallback`);
+
+    // Fallback garantizado basado en rareza
+    const fallbackAbilities: Record<string, any> = {
+      'BRONZE': [{
+        keyword: 'Basic Rhythm',
+        description: 'Esta carta tiene +1/+1 si es la única carta en juego.',
+        abilityType: 'PASSIVE',
+        category: 'COMBAT_OFFENSE',
+        isPermanent: true
+      }],
+      'SILVER': [{
+        keyword: 'Harmony',
+        description: 'Cuando esta carta entra en juego, gana +1/+1 por cada otra carta aliada.',
+        abilityType: 'TRIGGERED',
+        category: 'SYNERGY_GENRE',
+        trigger: 'ON_PLAY',
+        isPermanent: true
+      }],
+      'GOLD': [{
+        keyword: 'Golden Performance',
+        description: 'Cuando esta carta ataca, inflige 2 daño al oponente.',
+        abilityType: 'TRIGGERED',
+        category: 'COMBAT_OFFENSE',
+        trigger: 'ON_ATTACK',
+        isPermanent: false
+      }],
+      'PLATINUM': [{
+        keyword: 'Platinum Stage',
+        description: 'Cuando esta carta entra en juego, puedes buscar una carta de tu mazo.',
+        abilityType: 'TRIGGERED',
+        category: 'RESOURCE_MANAGEMENT',
+        trigger: 'ON_PLAY',
+        isPermanent: false
+      }],
+      'MYTHIC': [{
+        keyword: 'Legendary Performance',
+        description: 'Cuando esta carta entra en juego, todas las cartas aliadas ganan +2/+2.',
+        abilityType: 'TRIGGERED',
+        category: 'SYNERGY_GENRE',
+        trigger: 'ON_PLAY',
+        isPermanent: true
+      }]
+    };
+
+    abilities.push(...(fallbackAbilities[rarity] || fallbackAbilities['BRONZE']));
+  }
+
+  // 12. Limitar número máximo de habilidades por rareza
   const maxAbilities = {
     'MYTHIC': 4,
     'PLATINUM': 3,
@@ -650,7 +696,7 @@ export function generateCard(
     'SILVER': 2,
     'BRONZE': 1
   };
-  
+
   const maxAllowed = maxAbilities[rarity] || 1;
   if (abilities.length > maxAllowed) {
     abilities.splice(maxAllowed);

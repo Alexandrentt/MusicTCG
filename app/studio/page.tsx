@@ -150,6 +150,8 @@ export default function StudioPage() {
   const [genreFilter, setGenreFilter] = useState<string>('all');
   const [costFilter, setCostFilter] = useState<string>('all');
   const [cardToMill, setCardToMill] = useState<CardData | null>(null);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const CARDS_PER_PAGE = 50;
 
   const inventoryList = useMemo(() => Object.values(inventory), [inventory]);
   const decksList = useMemo(() => Object.values(decks), [decks]);
@@ -170,6 +172,18 @@ export default function StudioPage() {
       // Más reciente primero
       .sort((a, b) => (b.obtainedAt ?? 0) - (a.obtainedAt ?? 0));
   }, [inventoryList, globalSearchQuery, rarityFilter, genreFilter, costFilter]);
+
+  // Modificar filteredInventory para paginar
+  const paginatedInventory = useMemo(() => {
+    return filteredInventory.slice(0, inventoryPage * CARDS_PER_PAGE);
+  }, [filteredInventory, inventoryPage]);
+
+  const hasMore = filteredInventory.length > inventoryPage * CARDS_PER_PAGE;
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setInventoryPage(1);
+  }, [globalSearchQuery, rarityFilter, genreFilter, costFilter]);
 
   // Handle Search (Global API)
   useEffect(() => {
@@ -483,7 +497,7 @@ export default function StudioPage() {
 
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filteredInventory.map((item) => {
+              {paginatedInventory.map((item) => {
                 const inDeckCount = deck.cards[item.card.id] || 0;
                 const canAdd = inDeckCount < 4 && inDeckCount < item.count && deckCardCount < 60;
 
@@ -838,8 +852,9 @@ export default function StudioPage() {
                   <p className="text-sm">{t(language, 'studio', 'emptyCollectionDesc') || 'Ve a la Tienda para abrir sobres o busca canciones en La Disquera.'}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {filteredInventory.map((item) => (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {paginatedInventory.map((item) => (
                     <div
                       key={item.card.id}
                       className="relative group cursor-pointer"
@@ -877,6 +892,22 @@ export default function StudioPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Botón cargar más */}
+                {hasMore && (
+                  <div className="flex flex-col items-center gap-2 pt-4">
+                    <p className="text-xs text-gray-600 uppercase tracking-widest font-bold">
+                      Mostrando {paginatedInventory.length} de {filteredInventory.length}
+                    </p>
+                    <button
+                      onClick={() => setInventoryPage(p => p + 1)}
+                      className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all active:scale-95"
+                    >
+                      Cargar {Math.min(CARDS_PER_PAGE, filteredInventory.length - paginatedInventory.length)} más
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           )}

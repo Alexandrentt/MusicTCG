@@ -202,7 +202,6 @@ export default function DiscoveriesTab() {
                             className="group relative bg-zinc-900/40 border border-white/5 rounded-[2rem] overflow-hidden cursor-pointer hover:border-white/20 transition-all hover:shadow-2xl hover:shadow-white/5 hover:-translate-y-1"
                         >
                             <div className="aspect-[4/5] relative">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <Image
                                     src={discovery.artworkUrl}
                                     alt={discovery.name}

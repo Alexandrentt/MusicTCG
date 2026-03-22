@@ -33,7 +33,6 @@ export default function PlaylistCardComponent({
             <div className="flex flex-col gap-2">
                 {/* Artwork & Header */}
                 <div className="relative aspect-[4/3] rounded-md overflow-hidden bg-white/5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <Image
                         src={cardData.artworkUrl}
                         alt={cardData.name}

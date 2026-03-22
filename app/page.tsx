@@ -39,7 +39,7 @@ import { getOnboardingState } from '@/lib/onboarding/onboardingState';
 // HOME PAGE
 // ═════════════════════════════════════════
 export default function Home() {
-  const supabase = createSupabaseBrowserClient();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   // Sincroniza inventario con Supabase al iniciar sesión
   useInventorySync();
 
@@ -132,7 +132,7 @@ export default function Home() {
       getRecentDiscoveries(6).then(setRecentDiscoveries);
     }, 60000);
     return () => clearInterval(interval);
-  }, [checkHourlyPacks, checkDailyMissions, language]);
+  }, [checkHourlyPacks, checkDailyMissions, supabase.auth]);
 
   const handleOpenFreePacks = async () => {
     if (freePacksCount <= 0) return;

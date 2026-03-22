@@ -94,7 +94,7 @@ export default function SearchCardResult({
                     <div className="space-y-1.5">
                         <div className="flex justify-between items-end">
                             {/* Stats */}
-                            {cardData && (
+                            {cardData && cardData.type === 'CREATURE' && (
                                 <div className="flex gap-1.5 text-white">
                                     <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/5 text-[10px] font-black">
                                         <Zap className="w-2.5 h-2.5 text-cyan-400" />

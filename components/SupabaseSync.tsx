@@ -1,208 +1,164 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getCurrentUserId, fetchProfile } from '@/lib/database/supabaseSync';
 import { usePlayerStore } from '@/store/usePlayerStore';
 
-// Debounce function
-function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-
-  return (...args: Parameters<F>): void => {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(() => func(...args), waitFor);
-  };
-}
-
+/**
+ * Componente que sincroniza silenciosamente el estado de Supabase con el store de Zustand.
+ * Delega la visualización de carga al sistema nativo loading.tsx de Next.js.
+ */
 export default function SupabaseSync() {
-  const state = usePlayerStore();
-  const isWriting = useRef(false);
+  const { setInventory } = usePlayerStore();
 
-  // Effect for setting up listeners and handling initial load
+  // ── Sincronización completa (Perfil + Inventario) ──────────────────────────
   useEffect(() => {
-    let channels: any[] = [];
+    const syncAllData = async (userId: string) => {
+      console.log(`[SupabaseSync] Sincronizando datos para el usuario: ${userId}`);
 
-    const handleUserSetup = async (user: any) => {
-      // --- Fetch initial data ---
-      const { data: userData } = await supabase.from('users').select('*').eq('id', user.id).single();
-      const { data: inventoryData } = await supabase.from('inventories').select('*').eq('user_id', user.id).single();
-      const { data: decksData } = await supabase.from('decks').select('*').eq('user_id', user.id).single();
+      try {
+        // 1. Cargar Perfil (Regalias, Comodines, Progreso)
+        const profile = await fetchProfile(userId);
+        if (profile) {
+          console.log('[SupabaseSync] Perfil cargado:', profile);
+          usePlayerStore.setState({
+            regalias: profile.regalias,
+            wildcards: {
+              BRONZE: profile.wildcard_bronze,
+              SILVER: profile.wildcard_silver,
+              GOLD: profile.wildcard_gold,
+              PLATINUM: profile.wildcard_platinum,
+              MYTHIC: profile.wildcard_mythic
+            },
+            wildcardProgress: {
+              BRONZE: profile.wildcard_prog_bronze,
+              SILVER: profile.wildcard_prog_silver,
+              GOLD: profile.wildcard_prog_gold,
+              PLATINUM: profile.wildcard_prog_platinum,
+              MYTHIC: profile.wildcard_prog_mythic || 0
+            },
+            premiumGold: profile.premium_gold,
+            freePacksCount: profile.free_packs_count,
+            lastFreePackTime: profile.last_free_pack_time,
+            language: profile.language || 'es',
+            playMusicInBattle: profile.play_music_in_battle,
+            hasCompletedOnboarding: profile.has_completed_onboarding,
+            hasReceivedInitialPacks: profile.has_received_initial_packs,
+            role: profile.role as any,
+            isPaying: profile.is_paying,
+            discoveryUsername: profile.discovery_username || profile.username || ''
+          });
+        }
 
-      if (userData) {
-        isWriting.current = true;
-        usePlayerStore.setState({
-          regalias: userData.regalias,
-          wildcards: userData.wildcards,
-          wildcardProgress: userData.wildcard_progress,
-          freePacksCount: userData.free_packs_count,
-          lastFreePackTime: userData.last_free_pack_time,
-          dailyMissions: userData.daily_missions,
-          lastMissionResetTime: userData.last_mission_reset_time,
-          language: userData.language,
-          discoveryUsername: userData.discovery_username,
-          hasReceivedInitialPacks: userData.has_received_initial_packs,
-          pityCounters: userData.pity_counters,
-        });
-        setTimeout(() => isWriting.current = false, 100);
-      } else {
-        // First time login - create the document from default state
-        const fullState = usePlayerStore.getState();
-        const { inventory, decks, ...profile } = fullState;
-        
-        const serializableProfile = Object.fromEntries(
-          Object.entries(profile).filter(([_, v]) => typeof v !== 'function')
-        );
+        // 2. Cargar Inventario (Regenerado en cliente)
+        const { fetchInventoryWithData } = await import('@/lib/database/supabaseSync');
+        const inventory = await fetchInventoryWithData(userId);
+        if (inventory) {
+          console.log(`[SupabaseSync] ${Object.keys(inventory).length} cartas cargadas en el inventario.`);
+          setInventory(inventory);
+        }
 
-        // Map camelCase to snake_case for Supabase
-        await supabase.from('users').upsert({
-          id: user.id,
-          regalias: serializableProfile.regalias,
-          wildcards: serializableProfile.wildcards,
-          wildcard_progress: serializableProfile.wildcardProgress,
-          free_packs_count: serializableProfile.freePacksCount,
-          last_free_pack_time: serializableProfile.lastFreePackTime,
-          daily_missions: serializableProfile.dailyMissions,
-          last_mission_reset_time: serializableProfile.lastMissionResetTime,
-          language: serializableProfile.language,
-          discovery_username: serializableProfile.discoveryUsername,
-          has_received_initial_packs: serializableProfile.hasReceivedInitialPacks,
-          pity_counters: serializableProfile.pityCounters,
-        });
-        await supabase.from('inventories').upsert({ user_id: user.id, inventory: inventory });
-        await supabase.from('decks').upsert({ user_id: user.id, decks: decks });
+      } catch (err) {
+        console.error('[SupabaseSync] Error crítico durante la sincronización:', err);
       }
-
-      if (inventoryData) {
-        isWriting.current = true;
-        usePlayerStore.setState({ inventory: inventoryData.inventory });
-        setTimeout(() => isWriting.current = false, 100);
-      }
-
-      if (decksData) {
-        isWriting.current = true;
-        usePlayerStore.setState({ decks: decksData.decks });
-        setTimeout(() => isWriting.current = false, 100);
-      }
-
-      // --- Listen for remote changes ---
-      const userChannel = supabase.channel('public:users')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: `id=eq.${user.id}` }, payload => {
-          const data = payload.new as any;
-          if (data) {
-            isWriting.current = true;
-            usePlayerStore.setState({
-              regalias: data.regalias,
-              wildcards: data.wildcards,
-              wildcardProgress: data.wildcard_progress,
-              freePacksCount: data.free_packs_count,
-              lastFreePackTime: data.last_free_pack_time,
-              dailyMissions: data.daily_missions,
-              lastMissionResetTime: data.last_mission_reset_time,
-              language: data.language,
-              discoveryUsername: data.discovery_username,
-              hasReceivedInitialPacks: data.has_received_initial_packs,
-              pityCounters: data.pity_counters,
-            });
-            setTimeout(() => isWriting.current = false, 100);
-          }
-        }).subscribe();
-
-      const inventoryChannel = supabase.channel('public:inventories')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'inventories', filter: `user_id=eq.${user.id}` }, payload => {
-          const data = payload.new as any;
-          if (data) {
-            isWriting.current = true;
-            usePlayerStore.setState({ inventory: data.inventory });
-            setTimeout(() => isWriting.current = false, 100);
-          }
-        }).subscribe();
-
-      const decksChannel = supabase.channel('public:decks')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'decks', filter: `user_id=eq.${user.id}` }, payload => {
-          const data = payload.new as any;
-          if (data) {
-            isWriting.current = true;
-            usePlayerStore.setState({ decks: data.decks });
-            setTimeout(() => isWriting.current = false, 100);
-          }
-        }).subscribe();
-
-      channels = [userChannel, inventoryChannel, decksChannel];
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Clean up old listeners
-      channels.forEach(channel => supabase.removeChannel(channel));
-      channels = [];
-
-      if (session?.user) {
-        handleUserSetup(session.user);
+    const handleAuthChange = async (event: string, session: any) => {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        await syncAllData(session.user.id);
       }
-    });
+    };
 
-    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        handleUserSetup(session.user);
-      }
+      if (session) syncAllData(session.user.id);
     });
 
-    return () => {
-      subscription.unsubscribe();
-      channels.forEach(channel => supabase.removeChannel(channel));
-    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+    return () => subscription.unsubscribe();
+  }, [setInventory]);
+
+  // ── LOGOUT: Limpiar store ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        usePlayerStore.getState().resetAll(); // Usamos resetAll para limpiar todo el estado
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  //  Effect for syncing local changes TO Supabase
+  // ── SYNC: Sobreescribir acciones del store para persistir en Supabase ─────────────
   useEffect(() => {
-    if (isWriting.current) return; // Prevent writing state we just received
+    const originalAddCard = usePlayerStore.getState().addCard;
+    const originalMillCard = usePlayerStore.getState().millCard;
 
-    const debouncedWrite = debounce(async (currentUser: any, stateToSync: any) => {
-        const { inventory, decks, ...profile } = stateToSync;
-        
-        // Filter out functions
-        const userProfile = Object.fromEntries(
-          Object.entries(profile).filter(([_, v]) => typeof v !== 'function')
-        );
+    const wrappedAddCard = (card: any, count?: number) => {
+      const result = originalAddCard(card, count);
 
-        try {
-            await Promise.all([
-                supabase.from('users').upsert({
-                  id: currentUser.id,
-                  regalias: userProfile.regalias,
-                  wildcards: userProfile.wildcards,
-                  wildcard_progress: userProfile.wildcardProgress,
-                  free_packs_count: userProfile.freePacksCount,
-                  last_free_pack_time: userProfile.lastFreePackTime,
-                  daily_missions: userProfile.dailyMissions,
-                  last_mission_reset_time: userProfile.lastMissionResetTime,
-                  language: userProfile.language,
-                  discovery_username: userProfile.discoveryUsername,
-                  has_received_initial_packs: userProfile.hasReceivedInitialPacks,
-                  pity_counters: userProfile.pityCounters,
-                }),
-                supabase.from('inventories').upsert({ user_id: currentUser.id, inventory }),
-                supabase.from('decks').upsert({ user_id: currentUser.id, decks })
-            ]);
-        } catch(error) {
-            console.error("Error writing to Supabase:", error);
-        }
-    }, 2000);
+      (async () => {
+        const userId = await getCurrentUserId();
+        if (userId) {
+          const { addCard: addCardToDb, upsertProfile } = await import('@/lib/database/supabaseSync');
+          await addCardToDb(userId, card.id);
 
-    const unsubStore = usePlayerStore.subscribe(currentState => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user && !isWriting.current) {
-             debouncedWrite(session.user, currentState);
+          // También sincronizar regalias y comodines si hubo conversión
+          if (result.convertedToWildcard) {
+            const state = usePlayerStore.getState();
+            await upsertProfile(userId, {
+              wildcard_bronze: state.wildcards.BRONZE,
+              wildcard_silver: state.wildcards.SILVER,
+              wildcard_gold: state.wildcards.GOLD,
+              wildcard_platinum: state.wildcards.PLATINUM,
+              wildcard_mythic: state.wildcards.MYTHIC
+            });
           }
-        });
+        }
+      })();
+
+      return result;
+    };
+
+    const wrappedMillCard = (cardId: string, count?: number) => {
+      const result = originalMillCard(cardId, count);
+
+      (async () => {
+        const userId = await getCurrentUserId();
+        if (userId) {
+          const { removeCard, upsertProfile } = await import('@/lib/database/supabaseSync');
+          await removeCard(userId, cardId);
+
+          // Sincronizar progreso de comodines tras moler
+          const state = usePlayerStore.getState();
+          await upsertProfile(userId, {
+            wildcard_bronze: state.wildcards.BRONZE,
+            wildcard_silver: state.wildcards.SILVER,
+            wildcard_gold: state.wildcards.GOLD,
+            wildcard_platinum: state.wildcards.PLATINUM,
+            wildcard_mythic: state.wildcards.MYTHIC,
+            wildcard_prog_bronze: state.wildcardProgress.BRONZE,
+            wildcard_prog_silver: state.wildcardProgress.SILVER,
+            wildcard_prog_gold: state.wildcardProgress.GOLD,
+            wildcard_prog_platinum: state.wildcardProgress.PLATINUM,
+            wildcard_prog_mythic: state.wildcardProgress.MYTHIC
+          });
+        }
+      })();
+
+      return result;
+    };
+
+    usePlayerStore.setState({
+      addCard: wrappedAddCard as any,
+      millCard: wrappedMillCard as any
     });
 
     return () => {
-        unsubStore();
-    }
-
+      usePlayerStore.setState({
+        addCard: originalAddCard,
+        millCard: originalMillCard
+      });
+    };
   }, []);
 
   return null;

@@ -47,7 +47,6 @@ function MiniTrackRow({ track, index }: { track: CardData; index: number }) {
             onMouseLeave={() => setHovered(false)}
         >
             <span className="text-[10px] text-gray-500 w-4 shrink-0 font-mono">#{index + 1}</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <Image
                 src={track.artworkUrl ? track.artworkUrl.replace('http://', 'https://') : ''}
                 alt={track.name}
@@ -167,7 +166,6 @@ export default function SetlistView({
                             <div className="px-3 py-2 bg-emerald-950/30 border-b border-white/5">
                                 <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-1">▶ Ahora tocando</p>
                                 <div className="flex items-center gap-2">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <Image
                                         src={currentTrack.artworkUrl?.replace('http://', 'https://') || ''}
                                         alt={currentTrack.name}
@@ -267,7 +265,6 @@ export default function SetlistView({
                                         <div className="grid grid-cols-8 gap-1">
                                             {fullPlaylist.map((card, i) => (
                                                 <div key={`${card.id}-${i}`} className="relative group aspect-square">
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <Image
                                                         src={card.artworkUrl?.replace('http://', 'https://') || ''}
                                                         alt={card.name}
@@ -335,7 +332,6 @@ export default function SetlistView({
                                 <p className="text-[9px] text-gray-600 mb-1">Tocadas: {pastTracks.length}</p>
                                 <div className="flex gap-1 overflow-x-auto">
                                     {pastTracks.slice(-6).map((t, i) => (
-                                        // eslint-disable-next-line @next/next/no-img-element
                                         <Image
                                             key={`${t.id}-${i}`}
                                             src={t.artworkUrl?.replace('http://', 'https://') || ''}

@@ -9,6 +9,66 @@
 
 ## Historial de Versiones
 
+### v1.6.0 (Sincronización Total Supabase, Perfil Expandido y Limpieza de Loaders)
+
+En esta versión se completa la transición hacia una arquitectura de "Nube como Fuente de la Verdad", eliminando definitivamente los cargadores manuales en favor de un sistema de sincronización silencioso y nativo.
+
+- **Eliminación de Loaders:** Se han borrado `inventoryLoader.ts` y `CollectionLoader.tsx`. La carga de datos ahora ocurre a través de `SupabaseSync.tsx` delegando la UI de espera a `loading.tsx` de Next.js.
+- **Sincronización de Perfil:** `SupabaseSync.tsx` ahora no solo carga el inventario, sino también todo el perfil del jugador (`regalias`, `wildcards`, `premiumGold`, `onboarding status`, etc.) desde la tabla `user_profile`.
+- **Persistencia Automática:** Se han envuelto las acciones `addCard` y `millCard` del store para que cualquier cambio en el inventario o progreso de comodines se persista inmediatamente en Supabase.
+- **Optimización de Inventario:** `fetchInventoryWithData` en `supabaseSync.ts` ahora maneja lotes de búsqueda (batching) para iTunes, reduciendo el número de peticiones de red y acelerando la carga inicial.
+- **Unificación de useAuth:** El hook `useAuth` se ha actualizado para consultar la tabla optimizada `user_profile`, alineándose con el nuevo schema del Proyecto.
+- **Preparación para Matchmaking:** Se han sentado las bases para la sincronización de mazos y historial con el nuevo sistema de persistencia.
+
+---
+
+### v1.5.1 (Paginación, Loading Nativo y Refinamiento de Datos)
+- **🎨 Sistema de Loading Nativo:** Implementado el sistema de loading automático de Next.js usando archivos `loading.tsx` en cada ruta. Más eficiente que el sistema manual anterior.
+  - `app/loading.tsx` - Loading principal con animaciones profesionales y mensajes rotativos.
+  - `app/play/loading.tsx` - Mensajes específicos para arena de combate.
+  - `app/store/loading.tsx` - Mensajes temáticos de tienda.
+  - `app/studio/loading.tsx` - Mensajes de gestión de colección.
+- **📦 Paginación en Studio:** Implementado sistema de "Load More" en la pestaña de colección.
+  - Carga inicial de 50 cartas para un rendimiento óptimo.
+  - Botón "Cargar más" dinámico basado en el remanente.
+  - Reset automático de la página al cambiar filtros o búsqueda.
+- **🛡️ Corrección de Stats 0,0:** Reclasificación de formatos `FEATURE` y `REMIX` como `CREATURE` en el generador, permitiendo que estas variantes musicales hereden estadísticas de combate.
+- **🔍 Refinamiento de Búsqueda:** Las cartas de tipo `EVENT` ahora ocultan el contenedor de estadísticas (ATK/DEF) en los resultados de búsqueda para mantener la claridad visual.
+- **🧹 Limpieza Técnica:** Eliminado el componente legacy `CollectionLoader.tsx` y se simplificó `SupabaseSync.tsx` para delegar el splash screen al sistema nativo de Next.js.
+
+### v1.5.0 (Corrección de Stats 0,0 y Mejora Visual "MTG Arena")
+- **Corrección Lógica:** Se ha corregido el error donde las canciones en formato `COMPILATION` (Grandes Éxitos) y `EP` eran clasificadas erróneamente como `EVENTO`, lo que resultaba en estadísticas de 0 ATK y 0 DEF. Ahora se tratan correctamente como `CREATURE` (Canción), recuperando sus estadísticas de combate.
+- **Mejora UI/UX (Estilo Magic Arena):** Rediseño profundo del componente `Card.tsx` para emular la estética de Magic: The Gathering Arena.
+  - El "Oracle Text" (cuadro de habilidades) ahora tiene un fondo sutil diferenciado, mejores márgenes y tipografía de alta legibilidad.
+  - Los keywords están resaltados con colores temáticos y las descripciones tienen mejor contraste.
+  - Se ha implementado el formato `Disparador — Efecto` para una lectura más profesional.
+- **Resiliencia de Datos:** Actualizado `MiniCard.tsx` para asegurar que las estadísticas se muestren correctamente incluso si los datos residen en la raíz del objeto o en el sub-objeto `stats`.
+- **Escalado de Inspección:** Ajustadas las dimensiones del modo "Carta Grande" (`isBig`) para una inspección más inmersiva en el Studio.
+
+### v1.4.1 (Sistema de Loading Nativo Next.js y Paginación)
+- **🎨 Sistema de Loading Nativo:** Implementado el sistema de loading automático de Next.js usando archivos `loading.tsx` en cada ruta. Más eficiente que el sistema manual anterior.
+  - `app/loading.tsx` - Loading principal con animaciones profesionales y mensajes rotativos
+  - `app/play/loading.tsx` - Loading específico para modo batalla
+  - `app/store/loading.tsx` - Loading específico para la tienda
+  - `app/studio/loading.tsx` - Loading específico para el estudio
+- **📦 Paginación de Inventario:** Implementada paginación en el Studio para manejar colecciones grandes sin afectar el rendimiento.
+  - 50 cartas por página con botón "Cargar más"
+  - Contador de cartas mostradas vs totales
+  - Reset automático de página al cambiar filtros
+- **🧹 Limpieza de Código:** Eliminados archivos redundantes:
+  - `components/CollectionLoader.tsx` - Reemplazado por sistema nativo
+  - `lib/engine/inventoryLoader.ts` - Ya no necesario con nuevo schema
+- **⚡ Mejora de Rendimiento:** El sistema de loading de Next.js es más eficiente porque:
+  - No añade tiempo extra, solo muestra UI mientras el trabajo ya ocurre
+  - Usa Suspense boundaries automáticos
+  - No requiere estado manual ni sincronización
+- **🎯 Animaciones Profesionales:** Todas las pantallas de carga ahora tienen:
+  - Anillos giratorios con múltiples capas
+  - Partículas flotantes ascendentes
+  - Barra de progreso animada (máximo 85% para nunca llegar solo)
+  - Mensajes temáticos por sección
+  - Icono musical central pulsante
+
 ### v1.3.1 (Corrección de Bug de Consola SSR)
 - **Corrección Backend:** Arreglado un error de formato UUID que colapsaba la consola del servidor con `Error fetching match history: {}` cuando la sesión del usuario recaía en el fallback `local-guest`. Se añadieron guardias protectoras en `getPlayerMatchHistory` y `getPlayerStats` (`lib/database/supabaseGameHistory.ts`) para prevenir peticiones malformadas a PostgREST.
 
@@ -17,6 +77,41 @@
 - **Accesibilidad (A11y):** Añadidas etiquetas `aria-label` en los botones funcionales basados en íconos de `MiniPlayer.tsx` y `DiscoveriesTab.tsx` para permitir lectura en asistentes de voz y cumplir buenas prácticas.
 - **Resolución Build:** Se ha verificado vía `npm run build` que Next.js ahora compila `Exit code: 0` satisfactoriamente sin fallos por tags img no optimizados, dejando únicamente advertencias ESLint.
 - **Consolidación de documentación:** Se unifico todo el volumen de planes de sistema, hojas de ruta y checklists de auditorías (`ANALISIS_SEGURIDAD.md`, `PLAN_IMPLEMENTACION.md`, etc) en el documento maestro `DOCUMENTACION.md` dentro de la carpeta central de la app, moviendo lo viejo a /Docs_Archivados tal y como requerían las reglas globales del proyecto.
+
+### v1.4.0 (Optimización Completa de Base de Datos y Schema)
+- **🗄️ MIGRACIÓN COMPLETA A SCHEMA NORMALIZADO:** Se ha ejecutado una migración completa de la base de datos desde un diseño JSONB a tablas normalizadas optimizadas para rendimiento y escalabilidad.
+- **📊 Nuevas Tablas Optimizadas:**
+  - `user_profile` (reemplaza a `profiles` y `player_stats`)
+  - `user_inventory` (reemplaza a `player_inventory` con JSONB)
+  - `user_decks` + `deck_cards` (mazos normalizados)
+  - `match_history` + `match_deck_cards` (historial optimizado)
+  - `favorites` (simplificada, sin columna `notes`)
+  - `friends` + `friend_requests` (sistema de amigos)
+  - `mythic_songs` (canciones míticas)
+  - `discovered_songs` (descubrimientos globales)
+- **🚀 Funciones SQL Atómicas:**
+  - `add_card_to_inventory` (añadir cartas con límite de 4 copias)
+  - `save_match_result` (guardar partidas con cleanup automático)
+  - `increment_discovery` (contador de descubrimientos)
+- **🔒 Row Level Security (RLS):** Políticas de seguridad granular por tabla para proteger datos de usuarios.
+- **⚡ Mejoras de Rendimiento:**
+  - Eliminación completa de JSONB del inventario principal
+  - Índices optimizados en todas las tablas
+  - Queries eficientes con batch loading
+  - Reducción del tamaño de payload en ~70%
+- **🔄 Actualización de Código TypeScript:**
+  - `lib/database/supabaseSync.ts` - completamente reescrito para nuevo schema
+  - `lib/admin/mythicService.ts` - actualizado para usar `user_profile`
+  - `lib/favorites/favoriteService.ts` - eliminada columna `notes` no existente
+  - `components/SupabaseSync.tsx` - nuevo sistema de carga con animación
+  - `store/usePlayerStore.ts` - añadida función `setInventory`
+- **🎵 Nuevo Sistema de Carga de Inventario:**
+  - `lib/engine/inventoryLoader.ts` - carga eficiente desde Supabase + iTunes batch lookup
+  - `components/CollectionLoader.tsx` - animación profesional de carga
+  - Regeneración determinística de CardData en cliente
+  - Soporte para 500+ cartas en 1-2 segundos
+- **🛡️ Compatibilidad Mantenida:** Funciones legacy incluidas para transición sin romper existing code.
+- **📦 Script de Migración Completo:** `complete_migration.sql` con DROP CASCADE de tablas viejas y creación de nuevo schema optimizado.
 
 ### v1.0.0 (Base)
 - Implementación inicial del motor de cartas (`Card.tsx`).
@@ -199,31 +294,19 @@ MusicTCG es un juego de cartas coleccionables basado en música que combina mec�
 ## 🎯 **Guías Rápidas**
 
 ### **⚡ Setup y Desarrollo**
-```bash
-# Instalación
-npm install
 
-# Desarrollo
-npm run dev
-
-# Testing del motor procedural
-npm run test:procedural
-
-# Build
-npm run build
-```
+**Comandos disponibles:**
+- **Instalación:** `npm install` - Instala todas las dependencias del proyecto
+- **Desarrollo:** `npm run dev` - Inicia el servidor de desarrollo de Next.js
+- **Testing:** `npm run test:procedural` - Ejecuta tests del motor de habilidades procedurales
+- **Build:** `npm run build` - Compila el proyecto para producción
 
 ### **🔍 Testing de Habilidades**
-```bash
-# Test completo del motor procedural
-npm run test:procedural
 
-# Test rápido
-npm run test:procedural:quick
-
-# Test de habilidades (alias)
-npm run test:abilities
-```
+**Scripts de testing disponibles:**
+- **Test completo:** `npm run test:procedural` - Test exhaustivo de todas las combinaciones de habilidades
+- **Test rápido:** `npm run test:procedural:quick` - Versión rápida para desarrollo iterativo
+- **Test de habilidades:** `npm run test:abilities` - Alias para el test principal
 
 ---
 
@@ -389,14 +472,13 @@ const estrategias = {
 
 ### **2. 🛡️ Proceso Seguro**
 
-```
-1. 📦 Backup automático antes de migrar
-2. 🔍 Verificar estado actual de la base de datos
-3. 📦 Procesar en lotes pequeños (50 cartas por lote)
-4. ✅ Validar cada carta antes de actualizar
-5. 📊 Logging detallado del proceso
-6. 🔄 Rollback disponible si algo falla
-```
+El sistema de migración incluye protecciones automáticas:
+- **Backup automático:** Antes de cualquier migración, se crea un respaldo
+- **Verificación previa:** Se analiza el estado actual de la base de datos
+- **Procesamiento por lotes:** Las cartas se procesan en grupos pequeños (50 por lote) para evitar timeout
+- **Validación individual:** Cada carta se valida antes de actualizarse
+- **Logging detallado:** Todo el proceso se registra para auditoría
+- **Rollback disponible:** Si ocurre algún error, se puede revertir la migración
 
 ---
 
@@ -404,38 +486,27 @@ const estrategias = {
 
 ### **📋 Opción 1: Migración Incremental (Recomendada)**
 
-```typescript
-import { cardMigrator } from './lib/engine/databaseMigration';
+**Uso:** `cardMigrator.migrateCards('incremental')`
 
-// Solo cartas sin habilidades procedurales
-const resultado = await cardMigrator.migrateCards('incremental');
+**Descripción:** Actualiza únicamente las cartas que aún no tienen habilidades procedurales. Es la opción más segura y recomendada para producción.
 
-console.log('Resultado:', {
-  totalCards: resultado.totalCards,
-  updatedCards: resultado.updatedCards,
-  errors: resultado.errors,
-  migrationTime: resultado.migrationTime
-});
-```
+**Retorna:** Objeto con métricas de la migración (total de cartas procesadas, actualizadas, errores, tiempo transcurrido)
 
 ### **📋 Opción 2: Migración por Rareza**
 
-```typescript
-// Actualizar solo cartas Bronze y Silver
-const resultado = await cardMigrator.migrateCards('by_rarity', {
-  rarity: ['BRONZE', 'SILVER'],
-  batchSize: 25
-});
-```
+**Uso:** `cardMigrator.migrateCards('by_rarity', { rarity: ['BRONZE', 'SILVER'], batchSize: 25 })`
+
+**Descripción:** Permite migrar cartas de rarezas específicas. Útil para actualizar gradualmente por nivel de rareza.
+
+**Parámetros:**
+- `rarity`: Array de rarezas a migrar (BRONZE, SILVER, GOLD, PLATINUM, MYTHIC)
+- `batchSize`: Tamaño del lote (default: 50)
 
 ### **📋 Opción 3: Migración Completa**
 
-```typescript
-// Todas las cartas excepto Mythic
-const resultado = await cardMigrator.migrateCards('all', {
-  batchSize: 50
-});
-```
+**Uso:** `cardMigrator.migrateCards('all', { batchSize: 50 })`
+
+**Descripción:** Actualiza todas las cartas excepto las MYTHIC (que mantienen sus habilidades manuales). Útil para migraciones iniciales o actualizaciones masivas.
 
 ---
 
@@ -443,30 +514,15 @@ const resultado = await cardMigrator.migrateCards('all', {
 
 ### **📊 Check de Migración**
 
-```typescript
-const estado = await cardMigrator.checkMigrationStatus();
+**Función:** `cardMigrator.checkMigrationStatus()`
 
-console.log('Estado:', {
-  needsMigration: estado.needsMigration,
-  cardsWithoutProcedural: estado.cardsWithoutProcedural,
-  totalCards: estado.totalCards,
-  lastMigration: estado.lastMigration
-});
-```
+**Descripción:** Verifica el estado actual de la base de datos antes de migrar. Retorna información detallada sobre:
+- `needsMigration`: Booleano que indica si hay cartas pendientes de migración
+- `cardsWithoutProcedural`: Número de cartas que aún no tienen habilidades procedurales
+- `totalCards`: Total de cartas en la base de datos (excluyendo MYTHIC)
+- `lastMigration`: Datos de la última migración realizada (versión, fecha)
 
-### **📈 Resultados Esperados**
-
-```
-{
-  needsMigration: true/false,
-  cardsWithoutProcedural: 1234,     // Cartas que necesitan actualización
-  totalCards: 5000,                 // Total de cartas (excluyendo Mythic)
-  lastMigration: {                  // Última migración realizada
-    version: '2.0',
-    created_at: '2026-03-21T...'
-  }
-}
-```
+**Uso:** Ejecutar antes de cualquier migración para evaluar el alcance del trabajo necesario.
 
 ---
 
@@ -520,15 +576,7 @@ console.log('Estado:', {
 
 ### **📦 Proceso por Lotes:**
 
-```typescript
-// Ejemplo: 5000 cartas en lotes de 50
-const totalCartas = 5000;
-const batchSize = 50;
-const totalLotes = Math.ceil(totalCartas / batchSize); // 100 lotes
-
-// Cada lote toma ~1-2 segundos
-// Tiempo total estimado: 2-4 minutos
-```
+**Cálculo:** Para 5000 cartas con lotes de 50, se generan 100 lotes. Cada lote toma aproximadamente 1-2 segundos, resultando en un tiempo total estimado de 2-4 minutos para la migración completa.
 
 ---
 
@@ -536,32 +584,27 @@ const totalLotes = Math.ceil(totalCartas / batchSize); // 100 lotes
 
 ### **🔄 Rollback de Emergencia**
 
-```typescript
-// Si algo sale mal, se puede revertir
-const rollbackExitoso = await cardMigrator.rollbackMigration('2.0');
+**Función:** `cardMigrator.rollbackMigration('2.0')`
 
-if (rollbackExitoso) {
-  console.log('✅ Rollback completado - Base de datos restaurada');
-} else {
-  console.log('❌ Rollback falló - Contactar soporte');
-}
-```
+**Descripción:** Revierte la migración a la versión anterior especificada. Útil si algo sale mal durante el proceso. Retorna un booleano indicando éxito o fracaso del rollback.
+
+**Uso:** Ejecutar inmediatamente si se detectan problemas durante o después de la migración.
 
 ### **📋 Logs de Migración**
 
-```typescript
-// La migración crea logs automáticos
-await this.supabase.from('migration_logs').insert({
-  version: '2.0',
-  total_cards: resultado.totalCards,
-  updated_cards: resultado.updatedCards,
-  errors_count: resultado.errors.length,
-  warnings_count: resultado.warnings.length,
-  migration_time: resultado.migrationTime,
-  success: resultado.success,
-  created_at: new Date().toISOString()
-});
-```
+**Sistema:** La migración crea logs automáticos en la tabla `migration_logs` de Supabase.
+
+**Datos registrados:**
+- `version`: Versión de la migración (ej: '2.0')
+- `total_cards`: Total de cartas procesadas
+- `updated_cards`: Número de cartas actualizadas exitosamente
+- `errors_count`: Cantidad de errores encontrados
+- `warnings_count`: Advertencias generadas
+- `migration_time`: Tiempo total de ejecución
+- `success`: Booleano indicando éxito general
+- `created_at`: Timestamp de la migración
+
+**Propósito:** Auditoría completa del proceso para debugging y seguimiento.
 
 ---
 
@@ -569,33 +612,21 @@ await this.supabase.from('migration_logs').insert({
 
 ### **📈 Escenario 1: Primera Vez**
 
-```bash
-# Verificar estado
-npm run migration:check
-
-# Migración incremental segura
-npm run migration:incremental
-```
+**Comandos:**
+- `npm run migration:check` - Verifica el estado actual de la base de datos
+- `npm run migration:incremental` - Ejecuta migración segura solo de cartas pendientes
 
 ### **📊 Escenario 2: Actualización Parcial**
 
-```bash
-# Solo actualizar cartas Bronze
-npm run migration:rarity BRONZE
-
-# Verificar resultados
-npm run migration:status
-```
+**Comandos:**
+- `npm run migration:rarity BRONZE` - Actualiza solo cartas de rareza Bronze
+- `npm run migration:status` - Verifica resultados después de la migración
 
 ### **🔄 Escenario 3: Testing**
 
-```bash
-# Migración de prueba (solo 10 cartas)
-npm run migration:test
-
-# Revertir si es necesario
-npm run migration:rollback
-```
+**Comandos:**
+- `npm run migration:test` - Ejecuta migración de prueba con solo 10 cartas
+- `npm run migration:rollback` - Revierte la migración si es necesario
 
 ---
 
@@ -603,28 +634,23 @@ npm run migration:rollback
 
 ### **📈 KPIs de Migración:**
 
-```typescript
-const metrics = {
-  totalCartas: 5000,
-  cartasActualizadas: 4950,
-  tiempoTotal: 180000, // 3 minutos en ms
-  errores: 0,
-  warnings: 5,
-  exito: 100 // 100% éxito
-};
-```
+**Métricas clave que se registran durante el proceso:**
+- `totalCartas`: Total de cartas en la base de datos
+- `cartasActualizadas`: Número de cartas que recibieron nuevas habilidades
+- `tiempoTotal`: Tiempo de ejecución en milisegundos
+- `errores`: Cantidad de errores encontrados
+- `warnings`: Advertencias generadas (no críticas)
+- `exito`: Porcentaje de éxito (ej: 100% si todas las cartas se actualizaron)
 
 ### **📊 Logs en Tiempo Real:**
 
-```
-🔄 Iniciando migración de base de datos de cartas...
-📊 Encontradas 1234 cartas para actualizar
-📦 Procesando lote 1/25 (50 cartas)...
-✅ Lote 1 completado: 50/50 cartas actualizadas
-📦 Procesando lote 2/25 (50 cartas)...
-...
-✅ Migración completada: 1234/1234 cartas actualizadas
-```
+**Proceso típico de migración:**
+1. Inicio del proceso con conteo de cartas pendientes
+2. Procesamiento por lotes (ej: "Lote 1/25 - 50 cartas")
+3. Validación de cada lote completado
+4. Resumen final con estadísticas totales
+
+**Ejemplo visual:** La consola muestra progreso con emojis (🔄 Iniciando, 📊 Encontradas, 📦 Procesando, ✅ Completado) para facilitar el seguimiento visual del proceso.
 
 ---
 
@@ -670,38 +696,24 @@ const metrics = {
 
 ### **🔧 Issues Comunes:**
 
-```typescript
-// 1. Error de conexión
-if (error.includes('connection')) {
-  console.log('Verificar conexión a Supabase');
-}
+**1. Error de conexión**
+- **Síntoma:** Mensajes que incluyen 'connection' o timeouts
+- **Solución:** Verificar conexión a Supabase y estado del servicio
 
-// 2. Permisos insuficientes
-if (error.includes('permission')) {
-  console.log('Verificar permisos de la tabla cards');
-}
+**2. Permisos insuficientes**
+- **Síntoma:** Errores con 'permission' o 'access denied'
+- **Solución:** Verificar permisos de escritura en la tabla cards y migration_logs
 
-// 3. Timeout
-if (error.includes('timeout')) {
-  console.log('Reducir tamaño de lote o aumentar timeout');
-}
-```
+**3. Timeout durante migración**
+- **Síntoma:** Error 'timeout' en consola
+- **Solución:** Reducir tamaño del lote (batchSize) o aumentar timeout en configuración
 
 ### **📋 Comandos Útiles:**
 
-```bash
-# Verificar estado actual
-npm run migration:status
-
-# Ejecutar migración segura
-npm run migration:safe
-
-# Ver logs de migración
-npm run migration:logs
-
-# Rollback de emergencia
-npm run migration:rollback
-```
+- `npm run migration:status` - Verifica el estado actual de migraciones
+- `npm run migration:safe` - Ejecuta migración en modo seguro (con validaciones extra)
+- `npm run migration:logs` - Muestra logs detallados de migraciones previas
+- `npm run migration:rollback` - Ejecuta rollback de emergencia a versión anterior
 
 ---
 
@@ -732,19 +744,10 @@ El sistema de migración está diseñado para ser **seguro, eficiente y transpar
 
 ## ⚡ **Comandos Rápidos**
 
-```bash
-# 1. Verificar estado actual
-npm run migration:check
-
-# 2. Migración segura (recomendado)
-npm run migration:safe
-
-# 3. Ver resultados
-npm run migration:status
-
-# 4. Si algo falla (emergency only)
-npm run migration:rollback
-```
+- `npm run migration:check` - Verifica estado actual de la base de datos
+- `npm run migration:safe` - Ejecuta migración segura (modo recomendado)
+- `npm run migration:status` - Muestra resultados y estadísticas
+- `npm run migration:rollback` - Revierte migración (solo emergencias)
 
 ---
 
@@ -801,30 +804,17 @@ DESPUÉS:
 
 ## 🚨 **Si Algo Falla**
 
-```bash
-# Ver errores
-npm run migration:logs
-
-# Rollback a versión anterior
-npm run migration:rollback
-
-# Contactar soporte con logs
-```
+- `npm run migration:logs` - Ver logs de errores detallados
+- `npm run migration:rollback` - Revertir a versión anterior
+- Contactar soporte incluyendo los logs para diagnóstico
 
 ---
 
 ## ✅ **Verificación Post-Migración**
 
-```bash
-# Test del motor procedural
-npm run test:procedural
-
-# Verificar estado final
-npm run migration:status
-
-# Revisar logs de éxito
-npm run migration:logs
-```
+- `npm run test:procedural` - Ejecuta tests del motor de habilidades
+- `npm run migration:status` - Verifica estado final de la migración
+- `npm run migration:logs` - Revisa logs de éxito y estadísticas
 
 ---
 
@@ -867,1369 +857,6 @@ Las cartas en `board` no tienen su `stageFright` reseteado correctamente al inic
 
 ---
 
-## IMPLEMENTACIÓN
-
-### PASO 1: Reemplazar `hooks/useGameEngine.ts` COMPLETO
-
-```typescript
-// hooks/useGameEngine.ts
-// REEMPLAZAR EL ARCHIVO COMPLETO CON ESTE CONTENIDO
-
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { CardData } from '@/lib/engine/generator';
-import { Keyword } from '@/types/types';
-
-// ─── Contador global de instancias ───────────────────────────────────────────
-let _instanceCounter = 0;
-
-// ─── Tipos públicos ───────────────────────────────────────────────────────────
-
-export interface BoardCard extends CardData {
-  instanceId: string;
-  isTapped: boolean;
-  stageFright: boolean;    // No puede atacar el turno que entra (salvo FRENZY)
-  hasAttacked: boolean;    // Para STEALTH: visible solo tras atacar
-  currentAtk: number;
-  currentDef: number;
-  maxDef: number;          // Para SUSTAIN: recupera al inicio del turno
-  isSilenced: boolean;     // Las habilidades no se activan
-  statuses: string[];
-  bonusAtk: number;
-  bonusDef: number;
-}
-
-export type PlayerKey = 'player' | 'bot';
-export type GameOverResult = 'player' | 'bot' | 'draw' | null;
-
-export interface PlayerState {
-  health: number;
-  hype: number;
-  energy: number;
-  maxEnergy: number;
-  canPromote: boolean;
-  hasMulliganed: boolean;
-  deck: CardData[];
-  hand: BoardCard[];
-  board: BoardCard[];
-  backstage: BoardCard[];
-  graveyard: CardData[];
-}
-
-export interface PendingAttack {
-  attackerOwner: PlayerKey;
-  attackerIdx: number;
-  defenderIdx: number | null;  // null = ataque directo
-}
-
-// ─── Fase del turno ───────────────────────────────────────────────────────────
-
-export enum TurnPhase {
-  START  = 'START',
-  DRAW   = 'DRAW',
-  MAIN   = 'MAIN',
-  REPLICA = 'REPLICA',
-  END    = 'END',
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Verifica si una carta tiene un keyword activo (no silenciada).
- * Busca en abilities Y en el array keywords del CardData.
- */
-export function hasKw(card: BoardCard | CardData, keyword: Keyword | string): boolean {
-  if ((card as BoardCard).isSilenced) return false;
-  const inAbilities = card.abilities?.some(a => a.keyword === keyword) ?? false;
-  const inKeywords  = card.keywords?.includes(keyword as Keyword) ?? false;
-  return inAbilities || inKeywords;
-}
-
-function makeBoardCard(card: CardData): BoardCard {
-  return {
-    ...card,
-    instanceId: `${card.id}_${++_instanceCounter}`,
-    isTapped: false,
-    stageFright: !hasKw(card, Keyword.FRENZY) && !hasKw(card, Keyword.HASTE),
-    hasAttacked: false,
-    currentAtk: card.atk,
-    currentDef: card.def,
-    maxDef: card.def,
-    isSilenced: false,
-    statuses: [],
-    bonusAtk: 0,
-    bonusDef: 0,
-  };
-}
-
-const makeInitialPlayer = (): PlayerState => ({
-  health: 30,
-  hype: 0,
-  energy: 1,
-  maxEnergy: 1,
-  canPromote: true,
-  hasMulliganed: false,
-  deck: [],
-  hand: [],
-  board: [],
-  backstage: [],
-  graveyard: [],
-});
-
-// ─── Sistema de efectos de keywords ──────────────────────────────────────────
-// Todas las habilidades se resuelven aquí, directamente sobre PlayerState.
-// Esto reemplaza el effectEngine.ts que operaba sobre tipos incompatibles.
-
-interface KeywordEffectContext {
-  sourceCard: BoardCard;
-  sourceOwner: PlayerKey;
-  player: PlayerState;
-  bot: PlayerState;
-  trigger: 'ON_PLAY' | 'ON_DEATH' | 'ON_ATTACK' | 'PASSIVE_START_TURN' | 'ON_ACTIVATE';
-}
-
-interface KeywordEffectResult {
-  player: PlayerState;
-  bot: PlayerState;
-  log?: string;
-}
-
-/**
- * Motor de efectos principal.
- * Aplica todos los efectos de keywords de una carta según el trigger.
- * Opera directamente sobre copias de PlayerState y devuelve el nuevo estado.
- */
-function applyKeywordEffects(ctx: KeywordEffectContext): KeywordEffectResult {
-  let { sourceCard, sourceOwner, player, bot, trigger } = ctx;
-
-  // Si está silenciada, no hace nada
-  if (sourceCard.isSilenced) return { player, bot };
-
-  const ownState  = sourceOwner === 'player' ? player : bot;
-  const oppState  = sourceOwner === 'player' ? bot    : player;
-  let newOwn  = { ...ownState };
-  let newOpp  = { ...oppState };
-
-  for (const ability of sourceCard.abilities ?? []) {
-    if (!ability.keyword) continue;
-    const kw = ability.keyword as Keyword | string;
-
-    // ── DISTORSIÓN (TRAMPLE): daño sobrante pasa al oponente ──
-    // Se maneja en resolveAttackPure directamente, no aquí.
-
-    // ── HYPE ENGINE: +1 Hype al inicio del turno ──
-    if (kw === Keyword.SUSTAIN || kw === 'hypeEngine') {
-      if (trigger === 'PASSIVE_START_TURN') {
-        if (kw === 'hypeEngine') {
-          newOwn = { ...newOwn, hype: newOwn.hype + 1 };
-        }
-        if (kw === Keyword.SUSTAIN) {
-          // Recupera DEF al inicio del turno
-          newOwn = {
-            ...newOwn,
-            board: newOwn.board.map(c =>
-              c.instanceId === sourceCard.instanceId
-                ? { ...c, currentDef: c.maxDef }
-                : c
-            ),
-          };
-        }
-      }
-    }
-
-    // ── DISS TRACK: al entrar, -1/-1 a una carta rival aleatoria ──
-    if (kw === 'dissTrack' || kw === Keyword.DISS_TRACK) {
-      if (trigger === 'ON_PLAY' && newOpp.board.length > 0) {
-        const targetIdx = Math.floor(Math.random() * newOpp.board.length);
-        newOpp = {
-          ...newOpp,
-          board: newOpp.board.map((c, i) => {
-            if (i !== targetIdx) return c;
-            const newAtk = Math.max(1, c.currentAtk - 1);
-            const newDef = c.currentDef - 1;
-            if (newDef <= 0) {
-              // La carta muere
-              return { ...c, currentAtk: newAtk, currentDef: 0 };
-            }
-            return { ...c, currentAtk: newAtk, currentDef: newDef };
-          }).filter(c => c.currentDef > 0),
-        };
-      }
-    }
-
-    // ── DISTORTION / HYPE ON PLAY ──
-    if (kw === Keyword.DISTORTION || kw === 'distortion') {
-      // Se maneja en resolveAttackPure. No hace nada en ON_PLAY.
-    }
-
-    // ── BASS BOOST: +2 ATK / -1 DEF al entrar ──
-    if (kw === Keyword.BASS_BOOST || kw === 'bass_boost') {
-      if (trigger === 'ON_PLAY') {
-        newOwn = {
-          ...newOwn,
-          board: newOwn.board.map(c =>
-            c.instanceId === sourceCard.instanceId
-              ? { ...c, currentAtk: c.currentAtk + 2, currentDef: Math.max(1, c.currentDef - 1) }
-              : c
-          ),
-        };
-      }
-    }
-
-    // ── FALSETTO: -1 ATK / +2 DEF al entrar ──
-    if (kw === Keyword.FALSETTO || kw === 'falsetto') {
-      if (trigger === 'ON_PLAY') {
-        newOwn = {
-          ...newOwn,
-          board: newOwn.board.map(c =>
-            c.instanceId === sourceCard.instanceId
-              ? { ...c, currentAtk: Math.max(1, c.currentAtk - 1), currentDef: c.currentDef + 2, maxDef: c.maxDef + 2 }
-              : c
-          ),
-        };
-      }
-    }
-
-    // ── CRESCENDO / FRENZY: gana +1 ATK cada vez que ataca ──
-    if (kw === Keyword.CRESCENDO || kw === 'frenzy') {
-      if (trigger === 'ON_ATTACK') {
-        newOwn = {
-          ...newOwn,
-          board: newOwn.board.map(c =>
-            c.instanceId === sourceCard.instanceId
-              ? { ...c, currentAtk: c.currentAtk + 1 }
-              : c
-          ),
-        };
-      }
-    }
-
-    // ── SOUNDTRACK: +1 DEF a todas las criaturas aliadas del mismo género ──
-    if (kw === Keyword.SOUNDTRACK || kw === 'soundtrack') {
-      if (trigger === 'ON_PLAY') {
-        newOwn = {
-          ...newOwn,
-          board: newOwn.board.map(c => {
-            if (c.instanceId === sourceCard.instanceId) return c;
-            if (c.genre === sourceCard.genre) {
-              return { ...c, currentDef: c.currentDef + 1, maxDef: c.maxDef + 1 };
-            }
-            return c;
-          }),
-        };
-      }
-    }
-
-    // ── DROP: al entrar puede atacar inmediatamente (ya cubierto por !stageFright) ──
-    // stageFright = false cuando tiene FRENZY o DROP en makeBoardCard
-    if (kw === Keyword.DROP || kw === 'drop') {
-      if (trigger === 'ON_PLAY') {
-        newOwn = {
-          ...newOwn,
-          board: newOwn.board.map(c =>
-            c.instanceId === sourceCard.instanceId
-              ? { ...c, stageFright: false }
-              : c
-          ),
-        };
-      }
-    }
-
-    // ── FEATURING: +2 ATK si hay otra carta del mismo artista en tablero ──
-    if (kw === Keyword.FEATURING || kw === 'featuring') {
-      if (trigger === 'ON_PLAY') {
-        const hasSameArtist = newOwn.board.some(
-          c => c.instanceId !== sourceCard.instanceId && c.artist === sourceCard.artist
-        );
-        if (hasSameArtist) {
-          newOwn = {
-            ...newOwn,
-            board: newOwn.board.map(c =>
-              c.instanceId === sourceCard.instanceId
-                ? { ...c, currentAtk: c.currentAtk + 2 }
-                : c
-            ),
-          };
-        }
-      }
-    }
-
-    // ── SAMPLE: copia +1 ATK o DEF de otra carta aliada aleatoria ──
-    if (kw === Keyword.SAMPLE || kw === 'sample') {
-      if (trigger === 'ON_PLAY') {
-        const others = newOwn.board.filter(c => c.instanceId !== sourceCard.instanceId);
-        if (others.length > 0) {
-          const ref = others[Math.floor(Math.random() * others.length)];
-          newOwn = {
-            ...newOwn,
-            board: newOwn.board.map(c =>
-              c.instanceId === sourceCard.instanceId
-                ? { ...c, currentAtk: c.currentAtk + 1, currentDef: c.currentDef + 1 }
-                : c
-            ),
-          };
-        }
-      }
-    }
-
-    // ── OUTRO / DISS_TRACK ON DEATH: -1 ATK a carta rival aleatoria ──
-    if (kw === Keyword.OUTRO || kw === 'outro') {
-      if (trigger === 'ON_DEATH' && newOpp.board.length > 0) {
-        const targetIdx = Math.floor(Math.random() * newOpp.board.length);
-        newOpp = {
-          ...newOpp,
-          board: newOpp.board.map((c, i) =>
-            i === targetIdx ? { ...c, currentAtk: Math.max(1, c.currentAtk - 1) } : c
-          ),
-        };
-      }
-    }
-
-    // ── RADIO EDIT: reduce el costo en 1 (ya se aplicó en el generador, no en combate) ──
-
-    // ── AUTOTUNE: intercambia ATK/DEF al entrar ──
-    if (kw === Keyword.AUTOTUNE || kw === 'autotune') {
-      if (trigger === 'ON_PLAY') {
-        newOwn = {
-          ...newOwn,
-          board: newOwn.board.map(c => {
-            if (c.instanceId !== sourceCard.instanceId) return c;
-            return { ...c, currentAtk: c.currentDef, currentDef: c.currentAtk, maxDef: c.currentAtk };
-          }),
-        };
-      }
-    }
-  }
-
-  // Limpiar cartas muertas (currentDef <= 0) con efectos ON_DEATH
-  // Esto se llama externamente tras cada mutación de board.
-
-  if (sourceOwner === 'player') {
-    return { player: newOwn, bot: newOpp };
-  }
-  return { player: newOpp, bot: newOwn };
-}
-
-/**
- * Procesa muertes: llama ON_DEATH y elimina cartas con DEF <= 0.
- * Devuelve el estado limpio.
- */
-function processDeaths(player: PlayerState, bot: PlayerState): { player: PlayerState; bot: PlayerState } {
-  // Muertes del jugador
-  const playerDead = player.board.filter(c => c.currentDef <= 0);
-  let newPlayer = player;
-  let newBot = bot;
-
-  for (const dead of playerDead) {
-    const result = applyKeywordEffects({
-      sourceCard: dead,
-      sourceOwner: 'player',
-      player: newPlayer,
-      bot: newBot,
-      trigger: 'ON_DEATH',
-    });
-    newPlayer = result.player;
-    newBot    = result.bot;
-  }
-
-  // Muertes del bot
-  const botDead = newBot.board.filter(c => c.currentDef <= 0);
-  for (const dead of botDead) {
-    const result = applyKeywordEffects({
-      sourceCard: dead,
-      sourceOwner: 'bot',
-      player: newPlayer,
-      bot: newBot,
-      trigger: 'ON_DEATH',
-    });
-    newPlayer = result.player;
-    newBot    = result.bot;
-  }
-
-  return {
-    player: {
-      ...newPlayer,
-      board:     newPlayer.board.filter(c => c.currentDef > 0),
-      graveyard: [...newPlayer.graveyard, ...playerDead],
-    },
-    bot: {
-      ...newBot,
-      board:     newBot.board.filter(c => c.currentDef > 0),
-      graveyard: [...newBot.graveyard, ...botDead],
-    },
-  };
-}
-
-// ─── Resolución de ataques (pura, sin React) ─────────────────────────────────
-
-/**
- * Resuelve un ataque completo y devuelve [playerState, botState] actualizados.
- * Maneja: Choque, Emboscada, Ataque Directo, Distorsión, Taunt, Stealth, VIP.
- */
-function resolveAttackPure(
-  pState: PlayerState,
-  bState: PlayerState,
-  attackerOwner: PlayerKey,
-  attackerIdx: number,
-  defenderIdx: number | null,
-): [PlayerState, PlayerState] {
-  const atkState = attackerOwner === 'player' ? pState : bState;
-  const defState = attackerOwner === 'player' ? bState : pState;
-
-  const attacker = atkState.board[attackerIdx];
-  if (!attacker || attacker.isTapped || attacker.stageFright) {
-    return [pState, bState];
-  }
-
-  // ── Verificar Taunt: si hay cartas con taunt, hay que atacarlas primero ──
-  const activeTaunters = defState.board.filter(c => hasKw(c, 'taunt') || hasKw(c, Keyword.PROVOKE));
-
-  // VIP ignora taunt de no-VIP
-  const mustAttackTaunters = hasKw(attacker, Keyword.FLYING) || hasKw(attacker, 'vip')
-    ? activeTaunters.filter(c => hasKw(c, Keyword.FLYING) || hasKw(c, 'vip'))
-    : activeTaunters;
-
-  if (mustAttackTaunters.length > 0) {
-    if (defenderIdx === null) return [pState, bState]; // No puede ir directo si hay taunt
-    const target = defState.board[defenderIdx];
-    if (!target) return [pState, bState];
-    const targetHasTaunt = hasKw(target, 'taunt') || hasKw(target, Keyword.PROVOKE);
-    if (!targetHasTaunt) return [pState, bState];
-  }
-
-  // ── Verificar Stealth/Acústico: invisible hasta que ataca ──
-  if (defenderIdx !== null) {
-    const defender = defState.board[defenderIdx];
-    if (defender && (hasKw(defender, Keyword.STEALTH) || hasKw(defender, 'stealth') || hasKw(defender, 'acoustic')) && !defender.hasAttacked) {
-      return [pState, bState]; // No puede ser atacada
-    }
-  }
-
-  // ── VIP solo puede ser bloqueado por VIP ──
-  if (defenderIdx !== null) {
-    const defender = defState.board[defenderIdx];
-    if (defender) {
-      const attackerIsVIP   = hasKw(attacker, Keyword.FLYING) || hasKw(attacker, 'vip');
-      const defenderIsVIP   = hasKw(defender, Keyword.FLYING) || hasKw(defender, 'vip');
-      const hasVIPTaunters  = activeTaunters.some(c => hasKw(c, Keyword.FLYING) || hasKw(c, 'vip'));
-
-      if (attackerIsVIP && !defenderIsVIP && hasVIPTaunters) {
-        return [pState, bState];
-      }
-    }
-  }
-
-  let newAtk = { ...atkState };
-  let newDef = { ...defState };
-
-  // Marcar atacante como usado
-  newAtk = {
-    ...newAtk,
-    board: newAtk.board.map((c, i) =>
-      i === attackerIdx
-        ? { ...c, isTapped: true, hasAttacked: true }
-        : c
-    ),
-  };
-
-  // Aplicar ON_ATTACK keywords (ej: CRESCENDO gana +1 ATK tras atacar)
-  const updatedAttacker = newAtk.board[attackerIdx];
-  const crescendoResult = applyKeywordEffects({
-    sourceCard: updatedAttacker,
-    sourceOwner: attackerOwner,
-    player: attackerOwner === 'player' ? newAtk : newDef,
-    bot:    attackerOwner === 'player' ? newDef : newAtk,
-    trigger: 'ON_ATTACK',
-  });
-  if (attackerOwner === 'player') {
-    newAtk = crescendoResult.player;
-    newDef = crescendoResult.bot;
-  } else {
-    newAtk = crescendoResult.bot;
-    newDef = crescendoResult.player;
-  }
-
-  // Re-leer el atacante con stats actualizados post-ON_ATTACK
-  const finalAttacker = newAtk.board[attackerIdx];
-  const atkDmg = finalAttacker ? finalAttacker.currentAtk : attacker.currentAtk;
-
-  if (defenderIdx === null) {
-    // ── ATAQUE DIRECTO ──
-    newDef = { ...newDef, health: Math.max(0, newDef.health - atkDmg) };
-  } else {
-    const defender = newDef.board[defenderIdx];
-    if (!defender) {
-      // Objetivo ya no existe (murió por efecto ON_ATTACK)
-      // Redirigir a daño directo
-      newDef = { ...newDef, health: Math.max(0, newDef.health - atkDmg) };
-    } else {
-      const isAmbush   = defender.isTapped;
-      const defDmg     = isAmbush ? 0 : defender.currentAtk;
-      const defDestroyed = atkDmg >= defender.currentDef;
-      const atkDestroyed = !isAmbush && defDmg >= finalAttacker!.currentDef;
-
-      // ── DISTORSIÓN: daño sobrante al oponente ──
-      const hasDistortion = hasKw(finalAttacker || attacker, Keyword.TRAMPLE) ||
-                            hasKw(finalAttacker || attacker, 'distortion');
-      const excessOnDef = hasDistortion && defDestroyed
-        ? Math.max(0, atkDmg - defender.currentDef)
-        : 0;
-
-      const hasDefDistortion = hasKw(defender, Keyword.TRAMPLE) || hasKw(defender, 'distortion');
-      const excessOnAtk = !isAmbush && hasDefDistortion && atkDestroyed
-        ? Math.max(0, defDmg - (finalAttacker?.currentDef ?? attacker.currentDef))
-        : 0;
-
-      // Aplicar daño al defensor
-      newDef = {
-        ...newDef,
-        health: Math.max(0, newDef.health - excessOnDef),
-        board: newDef.board.map((c, i) =>
-          i === defenderIdx
-            ? { ...c, currentDef: c.currentDef - atkDmg }
-            : c
-        ),
-      };
-
-      // Aplicar daño al atacante (solo en Choque)
-      if (!isAmbush) {
-        newAtk = {
-          ...newAtk,
-          health: Math.max(0, newAtk.health - excessOnAtk),
-          board: newAtk.board.map((c, i) =>
-            i === attackerIdx
-              ? { ...c, currentDef: c.currentDef - defDmg }
-              : c
-          ),
-        };
-      }
-    }
-  }
-
-  // Procesar muertes con efectos ON_DEATH
-  const playerAfterAtk = attackerOwner === 'player' ? newAtk : newDef;
-  const botAfterAtk    = attackerOwner === 'player' ? newDef : newAtk;
-  const afterDeaths    = processDeaths(playerAfterAtk, botAfterAtk);
-
-  return [afterDeaths.player, afterDeaths.bot];
-}
-
-// ─── Hook principal ───────────────────────────────────────────────────────────
-
-export function useGameEngine() {
-  const [player, setPlayer] = useState<PlayerState>(makeInitialPlayer);
-  const [bot,    setBot]    = useState<PlayerState>(makeInitialPlayer);
-  const [turn,      setTurn]      = useState<PlayerKey>('player');
-  const [turnCount, setTurnCount] = useState(1);
-  const [phase,     setPhase]     = useState<TurnPhase>(TurnPhase.MAIN);
-  const [gameOver,  setGameOver]  = useState<GameOverResult>(null);
-  const [pendingAttack, setPendingAttack] = useState<PendingAttack | null>(null);
-
-  // Refs síncronos para acceso sin stale closure
-  const playerRef      = useRef(player);
-  const botRef         = useRef(bot);
-  const turnRef        = useRef(turn);
-  const phaseRef       = useRef(phase);
-  const gameOverRef    = useRef(gameOver);
-  const pendingRef     = useRef(pendingAttack);
-  const endTurnLockRef = useRef(false); // Evita doble llamada a endTurn
-
-  useEffect(() => { playerRef.current = player; },      [player]);
-  useEffect(() => { botRef.current    = bot;    },      [bot]);
-  useEffect(() => { turnRef.current   = turn;   },      [turn]);
-  useEffect(() => { phaseRef.current  = phase;  },      [phase]);
-  useEffect(() => { gameOverRef.current = gameOver; },  [gameOver]);
-  useEffect(() => { pendingRef.current  = pendingAttack; }, [pendingAttack]);
-
-  // ── Detección de victoria ──
-  useEffect(() => {
-    if (gameOver) return;
-    if (player.health <= 0 && bot.health <= 0) { setGameOver('draw');   return; }
-    if (player.health <= 0)                     { setGameOver('bot');    return; }
-    if (bot.health    <= 0)                     { setGameOver('player'); return; }
-    if (player.hype   >= 20)                    { setGameOver('player'); return; }
-    if (bot.hype      >= 20)                    { setGameOver('bot');    return; }
-  }, [player.health, player.hype, bot.health, bot.hype, gameOver]);
-
-  // ── startGame ──
-  const startGame = useCallback((playerDeck: CardData[], botDeck: CardData[]) => {
-    _instanceCounter = 0;
-    endTurnLockRef.current = false;
-
-    const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
-
-    // Mínimo de cartas: 20. Si el mazo tiene menos, se rellena con copias aleatorias.
-    const padDeck = (deck: CardData[], minSize = 20): CardData[] => {
-      const shuffled = shuffle(deck);
-      while (shuffled.length < minSize) {
-        shuffled.push(...shuffle(deck).slice(0, minSize - shuffled.length));
-      }
-      return shuffled;
-    };
-
-    const sp = padDeck(playerDeck);
-    const sb = padDeck(botDeck);
-
-    const initPlayer: PlayerState = {
-      ...makeInitialPlayer(),
-      deck: sp.slice(5),
-      hand: sp.slice(0, 5).map(makeBoardCard),
-    };
-    const initBot: PlayerState = {
-      ...makeInitialPlayer(),
-      deck: sb.slice(5),
-      hand: sb.slice(0, 5).map(makeBoardCard),
-    };
-
-    setPlayer(initPlayer);
-    setBot(initBot);
-    setTurn('player');
-    setTurnCount(1);
-    setPhase(TurnPhase.MAIN);
-    setGameOver(null);
-    setPendingAttack(null);
-  }, []);
-
-  // ── drawCard ──
-  const drawCard = useCallback((target: PlayerKey) => {
-    const setSt = target === 'player' ? setPlayer : setBot;
-    let milled = false;
-
-    setSt(prev => {
-      if (prev.deck.length === 0) {
-        milled = true;
-        return prev;
-      }
-      const [drawn, ...rest] = prev.deck;
-      return { ...prev, deck: rest, hand: [...prev.hand, makeBoardCard(drawn)] };
-    });
-
-    // Mill = pierde la partida
-    if (milled) {
-      setTimeout(() => setGameOver(target === 'player' ? 'bot' : 'player'), 50);
-    }
-  }, []);
-
-  // ── playCard ──
-  const playCard = useCallback((target: PlayerKey, cardIndex: number) => {
-    const setSt  = target === 'player' ? setPlayer : setBot;
-    const getOpp = target === 'player' ? () => botRef.current : () => playerRef.current;
-    const setOpp = target === 'player' ? setBot    : setPlayer;
-
-    let playedCard: BoardCard | null = null;
-
-    setSt(prev => {
-      const card = prev.hand[cardIndex];
-      if (!card) return prev;
-      if (prev.board.length >= 5 && card.type !== 'EVENT') return prev; // Límite de tablero
-      if (prev.energy < card.cost) return prev;
-
-      playedCard = card;
-      const newHand    = prev.hand.filter((_, i) => i !== cardIndex);
-      const newEnergy  = prev.energy - card.cost;
-
-      if (card.type === 'EVENT') {
-        return { ...prev, energy: newEnergy, hand: newHand, backstage: [...prev.backstage, card] };
-      }
-      return { ...prev, energy: newEnergy, hand: newHand, board: [...prev.board, card] };
-    });
-
-    // Aplicar efectos ON_PLAY después del siguiente tick (el estado ya está escrito)
-    if (playedCard) {
-      const cardSnapshot = playedCard;
-      setTimeout(() => {
-        const currentOwn = target === 'player' ? playerRef.current : botRef.current;
-        const currentOpp = getOpp();
-
-        const result = applyKeywordEffects({
-          sourceCard: cardSnapshot,
-          sourceOwner: target,
-          player: target === 'player' ? currentOwn : currentOpp,
-          bot:    target === 'player' ? currentOpp : currentOwn,
-          trigger: 'ON_PLAY',
-        });
-
-        setPlayer(result.player);
-        setBot(result.bot);
-      }, 20);
-    }
-  }, []);
-
-  // ── promoteCard: sacrificar carta de mano para +1 energía máxima ──
-  const promoteCard = useCallback((target: PlayerKey, cardIndex: number) => {
-    const setSt = target === 'player' ? setPlayer : setBot;
-    setSt(prev => {
-      if (!prev.canPromote || prev.maxEnergy >= 10) return prev;
-      const card = prev.hand[cardIndex];
-      if (!card) return prev;
-      return {
-        ...prev,
-        maxEnergy: prev.maxEnergy + 1,
-        energy:    prev.energy + 1,
-        canPromote: false,
-        hand:      prev.hand.filter((_, i) => i !== cardIndex),
-        graveyard: [...prev.graveyard, card],
-      };
-    });
-  }, []);
-
-  // ── declareAttack: inicia la fase REPLICA ──
-  const declareAttack = useCallback((attackerIdx: number, defenderIdx: number | null) => {
-    if (gameOverRef.current || phaseRef.current !== TurnPhase.MAIN) return;
-    const attacker = turnRef.current === 'player'
-      ? playerRef.current.board[attackerIdx]
-      : botRef.current.board[attackerIdx];
-    if (!attacker || attacker.isTapped || attacker.stageFright) return;
-
-    const pa: PendingAttack = { attackerOwner: turnRef.current, attackerIdx, defenderIdx };
-    setPendingAttack(pa);
-    setPhase(TurnPhase.REPLICA);
-  }, []);
-
-  // ── resolvePendingAttack: lee el ref para evitar stale closure ──
-  const resolvePendingAttack = useCallback(() => {
-    const pa = pendingRef.current;
-    if (!pa) return;
-
-    // Leer estado actual de los refs (no del closure)
-    const [np, nb] = resolveAttackPure(
-      playerRef.current,
-      botRef.current,
-      pa.attackerOwner,
-      pa.attackerIdx,
-      pa.defenderIdx,
-    );
-
-    setPlayer(np);
-    setBot(nb);
-    setPendingAttack(null);
-    setPhase(TurnPhase.MAIN);
-  }, []);
-
-  // ── skipReplica ──
-  const skipReplica = useCallback(() => {
-    if (phaseRef.current === TurnPhase.REPLICA) {
-      resolvePendingAttack();
-    }
-  }, [resolvePendingAttack]);
-
-  // ── intercept: el defensor interpone una carta (cuesta 1 energía) ──
-  const intercept = useCallback((interceptorIdx: number) => {
-    if (phaseRef.current !== TurnPhase.REPLICA) return;
-    const pa = pendingRef.current;
-    if (!pa) return;
-
-    const defenderOwner: PlayerKey = pa.attackerOwner === 'player' ? 'bot' : 'player';
-    const defState = defenderOwner === 'player' ? playerRef.current : botRef.current;
-
-    if (defState.energy < 1) return;
-    const interceptor = defState.board[interceptorIdx];
-    if (!interceptor || interceptor.isTapped) return;
-
-    // VIP solo puede interceptar ataques de VIP o a VIP
-    const attacker = pa.attackerOwner === 'player'
-      ? playerRef.current.board[pa.attackerIdx]
-      : botRef.current.board[pa.attackerIdx];
-
-    if (attacker && hasKw(attacker, 'vip') && !hasKw(interceptor, 'vip')) return;
-
-    // Cobrar energía al defensor
-    const setSt = defenderOwner === 'player' ? setPlayer : setBot;
-    setSt(prev => ({ ...prev, energy: prev.energy - 1 }));
-
-    // Redirigir el ataque al interceptor
-    const newPA: PendingAttack = { ...pa, defenderIdx: interceptorIdx };
-    setPendingAttack(newPA);
-
-    // Resolver con delay visual
-    setTimeout(() => {
-      const [np, nb] = resolveAttackPure(
-        playerRef.current,
-        botRef.current,
-        newPA.attackerOwner,
-        newPA.attackerIdx,
-        newPA.defenderIdx,
-      );
-      setPlayer(np);
-      setBot(nb);
-      setPendingAttack(null);
-      setPhase(TurnPhase.MAIN);
-    }, 600);
-  }, []);
-
-  // ── activateBackstage: jugar un evento del backstage ──
-  const activateBackstage = useCallback((owner: PlayerKey, backstageIdx: number) => {
-    const setSt  = owner === 'player' ? setPlayer : setBot;
-    const setOpp = owner === 'player' ? setBot    : setPlayer;
-    const getOpp = owner === 'player' ? () => botRef.current : () => playerRef.current;
-
-    let activatedCard: BoardCard | null = null;
-    let isReactivation = false;
-
-    setSt(prev => {
-      const card = prev.backstage[backstageIdx];
-      if (!card) return prev;
-
-      const isEvent = card.type === 'EVENT';
-      const cost    = isEvent ? card.cost : 2; // Reactivar criatura al tablero cuesta 2
-      if (prev.energy < cost) return prev;
-
-      activatedCard  = card;
-      isReactivation = !isEvent;
-
-      const newBackstage = prev.backstage.filter((_, i) => i !== backstageIdx);
-      const newEnergy    = prev.energy - cost;
-
-      if (isEvent) {
-        // Curación básica al activar un evento
-        const heal   = card.rarity === 'GOLD' || card.rarity === 'PLATINUM' ? 4 : 2;
-        const newHP  = Math.min(30, prev.health + heal);
-        return {
-          ...prev,
-          health:    newHP,
-          energy:    newEnergy,
-          backstage: newBackstage,
-          graveyard: [...prev.graveyard, card],
-        };
-      } else {
-        // Reactivar criatura al tablero (tapped, con stageFright)
-        if (prev.board.length >= 5) return prev;
-        const reactivated: BoardCard = { ...card, isTapped: true, stageFright: true };
-        return {
-          ...prev,
-          energy:    newEnergy,
-          backstage: newBackstage,
-          board:     [...prev.board, reactivated],
-        };
-      }
-    });
-
-    // Aplicar ON_PLAY del evento activado
-    if (activatedCard && !isReactivation) {
-      const cardSnapshot = activatedCard;
-      setTimeout(() => {
-        const currentOwn = owner === 'player' ? playerRef.current : botRef.current;
-        const currentOpp = getOpp();
-        const result = applyKeywordEffects({
-          sourceCard: cardSnapshot,
-          sourceOwner: owner,
-          player: owner === 'player' ? currentOwn : currentOpp,
-          bot:    owner === 'player' ? currentOpp : currentOwn,
-          trigger: 'ON_PLAY',
-        });
-        setPlayer(result.player);
-        setBot(result.bot);
-      }, 20);
-    }
-
-    // Si estamos en REPLICA, resolver tras activar
-    if (phaseRef.current === TurnPhase.REPLICA) {
-      setTimeout(() => resolvePendingAttack(), 800);
-    }
-  }, [resolvePendingAttack]);
-
-  // ── retireCard: mover carta del tablero al backstage ──
-  const retireCard = useCallback((owner: PlayerKey, boardIdx: number) => {
-    const setSt = owner === 'player' ? setPlayer : setBot;
-    setSt(prev => {
-      if (prev.energy < 1) return prev;
-      const card = prev.board[boardIdx];
-      if (!card) return prev;
-      return {
-        ...prev,
-        energy:    prev.energy - 1,
-        board:     prev.board.filter((_, i) => i !== boardIdx),
-        backstage: [...prev.backstage, card],
-      };
-    });
-  }, []);
-
-  // ── endTurn ──
-  const endTurn = useCallback(() => {
-    if (endTurnLockRef.current) return;
-    if (phaseRef.current !== TurnPhase.MAIN && phaseRef.current !== TurnPhase.END) return;
-    if (gameOverRef.current) return;
-
-    endTurnLockRef.current = true;
-
-    const currentTurn  = turnRef.current;
-    const nextTurn: PlayerKey = currentTurn === 'player' ? 'bot' : 'player';
-
-    // 1. Limpiar el turno actual (descartar si mano > 7)
-    const setCurrentSt = currentTurn === 'player' ? setPlayer : setBot;
-    setCurrentSt(prev => {
-      const hand = prev.hand.length > 7 ? prev.hand.slice(0, 7) : prev.hand;
-      return { ...prev, hand };
-    });
-
-    // 2. Preparar el nuevo turno
-    const setNextSt = nextTurn === 'player' ? setPlayer : setBot;
-    setNextSt(prev => {
-      const newMaxEnergy = Math.min(10, prev.maxEnergy + 1);
-
-      // Desendrezan todas las cartas del tablero
-      const untappedBoard = prev.board.map(c => ({
-        ...c,
-        isTapped:    false,
-        stageFright: false,
-        hasAttacked: false,
-      }));
-
-      return {
-        ...prev,
-        energy:    newMaxEnergy,
-        maxEnergy: newMaxEnergy,
-        canPromote: true,
-        board: untappedBoard,
-      };
-    });
-
-    // 3. Cambiar turno y fase
-    setTurn(nextTurn);
-    if (nextTurn === 'player') setTurnCount(c => c + 1);
-    setPhase(TurnPhase.START);
-
-    setTimeout(() => {
-      endTurnLockRef.current = false;
-    }, 100);
-  }, []);
-
-  // ── Avance automático de fases START → DRAW → MAIN ──
-  useEffect(() => {
-    if (gameOver) return;
-
-    if (phase === TurnPhase.START) {
-      // Aplicar efectos pasivos de inicio de turno (SUSTAIN, HYPE ENGINE, etc.)
-      const currentTurn = turnRef.current;
-      const currentState = currentTurn === 'player' ? playerRef.current : botRef.current;
-      const oppState     = currentTurn === 'player' ? botRef.current    : playerRef.current;
-
-      let newOwn = { ...currentState };
-      let newOpp = { ...oppState };
-
-      for (const card of currentState.board) {
-        const result = applyKeywordEffects({
-          sourceCard: card,
-          sourceOwner: currentTurn,
-          player: currentTurn === 'player' ? newOwn : newOpp,
-          bot:    currentTurn === 'player' ? newOpp : newOwn,
-          trigger: 'PASSIVE_START_TURN',
-        });
-        if (currentTurn === 'player') { newOwn = result.player; newOpp = result.bot; }
-        else                          { newOwn = result.bot;    newOpp = result.player; }
-      }
-
-      setPlayer(currentTurn === 'player' ? newOwn : newOpp);
-      setBot(currentTurn    === 'player' ? newOpp : newOwn);
-
-      const timer = setTimeout(() => setPhase(TurnPhase.DRAW), 600);
-      return () => clearTimeout(timer);
-    }
-
-    if (phase === TurnPhase.DRAW) {
-      const timer = setTimeout(() => {
-        drawCard(turnRef.current);
-        setPhase(TurnPhase.MAIN);
-      }, 400);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, gameOver, drawCard]);
-
-  // ── Auto-pass: si el jugador no puede hacer nada, pasa automáticamente ──
-  // Solo aplica al jugador humano (el bot tiene su propio loop)
-  useEffect(() => {
-    if (turn !== 'player' || phase !== TurnPhase.MAIN || gameOver || pendingAttack) return;
-
-    const p = playerRef.current;
-    const canPlayHand       = p.hand.some(c => c.cost <= p.energy && (p.board.length < 5 || c.type === 'EVENT'));
-    const canActivateBS     = p.backstage.some(c => c.cost <= p.energy);
-    const canPromote        = p.canPromote && p.maxEnergy < 10 && p.hand.length > 0;
-    const canAttack         = p.board.some(c => !c.isTapped && !c.stageFright);
-    const canRetire         = p.board.length > 0 && p.energy >= 1;
-
-    if (!canPlayHand && !canActivateBS && !canPromote && !canAttack && !canRetire) {
-      const timer = setTimeout(() => {
-        if (turnRef.current === 'player' && phaseRef.current === TurnPhase.MAIN && !gameOverRef.current) {
-          endTurn();
-        }
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [turn, phase, gameOver, pendingAttack, player.energy, player.hand.length, player.board.length, endTurn]);
-
-  // ── doMulligan ──
-  const doMulligan = useCallback((target: PlayerKey) => {
-    const setSt = target === 'player' ? setPlayer : setBot;
-    setSt(prev => {
-      if (prev.hasMulliganed) return prev;
-      const allCards = [...prev.deck, ...prev.hand].sort(() => Math.random() - 0.5);
-      return {
-        ...prev,
-        deck: allCards.slice(5),
-        hand: allCards.slice(0, 5).map(makeBoardCard),
-        hasMulliganed: true,
-      };
-    });
-  }, []);
-
-  // Las próximas 3 cartas del mazo del jugador (para previsualización)
-  const nextDraws = player.deck.slice(0, 3);
-
-  return {
-    player, bot, turn, turnCount, phase, gameOver, pendingAttack,
-    startGame, playCard, promoteCard, declareAttack,
-    resolvePendingAttack, skipReplica, intercept,
-    activateBackstage, retireCard, endTurn, doMulligan,
-    playerRef, botRef,
-    nextDraws,
-  };
-}
-```
-
----
-
-### PASO 2: Reemplazar la función `hasKw` en `app/play/page.tsx`
-
-Importar `hasKw` desde el hook en lugar de redefinirla:
-
-```typescript
-// En app/play/page.tsx, línea ~2, cambiar:
-// import { useGameEngine, BoardCard, hasKw } from '@/hooks/useGameEngine';
-// Ya está correcto, no hay que cambiar la importación.
-// PERO hay que asegurarse de que TurnPhase se importa del hook, no de types:
-
-import { useGameEngine, BoardCard, hasKw, TurnPhase } from '@/hooks/useGameEngine';
-// Eliminar cualquier import de TurnPhase desde '@/lib/engine/gameState'
-```
-
----
-
-### PASO 3: Arreglar el requisito de 40 cartas en `app/play/page.tsx`
-
-Buscar esta línea:
-```typescript
-const isValid = cardCount === 40; // Arena focus: exact 40
-```
-
-Reemplazar con:
-```typescript
-const isValid = cardCount >= 20; // Mínimo 20 cartas para jugar
-```
-
-Buscar este texto en la UI del deck selector:
-```typescript
-{cardCount} / 40 CARS
-```
-Reemplazar con:
-```typescript
-{cardCount} / {cardCount >= 20 ? '✓' : '20 mín'} CARS
-```
-
-Buscar:
-```typescript
-<span className={`text-sm font-black tracking-widest uppercase ${isValid ? 'text-green-400' : 'text-red-400'}`}>
-  {cardCount} / 40 CARS
-</span>
-{!isValid && <span className="text-[10px] text-gray-500 uppercase font-black tracking-tighter italic">Se requieren 40 cartas</span>}
-```
-
-Reemplazar con:
-```typescript
-<span className={`text-sm font-black tracking-widest uppercase ${isValid ? 'text-green-400' : 'text-red-400'}`}>
-  {cardCount} / 20+ CARS
-</span>
-{!isValid && <span className="text-[10px] text-gray-500 uppercase font-black tracking-tighter italic">Mínimo 20 cartas</span>}
-```
-
----
-
-### PASO 4: Arreglar el `startMatch` en `app/play/page.tsx`
-
-Buscar el bloque donde se rellena el mazo del jugador con fillers:
-```typescript
-while (playerDeckArr.length < 40) {
-  playerDeckArr.push(generateCard({ trackId: 'f_' + playerDeckArr.length, ... }));
-}
-```
-
-**Eliminar ese bloque completo**. El `startGame` del hook ya hace el padding automáticamente con `padDeck`.
-
----
-
-### PASO 5: Arreglar el import de `TurnPhase` en `app/play/page.tsx`
-
-Buscar:
-```typescript
-import { TurnPhase } from '@/lib/engine/gameState';
-```
-Reemplazar con:
-```typescript
-import { TurnPhase } from '@/hooks/useGameEngine';
-```
-
-Si hay otros archivos que importen `TurnPhase` de `@/lib/engine/gameState`, también cambiarlos al hook. Específicamente revisar `hooks/useBotMatch.ts`.
-
----
-
-### PASO 6: Actualizar `makeBoardCard` para reconocer más keywords de "no stageFright"
-
-En el nuevo `useGameEngine.ts` (ya incluido arriba), `makeBoardCard` hace:
-```typescript
-stageFright: !hasKw(card, Keyword.FRENZY) && !hasKw(card, Keyword.HASTE),
-```
-
-También hay que incluir el keyword `Drop` que se usa en el generador:
-```typescript
-stageFright: !hasKw(card, Keyword.FRENZY) 
-          && !hasKw(card, Keyword.HASTE) 
-          && !hasKw(card, Keyword.DROP)
-          && !hasKw(card, 'drop')
-          && !hasKw(card, 'frenzy'),
-```
-
-Este cambio ya está incluido en el código del PASO 1 (en `makeBoardCard`). No hay que modificarlo por separado.
-
----
-
-### PASO 7: Arreglar el bot AI en `app/play/page.tsx`
-
-El bot usa `botPlayTurn` de `lib/engine/singleplayerBot.ts`. El problema es que `processNextBotAction` no verifica si el juego terminó antes de procesar cada acción. Buscar la función `processNextBotAction` y reemplazar:
-
-```typescript
-const processNextBotAction = useCallback(() => {
-  if (botActionQueue.current.length === 0 || gameOver) {
-    botProcessing.current = false;
-    return;
-  }
-
-  const action = botActionQueue.current.shift()!;
-  const delay = action.type === 'ATTACK' ? 1200 : action.type === 'END_TURN' ? 600 : 800;
-
-  setTimeout(() => {
-    // CRÍTICO: re-verificar gameOver antes de ejecutar
-    if (gameOverRef.current) {
-      botProcessing.current = false;
-      botActionQueue.current = [];
-      return;
-    }
-
-    // CRÍTICO: re-verificar que seguimos en turno del bot
-    if (turnRef.current !== 'bot') {
-      botProcessing.current = false;
-      botActionQueue.current = [];
-      return;
-    }
-
-    switch (action.type) {
-      case 'PROMOTE':
-        if (botRef.current.hand[action.cardIndex]) {
-          promoteCard('bot', action.cardIndex);
-        }
-        break;
-      case 'PLAY_CARD':
-        if (botRef.current.hand[action.cardIndex]) {
-          playCard('bot', action.cardIndex);
-        }
-        break;
-      case 'ACTIVATE_BACKSTAGE':
-        if (botRef.current.backstage[action.backstageIndex]) {
-          activateBackstage('bot', action.backstageIndex);
-        }
-        break;
-      case 'ATTACK': {
-        const attacker = botRef.current.board[action.attackerIndex];
-        if (attacker && !attacker.isTapped && !attacker.stageFright) {
-          declareAttack(action.attackerIndex, action.targetIndex);
-          // No llamar processNextBotAction aquí: la REPLICA lo hará
-          return;
-        }
-        break;
-      }
-      case 'END_TURN':
-        endTurn();
-        botProcessing.current = false;
-        return;
-    }
-
-    // Continuar con la siguiente acción en el siguiente tick
-    setTimeout(() => processNextBotAction(), 50);
-  }, delay);
-}, [gameOver, promoteCard, playCard, activateBackstage, declareAttack, endTurn]);
-```
-
----
-
-### PASO 8: Arreglar la réplica del bot en `app/play/page.tsx`
-
-El bot necesita resolver la réplica (skipReplica o intercept) después de que el jugador ataca.
-Buscar el useEffect de "Bot AI for Replica" y reemplazar:
-
-```typescript
-// ── Bot AI for Replica (cuando el jugador ataca y el bot debe responder) ──
-useEffect(() => {
-  if (phase !== TurnPhase.REPLICA || turn !== 'player' || !pendingAttack) return;
-
-  const timer = setTimeout(() => {
-    if (gameOverRef.current) return;
-
-    const b = botRef.current;
-    const attackerCard = playerRef.current.board[pendingAttack.attackerIdx] || null;
-    const isDirectAttack = pendingAttack.defenderIdx === null;
-
-    const response = botReplicaResponse(b, attackerCard, isDirectAttack, difficulty);
-
-    if (response.action === 'intercept' && response.interceptorIdx !== undefined) {
-      // Verificar que la carta interceptora sigue existiendo
-      const interceptor = b.board[response.interceptorIdx];
-      if (interceptor && !interceptor.isTapped && b.energy >= 1) {
-        intercept(response.interceptorIdx);
-        return;
-      }
-    }
-    
-    if (response.action === 'backstage' && response.backstageIdx !== undefined) {
-      const bs = b.backstage[response.backstageIdx];
-      if (bs && b.energy >= bs.cost) {
-        activateBackstage('bot', response.backstageIdx);
-        return;
-      }
-    }
-
-    // Default: dejar pasar
-    skipReplica();
-  }, 1500);
-
-  return () => clearTimeout(timer);
-}, [phase, turn, pendingAttack]);
-```
-
----
-
-### PASO 9: Arreglar la réplica del jugador (timer)
-
-El jugador tiene 5 segundos para responder cuando el bot ataca.
-Buscar el useEffect del timer de réplica y reemplazar:
-
-```typescript
-const [replicaTimeLeft, setReplicaTimeLeft] = useState(5);
-
-useEffect(() => {
-  // Solo cuando el bot ataca y es turno del jugador para responder
-  if (phase !== TurnPhase.REPLICA || turn !== 'bot') return;
-
-  setReplicaTimeLeft(5);
-  const interval = setInterval(() => {
-    setReplicaTimeLeft(prev => {
-      if (prev <= 1) {
-        clearInterval(interval);
-        // Solo skipear si seguimos en réplica
-        if (phaseRef.current === TurnPhase.REPLICA) {
-          skipReplica();
-        }
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [phase, turn]); // No incluir skipReplica en deps para evitar re-creación del interval
-```
-
----
-
-### PASO 10: Arreglar el processNextBotAction para continuar después de REPLICA
-
-Cuando el bot declara un ataque, el juego entra en REPLICA y el bot debe esperar.
-Después de que se resuelve la réplica (volta a MAIN), el bot debe continuar su cola.
-
-Buscar el useEffect que dispara el bot cuando phase cambia a MAIN:
-
-```typescript
-useEffect(() => {
-  if (turn !== 'bot' || !matchStarted || gameOver || phase !== TurnPhase.MAIN) return;
-  
-  // Si el bot ya tiene acciones en cola (venía de un ATTACK), continuar
-  if (botProcessing.current && botActionQueue.current.length > 0) {
-    setTimeout(() => processNextBotAction(), 800);
-    return;
-  }
-
-  // Si el bot no estaba procesando, es un turno nuevo
-  if (botProcessing.current) return;
-
-  const startTimer = setTimeout(() => {
-    if (gameOverRef.current || turnRef.current !== 'bot') return;
-    const actions = botPlayTurn(
-      { botState: botRef.current, playerState: playerRef.current, turnCount },
-      difficulty
-    );
-    botActionQueue.current = actions;
-    botProcessing.current  = true;
-    processNextBotAction();
-  }, 1500);
-
-  return () => clearTimeout(startTimer);
-}, [turn, matchStarted, gameOver, phase, turnCount]);
-```
-
----
-
-### PASO 11: Limpiar la cola del bot al cambiar de turno
-
-Cuando el turno cambia de bot a player, limpiar la cola para evitar acciones fantasma:
-
-```typescript
-// Añadir este useEffect en app/play/page.tsx
-useEffect(() => {
-  if (turn === 'player') {
-    // Limpiar estado del bot
-    botActionQueue.current = [];
-    botProcessing.current  = false;
-  }
-}, [turn]);
-```
-
----
-
-### PASO 12: Eliminar imports obsoletos
-
-En `app/play/page.tsx`, eliminar:
-```typescript
-import { TurnPhase } from '@/lib/engine/gameState';
-```
-
-En `hooks/useGameEngine.ts`, ya no se importa nada de `lib/engine/effectEngine` ni de `lib/engine/gameState`. El nuevo archivo es autosuficiente.
-
----
-
-## RESUMEN DE ARCHIVOS A MODIFICAR
-
-| Archivo | Acción |
-|---|---|
-| `hooks/useGameEngine.ts` | **REEMPLAZAR COMPLETO** (Paso 1) |
-| `app/play/page.tsx` | Modificar en 8 puntos (Pasos 2-11) |
-| No tocar | `lib/engine/effectEngine.ts`, `lib/engine/gameState.ts`, `types/types.ts` |
-
----
-
-## VERIFICACIÓN POST-IMPLEMENTACIÓN
-
-Después de implementar, verificar estos escenarios:
-
-1. **Mazo de 20 cartas**: Crear un mazo con 20 cartas → debe poder iniciar partida
-2. **FRENZY/DROP**: Una carta con keyword `frenzy` o `drop` → puede atacar el turno que entra
-3. **TAUNT/PROVOKE**: Con una carta con `taunt` en tablero → el atacante no puede ir directo
-4. **STEALTH**: Una carta con `stealth` sin haber atacado → no puede ser objetivo
-5. **DISTORSIÓN**: Carta con `distortion` ataca a una de 1 DEF con 5 ATK → 4 de daño directo al oponente
-6. **SUSTAIN**: Al inicio del turno, carta con `sustain` recupera toda su DEF
-7. **CRESCENDO**: Carta con `crescendo` gana +1 ATK cada vez que ataca
-8. **DISS TRACK**: Al entrar, reduce -1/-1 a carta rival aleatoria
-9. **Sin bloqueo de turno**: El bot no se queda colgado entre REPLICA y MAIN
-10. **endTurn no se llama doble**: El lock previene doble llamada
-
----
-
-## NOTAS IMPORTANTES
 
 - **NO simplificar** la lógica de réplica ni el sistema de turnos. Se mantienen todas las fases.
 - El keyword `Keyword.FRENZY` está en el enum pero en el generador se usa la string `'frenzy'`. El `hasKw` del nuevo código verifica ambos.
@@ -2449,16 +1076,13 @@ if (rarity !== 'MYTHIC') {
 6. **Cache** - Verifica funcionamiento del cache
 
 ### **✅ 3. Sistema de Ejecución**
-```bash
-# Test completo
-npm run test:procedural
 
-# Test rápido
-npm run test:procedural:quick
+**Scripts disponibles:**
+- `npm run test:procedural` - Ejecuta el test completo del motor (todas las validaciones)
+- `npm run test:procedural:quick` - Versión rápida para desarrollo iterativo
+- `npm run test:abilities` - Alias que apunta al mismo test
 
-# Alias
-npm run test:abilities
-```
+**Salida:** La consola muestra resultados detallados con estadísticas de generación, performance y balance de habilidades.
 
 ---
 
@@ -2557,27 +1181,20 @@ console.log(`🎯 Procedural abilities generated for ${track.trackName}:`, {
 ## 🎮 **Uso en Desarrollo**
 
 ### **Para probar el motor:**
-```typescript
-import { proceduralAbilityEngine } from './proceduralAbilityEngine';
 
-// Generar habilidades para testing
-const result = proceduralAbilityEngine.generate(
-  'test-card-id',
-  'GOLD',
-  3,
-  'test-seed-123'
-);
+**Función:** `proceduralAbilityEngine.generate(cardId, rarity, cost, seed)`
 
-console.log('Generated abilities:', result.abilities);
-```
+**Descripción:** Genera habilidades procedurales para una carta específica. Recibe el ID de la carta, rareza, costo de mana y semilla para generación determinística. Retorna un objeto con el array de habilidades generadas, nivel de riesgo, tiempo de generación y si usó cache.
+
+**Uso:** Ideal para testing unitario del motor sin necesidad de generar cartas completas.
 
 ### **Para generar cartas completas:**
-```typescript
-import { generateCard } from './generator';
 
-const card = await generateCard(mockTrack, 'PLATINUM');
-console.log('Card abilities:', card.abilities);
-```
+**Función:** `generateCard(mockTrack, forcedRarity?)`
+
+**Descripción:** Genera una carta completa a partir de datos de una canción (track). El motor procedural se integra automáticamente en este flujo para cartas no-MYTHIC, generando habilidades únicas basadas en la rareza forzada o la heredada del master.
+
+**Uso:** Flujo principal de la aplicación cuando se obtienen cartas de sobres o búsquedas.
 
 ---
 
@@ -2601,77 +1218,22 @@ console.log('Card abilities:', card.abilities);
 
 Crear este archivo nuevo:
 
-```typescript
-// hooks/useAuth.ts
-'use client';
+**Hook:** `useAuth()`
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { User } from '@supabase/supabase-js';
+**Retorna objeto `AuthProfile`:**
+- `user`: Objeto User de Supabase o null
+- `username`: String del nombre de usuario
+- `isAdmin`: Booleano indicando si es administrador
+- `role`: Tipo 'ADMIN' | 'PAYING' | 'FREE'
+- `isPaying`: Booleano indicando estado de pago
+- `loading`: Booleano de estado de carga inicial
 
-export interface AuthProfile {
-  user: User | null;
-  username: string;
-  isAdmin: boolean;
-  role: 'ADMIN' | 'PAYING' | 'FREE';
-  isPaying: boolean;
-  loading: boolean;
-}
-
-export function useAuth(): AuthProfile {
-  const [user, setUser]         = useState<User | null>(null);
-  const [username, setUsername] = useState('');
-  const [isAdmin, setIsAdmin]   = useState(false);
-  const [role, setRole]         = useState<'ADMIN' | 'PAYING' | 'FREE'>('FREE');
-  const [isPaying, setIsPaying] = useState(false);
-  const [loading, setLoading]   = useState(true);
-
-  useEffect(() => {
-    const loadProfile = async (u: User) => {
-      const { data } = await supabase
-        .from('users')
-        .select('username, is_admin, role, is_paying')
-        .eq('id', u.id)
-        .maybeSingle();
-
-      if (data) {
-        setUsername(data.username || u.user_metadata?.username || '');
-        setIsAdmin(data.is_admin ?? false);
-        setRole(data.role ?? 'FREE');
-        setIsPaying(data.is_paying ?? false);
-      }
-      setLoading(false);
-    };
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        loadProfile(session.user);
-      } else {
-        setUser(null);
-        setUsername('');
-        setIsAdmin(false);
-        setRole('FREE');
-        setIsPaying(false);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  return { user, username, isAdmin, role, isPaying, loading };
-}
-```
+**Funcionalidad:**
+1. Obtiene sesión actual de Supabase al montar
+2. Si hay usuario logueado, carga perfil desde tabla `users` (username, is_admin, role, is_paying)
+3. Suscripción a cambios de estado de autenticación (onAuthStateChange)
+4. Limpia suscripción al desmontar
+5. Maneja estados de carga para evitar UI inconsistente
 
 ---
 
@@ -2681,109 +1243,40 @@ export function useAuth(): AuthProfile {
 
 Crear este archivo nuevo:
 
-```typescript
-// lib/admin/mythicService.ts
-import { supabase } from '@/lib/supabase';
+**Servicio:** `lib/admin/mythicService.ts`
 
-export interface MythicSong {
-  trackId: string;
-  trackName: string;
-  artistName: string;
-  reason?: string;
-}
+**Interfaz `MythicSong`:**
+- `trackId`: ID único de la canción
+- `trackName`: Nombre de la canción
+- `artistName`: Nombre del artista
+- `reason`: Razón opcional de por qué es mítica
 
-/**
- * Agrega una canción como mítica. Solo funciona si el usuario es admin.
- * El RLS de Supabase lo bloquea si no lo es.
- */
-export async function addMythicSong(song: MythicSong): Promise<{ success: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return { success: false, error: 'No autenticado' };
+**Funciones principales:**
 
-  // Verificar admin en cliente (el RLS lo verifica también en servidor)
-  const { data: profile } = await supabase
-    .from('users')
-    .select('is_admin')
-    .eq('id', session.user.id)
-    .single();
+1. **`addMythicSong(song)`** - Agrega canción a lista mítica
+   - Verifica sesión y permisos de admin (cliente y servidor via RLS)
+   - Inserta en tabla `mythic_songs` con datos de la canción
+   - Maneja error de duplicado (código 23505)
+   - Retorna `{ success: boolean, error?: string }`
 
-  if (!profile?.is_admin) {
-    return { success: false, error: 'Sin permisos de administrador' };
-  }
+2. **`removeMythicSong(trackId)`** - Elimina canción de lista mítica
+   - Verifica autenticación
+   - Elimina registro por track_id
+   - Retorna éxito o error
 
-  const { error } = await supabase.from('mythic_songs').insert({
-    track_id:    song.trackId,
-    track_name:  song.trackName,
-    artist_name: song.artistName,
-    reason:      song.reason || '',
-    added_by:    session.user.id,
-  });
+3. **`getMythicSongs()`** - Obtiene todas las canciones míticas
+   - Query a tabla `mythic_songs` ordenado por fecha
+   - Mapea columnas snake_case a camelCase
+   - Retorna array vacío si hay error
 
-  if (error) {
-    if (error.code === '23505') return { success: false, error: 'Esta canción ya es mítica' };
-    return { success: false, error: error.message };
-  }
-  return { success: true };
-}
+4. **`isMythicSong(trackId)`** - Verifica si una canción específica es mítica
+   - Query simple con maybeSingle para existencia
+   - Retorna booleano
 
-export async function removeMythicSong(trackId: string): Promise<{ success: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return { success: false, error: 'No autenticado' };
-
-  const { error } = await supabase
-    .from('mythic_songs')
-    .delete()
-    .eq('track_id', trackId);
-
-  if (error) return { success: false, error: error.message };
-  return { success: true };
-}
-
-export async function getMythicSongs(): Promise<MythicSong[]> {
-  const { data, error } = await supabase
-    .from('mythic_songs')
-    .select('track_id, track_name, artist_name, reason')
-    .order('added_at', { ascending: false });
-
-  if (error || !data) return [];
-  return data.map(row => ({
-    trackId:    row.track_id,
-    trackName:  row.track_name,
-    artistName: row.artist_name,
-    reason:     row.reason,
-  }));
-}
-
-/**
- * Verifica si un track_id específico es mítico.
- * Usar en el generador de cartas para forzar rareza MYTHIC.
- */
-export async function isMythicSong(trackId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('mythic_songs')
-    .select('track_id')
-    .eq('track_id', trackId)
-    .maybeSingle();
-  return !!data;
-}
-
-// Cache en memoria para no hacer una query por cada carta generada
-let mythicCache: Set<string> | null = null;
-let cacheExpiry = 0;
-
-export async function getMythicTrackIds(): Promise<Set<string>> {
-  const now = Date.now();
-  if (mythicCache && now < cacheExpiry) return mythicCache;
-
-  const { data } = await supabase
-    .from('mythic_songs')
-    .select('track_id');
-
-  mythicCache = new Set((data || []).map(r => r.track_id));
-  cacheExpiry = now + 5 * 60 * 1000; // Cache 5 minutos
-  return mythicCache;
-}
-```
+5. **`getMythicTrackIds()`** - Obtiene Set de IDs para cache
+   - Implementa cache en memoria (5 minutos)
+   - Retorna Set<string> para búsqueda O(1)
+   - Útil para generador de cartas
 
 ### Parte B: Modificar `lib/engine/generator.ts` para respetar míticas
 
@@ -2795,161 +1288,56 @@ export function generateCard(track: any, forcedRarity?: CardRarity, youtubeData?
 ```
 
 Reemplazar con:
-```typescript
-export function generateCard(
-  track: any,
-  forcedRarity?: CardRarity,
-  youtubeData?: any,
-  mythicTrackIds?: Set<string>
-): CardData {
-```
+**Cambios en `generateCard`:**
 
-Luego, justo después de la línea donde se define `masterRarity`:
-```typescript
-  let masterRarity: CardRarity = 'BRONZE';
-  const rarityRoll = masterRandom();
-  if (rarityRoll > 0.999) masterRarity = 'MYTHIC';
-  // ... resto
-```
+1. **Añadir parámetro:** `mythicTrackIds?: Set<string>` a la firma de la función
 
-Agregar **antes** del bloque de rarityRoll:
-```typescript
-  // Si el admin marcó esta canción como mítica, siempre es MYTHIC
-  const trackIdStr = String(track.trackId || '');
-  if (mythicTrackIds?.has(trackIdStr)) {
-    masterRarity = 'MYTHIC';
-  } else {
-    // Lógica original de rareza
-    const rarityRoll = masterRandom();
-    if (rarityRoll > 0.999) masterRarity = 'MYTHIC';
-    else if (rarityRoll > 0.95) masterRarity = 'PLATINUM';
-    else if (rarityRoll > 0.8)  masterRarity = 'GOLD';
-    else if (rarityRoll > 0.5)  masterRarity = 'SILVER';
-  }
-```
-
-**IMPORTANTE**: Eliminar la línea `if (rarityRoll > 0.999) masterRarity = 'MYTHIC';` original para no duplicarla.
+2. **Lógica de rareza modificada:**
+   - Convertir trackId a string
+   - Verificar si existe en `mythicTrackIds` usando `.has()`
+   - Si es mítica: forzar `masterRarity = 'MYTHIC'`
+   - Si no: ejecutar lógica original de probabilidades (0.999 MYTHIC, 0.95 PLATINUM, etc.)
+   - Eliminar línea duplicada de MYTHIC en lógica original
 
 ### Parte C: Panel de admin para míticas en `app/profile/page.tsx`
 
 Dentro del bloque `{(role === 'ADMIN' || user?.email === 'admin@musictcg.com') && (...)}`, agregar una sección nueva al final:
 
-```typescript
-// Importar al inicio del archivo:
-// import { addMythicSong, removeMythicSong, getMythicSongs, MythicSong } from '@/lib/admin/mythicService';
+**Panel de administración para canciones míticas:**
 
-// Estado adicional (agregar junto a los otros useState):
-const [mythicSongs, setMythicSongs]     = useState<MythicSong[]>([]);
-const [mythicSearch, setMythicSearch]   = useState('');
-const [mythicResults, setMythicResults] = useState<any[]>([]);
-const [addingMythic, setAddingMythic]   = useState(false);
+**Estados necesarios:**
+- `mythicSongs`: Array de canciones míticas actuales
+- `mythicSearch`: String de búsqueda
+- `mythicResults`: Resultados de búsqueda de iTunes
+- `addingMythic`: Booleano de carga
 
-// Cargar míticas al montar (agregar en el useEffect principal):
-// getMythicSongs().then(setMythicSongs);
+**Estructura del panel:**
 
-// Sección a agregar dentro del panel admin:
-<div className="mt-6 border-t border-red-500/20 pt-6">
-  <h4 className="text-sm font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-    <Sparkles className="w-4 h-4" /> Canciones Míticas
-  </h4>
+1. **Header:** Título "Canciones Míticas" con icono Sparkles y borde rojo
 
-  {/* Buscador */}
-  <div className="flex gap-2 mb-4">
-    <input
-      type="text"
-      placeholder="Busca una canción para hacerla mítica..."
-      value={mythicSearch}
-      onChange={e => setMythicSearch(e.target.value)}
-      className="flex-1 bg-black/40 border border-red-500/30 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-red-400"
-      onKeyDown={async e => {
-        if (e.key !== 'Enter' || !mythicSearch.trim()) return;
-        const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(mythicSearch)}&entity=song&limit=5`);
-        const d = await res.json();
-        setMythicResults(d.results || []);
-      }}
-    />
-    <button
-      onClick={async () => {
-        if (!mythicSearch.trim()) return;
-        const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(mythicSearch)}&entity=song&limit=5`);
-        const d = await res.json();
-        setMythicResults(d.results || []);
-      }}
-      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold"
-    >
-      Buscar
-    </button>
-  </div>
+2. **Buscador:**
+   - Input de texto con placeholder
+   - Búsqueda en iTunes API al presionar Enter o clicar botón
+   - Límite de 5 resultados
+   - Estilizado con bordes rojos para tema admin
 
-  {/* Resultados de búsqueda */}
-  {mythicResults.map(track => (
-    <div key={track.trackId} className="flex items-center gap-3 bg-white/5 rounded-xl p-3 mb-2">
-      <img src={track.artworkUrl100} alt="" className="w-10 h-10 rounded object-cover" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-white truncate">{track.trackName}</p>
-        <p className="text-xs text-gray-400 truncate">{track.artistName}</p>
-      </div>
-      <button
-        disabled={addingMythic}
-        onClick={async () => {
-          setAddingMythic(true);
-          const result = await addMythicSong({
-            trackId:    String(track.trackId),
-            trackName:  track.trackName,
-            artistName: track.artistName,
-            reason:     'Admin designation',
-          });
-          if (result.success) {
-            toast.success(`"${track.trackName}" ahora es MÍTICA ✨`);
-            const updated = await getMythicSongs();
-            setMythicSongs(updated);
-            setMythicResults([]);
-            setMythicSearch('');
-          } else {
-            toast.error(result.error || 'Error al agregar');
-          }
-          setAddingMythic(false);
-        }}
-        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-black"
-      >
-        MÍTICA ✨
-      </button>
-    </div>
-  ))}
+3. **Resultados de búsqueda:**
+   - Lista de canciones encontradas
+   - Muestra artwork, nombre y artista
+   - Botón "MÍTICA ✨" para designar
+   - Al hacer clic: llama `addMythicSong()`, muestra toast de éxito/error, recarga lista
 
-  {/* Lista de míticas actuales */}
-  <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
-    <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-2">
-      Canciones míticas actuales ({mythicSongs.length})
-    </p>
-    {mythicSongs.map(song => (
-      <div key={song.trackId} className="flex items-center justify-between bg-purple-500/10 border border-purple-500/20 rounded-xl p-3">
-        <div>
-          <p className="text-sm font-bold text-purple-300">{song.trackName}</p>
-          <p className="text-xs text-gray-500">{song.artistName}</p>
-        </div>
-        <button
-          onClick={async () => {
-            const result = await removeMythicSong(song.trackId);
-            if (result.success) {
-              toast.success('Rareza mítica removida');
-              setMythicSongs(prev => prev.filter(s => s.trackId !== song.trackId));
-            } else {
-              toast.error(result.error || 'Error');
-            }
-          }}
-          className="text-red-400 hover:text-red-300 text-xs font-bold"
-        >
-          Quitar
-        </button>
-      </div>
-    ))}
-    {mythicSongs.length === 0 && (
-      <p className="text-xs text-gray-600 italic">No hay canciones míticas designadas aún.</p>
-    )}
-  </div>
-</div>
-```
+4. **Lista de míticas actuales:**
+   - Scrollable con max-h-48
+   - Muestra contador total
+   - Cada item: nombre, artista, botón "Quitar"
+   - Estilizado con fondo púrpura/borde púrpura
+   - Mensaje vacío si no hay canciones
+
+**Integración:**
+- Importar funciones desde `lib/admin/mythicService`
+- Cargar lista al montar componente con `getMythicSongs()`
+- Solo visible para usuarios con rol ADMIN
 
 ---
 
@@ -2960,46 +1348,19 @@ El inventario se almacena como un Record y no tiene timestamp de obtención.
 
 ### Solución: Modificar la función `addCard` en `store/usePlayerStore.ts`
 
-Buscar el tipo `PlayerState` (la interfaz, no la del juego):
-```typescript
-inventory: Record<string, { card: CardData; count: number }>;
-```
-Reemplazar con:
-```typescript
-inventory: Record<string, { card: CardData; count: number; obtainedAt: number }>;
-```
+**Cambios en `store/usePlayerStore.ts`:**
 
-Buscar la función `addCard` en el store, dentro del bloque `set`:
-```typescript
-return {
-  inventory: {
-    ...state.inventory,
-    [targetCardId]: { card: existing ? existing.card : card, count: count + 1 }
-  }
-};
-```
-Reemplazar con:
-```typescript
-return {
-  inventory: {
-    ...state.inventory,
-    [targetCardId]: {
-      card: existing ? existing.card : card,
-      count: count + 1,
-      obtainedAt: existing?.obtainedAt ?? Date.now(), // Preserva el original si ya existe
-    }
-  }
-};
-```
+1. **Modificar interfaz `PlayerState`:**
+   - Añadir campo `obtainedAt: number` al objeto de inventario
+   - Tipo: `Record<string, { card: CardData; count: number; obtainedAt: number }>`
 
-Hacer lo mismo en `addCards` para el `newInventory[targetId] = ...`:
-```typescript
-newInventory[targetId] = {
-  card: existing ? existing.card : card,
-  count: count + 1,
-  obtainedAt: existing?.obtainedAt ?? Date.now(),
-};
-```
+2. **Modificar función `addCard`:**
+   - Al crear/actualizar entrada en inventario, incluir `obtainedAt`
+   - Preservar timestamp existente si la carta ya está en inventario: `obtainedAt: existing?.obtainedAt ?? Date.now()`
+
+3. **Modificar función `addCards`:**
+   - Misma lógica para añadir múltiples cartas
+   - Mantener timestamp original si existe
 
 ### Modificar el filtrado en `app/studio/page.tsx`
 
@@ -3009,27 +1370,12 @@ const filteredInventory = useMemo(() => {
   return inventoryList.filter((item) => {
     // ...filtros
   });
-}, [...]);
-```
+**Modificación en `filteredInventory`:**
 
-Reemplazar con:
-```typescript
-const filteredInventory = useMemo(() => {
-  return inventoryList
-    .filter((item) => {
-      const query = globalSearchQuery.toLowerCase();
-      const matchesSearch =
-        item.card.name.toLowerCase().includes(query) ||
-        item.card.artist.toLowerCase().includes(query);
-      const matchesRarity = rarityFilter === 'all' || item.card.rarity === rarityFilter;
-      const matchesGenre  = genreFilter  === 'all' || item.card.genre.toLowerCase() === genreFilter.toLowerCase();
-      const matchesCost   = costFilter   === 'all' || item.card.cost === parseInt(costFilter);
-      return matchesSearch && matchesRarity && matchesGenre && matchesCost;
-    })
-    // Más reciente primero
-    .sort((a, b) => (b.obtainedAt ?? 0) - (a.obtainedAt ?? 0));
-}, [inventoryList, globalSearchQuery, rarityFilter, genreFilter, costFilter]);
-```
+Añadir ordenamiento por fecha de obtención después de los filtros:
+- Usar `.sort((a, b) => (b.obtainedAt ?? 0) - (a.obtainedAt ?? 0))`
+- Las cartas más recientes aparecen primero
+- Fallback a 0 si no tiene timestamp
 
 ---
 
@@ -3042,329 +1388,68 @@ Vamos a unificarlos: **siempre grid**, con el flip de carta individual.
 
 Crear este archivo nuevo:
 
-```typescript
-// components/store/PackOpenModal.tsx
-'use client';
+Crear el componente `components/store/PackOpenModal.tsx` con las siguientes características:
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Eye, ChevronRight } from 'lucide-react';
-import { CardData } from '@/lib/engine/generator';
-import Card from '@/components/cards/Card';
-import CardBack from '@/components/CardBack';
+**Interfaz `OpenedCardItem`:**
+- `card`: Datos de la carta (CardData)
+- `isDuplicate`: Booleano indicando si se convirtió a comodín
+- `revealed`: Booleano indicando si la carta ya fue revelada
 
-export interface OpenedCardItem {
-  card: CardData;
-  isDuplicate: boolean;
-  revealed: boolean;
-}
+**Props del componente:**
+- `cards`: Array de OpenedCardItem
+- `isOpen`: Controla visibilidad del modal
+- `onClose`: Callback al cerrar
+- `title`/`subtitle`: Textos del encabezado
+- `onRevealCard`: Callback al revelar carta individual
+- `onRevealAll`: Callback al revelar todas (async)
+- `isRevealingAll`: Estado de revelado masivo
 
-interface PackOpenModalProps {
-  cards: OpenedCardItem[];
-  isOpen: boolean;
-  onClose: () => void;
-  title?: string;
-  subtitle?: string;
-  onRevealCard: (index: number) => void;
-  onRevealAll: () => Promise<void>;
-  isRevealingAll?: boolean;
-}
+**Subcomponente `FlipCard`:**
+- Maneja la animación 3D de volteo con CSS transforms
+- Detecta rarezas especiales (GOLD, PLATINUM, MYTHIC)
+- Muestra aura púrpura animada para cartas MYTHIC
+- Badge "+COMODÍN" para duplicados
+- Efectos de brillo para cartas raras al revelar
 
-function FlipCard({
-  item,
-  index,
-  onReveal,
-}: {
-  item: OpenedCardItem;
-  index: number;
-  onReveal: (i: number) => void;
-}) {
-  const isRare = item.card.rarity === 'GOLD' || item.card.rarity === 'PLATINUM' || item.card.rarity === 'MYTHIC';
-  const isMythic = item.card.rarity === 'MYTHIC';
-
-  return (
-    <motion.div
-      initial={{ scale: 0, opacity: 0, y: 40 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, type: 'spring', stiffness: 280, damping: 22 }}
-      className="relative perspective-1000 cursor-pointer shrink-0"
-      onClick={() => !item.revealed && onReveal(index)}
-    >
-      {/* Aura mítica */}
-      {isMythic && item.revealed && (
-        <motion.div
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute -inset-3 rounded-2xl blur-lg pointer-events-none z-0"
-          style={{ background: 'rgba(168,85,247,0.5)' }}
-        />
-      )}
-
-      {/* Contenedor 3D */}
-      <div
-        className="preserve-3d transition-all duration-700 relative z-10"
-        style={{
-          transform: item.revealed ? 'rotateY(0deg)' : 'rotateY(180deg)',
-          width: 'clamp(130px, 28vw, 200px)',
-          aspectRatio: '2.5 / 3.5',
-        }}
-      >
-        {/* Frente */}
-        <div className="absolute inset-0 backface-hidden rounded-xl overflow-hidden">
-          <Card data={item.card} className="w-full h-full" disableHover={!item.revealed} />
-          {item.isDuplicate && (
-            <div className="absolute top-2 right-2 bg-amber-500 text-black text-[9px] font-black px-2 py-0.5 rounded-full z-20 border border-black shadow-lg">
-              +COMODÍN
-            </div>
-          )}
-        </div>
-
-        {/* Reverso */}
-        <div
-          className="absolute inset-0 backface-hidden rounded-xl overflow-hidden"
-          style={{ transform: 'rotateY(180deg)' }}
-        >
-          <CardBack className="w-full h-full" isRare={isRare} size="full" />
-          {!item.revealed && (
-            <div className="absolute inset-0 flex items-end justify-center pb-3">
-              <span className="text-[9px] text-white/60 font-black uppercase tracking-widest animate-pulse">
-                Toca para revelar
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Aura de rareza post-reveal */}
-      {isRare && !isMythic && item.revealed && (
-        <motion.div
-          animate={{ opacity: [0.2, 0.5, 0.2] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute -inset-1 rounded-xl blur-sm pointer-events-none z-0"
-          style={{
-            background: item.card.rarity === 'PLATINUM'
-              ? 'rgba(0,255,255,0.25)'
-              : 'rgba(255,215,0,0.25)',
-          }}
-        />
-      )}
-    </motion.div>
-  );
-}
-
-export default function PackOpenModal({
-  cards,
-  isOpen,
-  onClose,
-  title = '¡Cartas Obtenidas!',
-  subtitle,
-  onRevealCard,
-  onRevealAll,
-  isRevealingAll = false,
-}: PackOpenModalProps) {
-  const allRevealed = cards.length > 0 && cards.every(c => c.revealed);
-
-  // Auto-revelar no-Platinum al abrir
-  // Las PLATINUM y MYTHIC se revelan manualmente para el drama
-  return (
-    <AnimatePresence>
-      {isOpen && cards.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex flex-col bg-black/97 backdrop-blur-2xl overflow-hidden"
-        >
-          {/* Partículas de fondo */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {Array.from({ length: 25 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-0.5 h-0.5 bg-white/10 rounded-full"
-                style={{
-                  left: `${(i * 13.7) % 100}%`,
-                  top:  `${(i * 17.3) % 100}%`,
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="flex-1 flex flex-col overflow-hidden relative z-10">
-            {/* Header */}
-            <div className="shrink-0 text-center pt-6 pb-3 px-4">
-              <motion.h2
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="text-2xl font-black text-white tracking-tighter italic uppercase"
-              >
-                🎁 {title}
-              </motion.h2>
-              {subtitle && (
-                <p className="text-gray-500 text-xs mt-1 font-bold uppercase tracking-widest">
-                  {subtitle}
-                </p>
-              )}
-              <p className="text-gray-600 text-xs mt-1">
-                {allRevealed
-                  ? `✅ ${cards.length} cartas reveladas`
-                  : `Toca cada carta · ${cards.filter(c => c.revealed).length}/${cards.length} reveladas`}
-              </p>
-            </div>
-
-            {/* Grid de cartas */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">
-              <div className="flex flex-wrap gap-3 justify-center py-4">
-                {cards.map((item, i) => (
-                  <FlipCard
-                    key={`${item.card.id}_${i}`}
-                    item={item}
-                    index={i}
-                    onReveal={onRevealCard}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="shrink-0 p-5 pb-24 border-t border-white/5 flex flex-col gap-3 bg-black/90 backdrop-blur-xl sticky bottom-0 z-[600]">
-              {!allRevealed && (
-                <button
-                  onClick={onRevealAll}
-                  disabled={isRevealingAll}
-                  className="w-full bg-white/5 hover:bg-white/10 border border-white/20 text-white font-bold py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-widest disabled:opacity-50"
-                >
-                  <Eye className="w-4 h-4" />
-                  {isRevealingAll ? 'Revelando...' : 'Revelar Todo'}
-                </button>
-              )}
-              <motion.button
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                onClick={onClose}
-                className="w-full bg-white text-black font-black py-4 rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)] uppercase tracking-tighter text-sm border-2 border-white/10 flex items-center justify-center gap-2"
-              >
-                {allRevealed ? 'CONTINUAR' : 'OMITIR Y CONTINUAR'}
-                <ChevronRight className="w-4 h-4" />
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-```
+**Animaciones:**
+- Entrada spring con staggered delay
+- Flip 3D rotateY de 180°
+- Escala pulsante para cartas MYTHIC
+- Fade in de controles al revelar todas
 
 ### Paso B: Reemplazar el modal en `app/store/page.tsx`
 
-**1. Agregar import al inicio:**
-```typescript
-import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
-```
+**Cambios necesarios:**
 
-**2. Cambiar el estado de `openedCards`:**
-```typescript
-// ANTES:
-const [openedCards, setOpenedCards] = useState<{ card: CardData; isDuplicate: boolean; revealed: boolean }[]>([]);
+1. **Import:** Agregar `import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal'`
 
-// DESPUÉS (mismo tipo pero importado):
-const [openedCards, setOpenedCards] = useState<OpenedCardItem[]>([]);
-```
+2. **Estado:** Cambiar el tipo de `openedCards` a `OpenedCardItem[]` (importado del componente)
 
-**3. Eliminar el componente `PackCard` interno** (las ~80 líneas de la función `PackCard` que está dentro de `StorePage`). Ya no se usa.
+3. **Eliminar:** El componente `PackCard` interno (~80 líneas) ya no se usa
 
-**4. Reemplazar la sección de "FASE 2: Muestra las cartas en Abanico"** dentro del modal de apertura.
+4. **Reemplazar:** La sección "FASE 2: Muestra las cartas" por el componente `<PackOpenModal />` con props:
+   - `cards`: Array de cartas abiertas
+   - `isOpen`: Control de visibilidad
+   - `onClose`: Callback de cierre
+   - `title`/`subtitle`: Textos dinámicos
+   - `onRevealCard`: Handler de revelado individual
+   - `onRevealAll`: Handler async de revelado masivo
+   - `isRevealingAll`: Estado de carga
 
-Buscar todo el bloque desde `{packPhase === 'cards' && (` hasta su cierre `)}` y reemplazar con:
-
-```typescript
-{/* El modal de apertura ahora usa el componente unificado */}
-<PackOpenModal
-  cards={openedCards}
-  isOpen={isOpening && packPhase === 'cards'}
-  onClose={closeOpening}
-  title={`${openedCards.length} Cartas Obtenidas`}
-  subtitle={currentPack ? `Sobre ${currentPack.emoji} ${currentPack.nameKey}` : undefined}
-  onRevealCard={(i) => {
-    setOpenedCards(prev => prev.map((c, idx) => idx === i ? { ...c, revealed: true } : c));
-  }}
-  onRevealAll={async () => {
-    setRevealingAll(true);
-    for (let i = 0; i < openedCards.length; i++) {
-      setOpenedCards(prev => prev.map((c, idx) => idx === i ? { ...c, revealed: true } : c));
-      await new Promise(r => setTimeout(r, 120));
-    }
-    setRevealingAll(false);
-  }}
-  isRevealingAll={revealingAll}
-/>
-```
-
-**5. Mantener la FASE 1 del sobre** (la animación del sobre sacudiéndose). Solo reemplazar la fase 2.
-
-**6. Quitar el `selectedCard` overlay** del store (el modal de inspección individual) o dejarlo, según preferencia. No afecta la apertura.
+5. **Mantener:** FASE 1 (animación del sobre sacudiéndose)
 
 ### Paso C: Reemplazar el modal en `app/page.tsx` (sobres gratis)
 
-El modal de sobres gratis ya usa un sistema parecido. Reemplazarlo con el componente unificado.
+**Adaptaciones específicas para sobres gratis:**
 
-**1. Agregar import:**
-```typescript
-import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
-```
+1. **Import y estado:** Igual que en la tienda
 
-**2. Cambiar el estado:**
-```typescript
-// ANTES:
-const [openedCards, setOpenedCards] = useState<{ card: CardData; isDuplicate: boolean }[]>([]);
-const [revealedSet, setRevealedSet] = useState<Set<number>>(new Set());
+2. **Adaptar `handleOpenFreePacks`:**
+   - Mapear resultados a tipo `OpenedCardItem[]`
+   - Agregar `logDiscovery()` para cada carta nueva
+   - Auto-revelar todas excepto PLATINUM y MYTHIC (para mantener el drama)
 
-// DESPUÉS (un solo array con el flag revealed):
-const [openedCards, setOpenedCards] = useState<OpenedCardItem[]>([]);
-```
-
-**3. Adaptar `handleOpenFreePacks`:**
-Buscar:
-```typescript
-const results = newCards.map((card: CardData) => {
-  const r = usePlayerStore.getState().addCard(card);
-  // ...
-  return { card, isDuplicate: r.convertedToWildcard };
-});
-setRevealedSet(new Set(results.map((r, idx) => (r.card.rarity !== 'PLATINUM' ? idx : -1)).filter(idx => idx !== -1)));
-setOpenedCards(results);
-```
-Reemplazar con:
-```typescript
-const results: OpenedCardItem[] = newCards.map((card: CardData) => {
-  const r = usePlayerStore.getState().addCard(card);
-  logDiscovery(card, playerName);
-  // Auto-revelar todo excepto PLATINUM y MYTHIC
-  const autoReveal = card.rarity !== 'PLATINUM' && card.rarity !== 'MYTHIC';
-  return { card, isDuplicate: r.convertedToWildcard, revealed: autoReveal };
-});
-setOpenedCards(results);
-```
-
-**4. Reemplazar el bloque del modal completo** (el `AnimatePresence` grande) con:
-```typescript
-<PackOpenModal
-  cards={openedCards}
-  isOpen={isOpening}
-  onClose={() => { setIsOpening(false); setOpenedCards([]); }}
-  title={`${openedCards.length} Cartas Gratis`}
-  onRevealCard={(i) => {
-    setOpenedCards(prev => prev.map((c, idx) => idx === i ? { ...c, revealed: true } : c));
-  }}
-  onRevealAll={async () => {
-    for (let i = 0; i < openedCards.length; i++) {
-      setOpenedCards(prev => prev.map((c, idx) => idx === i ? { ...c, revealed: true } : c));
-      await new Promise(r => setTimeout(r, 100));
-    }
-  }}
-/>
-```
+3. **Reemplazar modal:** Usar `<PackOpenModal />` con título "X Cartas Gratis"
 
 ---
 
@@ -3373,111 +1458,29 @@ setOpenedCards(results);
 ### Solución: Añadir estado `activeProfileTab` en `app/profile/page.tsx`
 
 Al inicio del componente, agregar:
-```typescript
-const [activeProfileTab, setActiveProfileTab] = useState<'cuenta' | 'stats' | 'historial'>('cuenta');
-```
+**Estado:** `const [activeProfileTab, setActiveProfileTab] = useState<'cuenta' | 'stats' | 'historial'>('cuenta')`
 
-Reemplazar el contenido de la sección de perfil logueado. Buscar el bloque que empieza con `{!user ? (` y dentro del bloque del usuario autenticado (`else`), antes del botón de cerrar sesión, agregar el sistema de tabs:
+**Estructura del sistema de tabs:**
 
-```typescript
-{user && (
-  <div className="flex flex-col gap-6 w-full">
-    {/* Tab bar del perfil */}
-    <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl">
-      {(['cuenta', 'stats', 'historial'] as const).map(tab => (
-        <button
-          key={tab}
-          onClick={() => setActiveProfileTab(tab)}
-          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeProfileTab === tab
-              ? 'bg-white text-black shadow-lg'
-              : 'text-gray-500 hover:text-gray-300'
-          }`}
-        >
-          {tab === 'cuenta' ? '👤 Cuenta' : tab === 'stats' ? '📊 Stats' : '🏆 Historial'}
-        </button>
-      ))}
-    </div>
+1. **Tab Bar:** Barra horizontal con 3 botones (Cuenta, Stats, Historial) usando diseño con `bg-white/5` y rounded-2xl
 
-    {/* Tab: Cuenta */}
-    {activeProfileTab === 'cuenta' && (
-      <div className="flex flex-col gap-4 w-full animate-in fade-in duration-300">
-        {/* Avatar e info */}
-        <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="w-16 h-16 bg-[#242424] rounded-full flex items-center justify-center border-2 border-white/20 text-2xl font-black text-white overflow-hidden relative">
-            {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span>{(user.user_metadata?.username || user.email || '?')[0].toUpperCase()}</span>
-            )}
-          </div>
-          <div>
-            <p className="font-black text-white text-lg">{user.user_metadata?.username || discoveryUsername || user.email?.split('@')[0]}</p>
-            <p className="text-xs text-gray-500">{user.email}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
-                role === 'ADMIN'   ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                role === 'PAYING' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                                    'bg-white/5 text-gray-500 border border-white/10'
-              }`}>
-                {role}
-              </span>
-              {isPaying && (
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
-                  Sin Anuncios
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+2. **Tab Cuenta:** 
+   - Avatar del usuario (con imagen o inicial)
+   - Username y email
+   - Badge de rol (ADMIN/PAYING/FREE) con colores diferenciados
+   - Indicador "Sin Anuncios" para usuarios PAYING
+   - Grid de stats (Regalías y cantidad de cartas)
+   - Botón de cerrar sesión
 
-        {/* Regalías y wildcards */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-center">
-            <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-1">Regalías</p>
-            <p className="text-2xl font-black text-amber-300">{regalias.toLocaleString()} ✦</p>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-center">
-            <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1">Cartas</p>
-            <p className="text-2xl font-black text-blue-300">{mounted ? Object.keys(usePlayerStore.getState().inventory || {}).length : '—'}</p>
-          </div>
-        </div>
+3. **Tab Stats:** 
+   - Renderiza componente `<StatsPanel userId={user.id} />`
+   - Muestra estadísticas de juego detalladas
 
-        {/* Botón cerrar sesión */}
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            toast.success('Sesión cerrada.');
-          }}
-          className="w-full py-3 rounded-full font-bold flex items-center justify-center gap-2 bg-[#242424] text-white hover:bg-[#333] transition-colors border border-white/10"
-        >
-          <LogOut size={18} />
-          Cerrar Sesión
-        </button>
-      </div>
-    )}
+4. **Tab Historial:**
+   - Renderiza componente `<MatchHistory userId={user.id} />`
+   - Lista de partidas jugadas
 
-    {/* Tab: Stats */}
-    {activeProfileTab === 'stats' && (
-      <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-        <StatsPanel userId={user.id} />
-      </div>
-    )}
-
-    {/* Tab: Historial */}
-    {activeProfileTab === 'historial' && (
-      <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-        <MatchHistory userId={user.id} />
-      </div>
-    )}
-  </div>
-)}
-```
-
-**Importar `StatsPanel`** al inicio de `app/profile/page.tsx`:
-```typescript
-import { StatsPanel } from '@/components/StatsPanel';
-```
+**Import necesario:** `import { StatsPanel } from '@/components/StatsPanel'`
 
 ---
 
@@ -3501,35 +1504,23 @@ Dentro del bloque de renderizado de cada pack (el `map` de `PACK_TYPES`), buscar
       const rarities = ['BRONZE', 'SILVER', pack.id === 'legends' ? 'PLATINUM' : pack.id === 'hiphop' ? 'GOLD' : 'SILVER'];
       const rarity = rarities[i];
       const rarityColors: Record<string, string> = {
-        BRONZE:   'border-[#cd7f32]/40 bg-[#cd7f32]/10',
-        SILVER:   'border-[#c0c0c0]/40 bg-[#c0c0c0]/10',
-        GOLD:     'border-[#ffd700]/50 bg-[#ffd700]/10',
-        PLATINUM: 'border-cyan-400/60 bg-cyan-400/10',
-      };
-      return (
-        <div
-          key={i}
-          className={`flex-1 aspect-[2.5/3.5] rounded-lg border-2 ${rarityColors[rarity] || rarityColors.BRONZE} flex flex-col items-center justify-center relative overflow-hidden`}
-        >
-          {/* Shimmer effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
-          <div className="w-4 h-4 rounded-full bg-white/10 mb-1" />
-          <div className="w-8 h-1 bg-white/10 rounded mb-0.5" />
-          <div className="w-6 h-1 bg-white/5 rounded" />
-          <div className={`absolute bottom-1 left-0 right-0 text-center text-[6px] font-black uppercase tracking-wider ${
-            rarity === 'PLATINUM' ? 'text-cyan-400/60' :
-            rarity === 'GOLD'     ? 'text-yellow-400/60' :
-            rarity === 'SILVER'   ? 'text-gray-300/60' :
-                                    'text-orange-600/60'
-          }`}>
-            {rarity}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-```
+**Miniaturas de ejemplo en la tienda:**
+
+**Propósito:** Mostrar cartas ejemplo debajo de cada sobre para dar idea del contenido
+
+**Implementación:**
+- Agregar sección con título "Ejemplo de cartas"
+- Generar 3 cartas ejemplo determinísticas por tipo de sobre
+- Asignar rarezas específicas: BRONZE, SILVER, y una premium según el tipo de sobre
+- Usar colores de rareza para bordes y fondos
+- Mostrar placeholder de carta con shimmer effect
+- Incluir etiqueta de rareza en la parte inferior
+
+**Estilos:**
+- Aspect ratio 2.5/3.5 (proporción de carta)
+- Bordes con colores de rareza (oro, plata, bronce, platino)
+- Efecto shimmer con gradiente
+- Texto tiny con nombre de rareza
 
 ---
 
@@ -3558,14 +1549,8 @@ Agrega las tablas `mythic_songs`, `friend_requests`, `favorites`, `discovered_so
 
 ### Marcar al admin manualmente:
 Después de registrarte con tu cuenta de admin, ejecutar en SQL Editor:
-```sql
-UPDATE public.users
-SET is_admin = true, role = 'ADMIN'
-WHERE id = (
-  SELECT id FROM auth.users WHERE email = 'TU_USERNAME@musictcg.app'
-);
-```
-(Reemplaza `TU_USERNAME` con el nombre de usuario que uses para el admin.)
+- Buscar tu ID en `auth.users` con tu email
+- Actualizar tabla `users` con `is_admin = true, role = 'ADMIN'`
 
 
 <!-- Contenido extraído de GUIA_MAESTRA_PROYECTO.md -->
@@ -3740,16 +1725,15 @@ El sistema de habilidades está diseñado para ser **infinitamente expandible**,
 ## 🏗️ ARQUITECTURA DE HABILIDADES
 
 ### **Estructura Base**
-```typescript
-interface CardAbility {
-  id: string;                    // Identificador único
-  name: string;                  // Nombre visible para jugador
-  description: string;           // Descripción del efecto
-  trigger: TriggerType;          // Cuándo se activa
-  effects: AbilityEffect[];       // Lista de efectos
-  cost?: number;                // Costo adicional de energía
-}
-```
+**Estructura Base de Habilidades:**
+
+**Interface `CardAbility`:**
+- `id`: Identificador único
+- `name`: Nombre visible para jugador
+- `description`: Descripción del efecto
+- `trigger`: Cuándo se activa
+- `effects`: Lista de efectos
+- `cost`: Costo adicional de energía (opcional)
 
 ### **Tipos de Efectos Disponibles**
 
@@ -3797,160 +1781,106 @@ interface CardAbility {
 
 ## 🎲 SISTEMA DE GENERACIÓN DE HABILIDADES
 
-### **Lógica Actual en `generator.ts`**
-```typescript
-// 1. Detección de formato musical
-const format = detectFormat(track); // REMIX, LIVE, ACOUSTIC, etc.
+**Sistema de generación de habilidades actual:**
 
-// 2. Asignación basada en formato y género
-if (format === 'SOUNDTRACK') {
-  abilities.push({ keyword: 'Soundtrack', description: '...' });
-} else if (isRock && random() > 0.5) {
-  abilities.push({ keyword: 'Drop', description: '...' });
-} else {
-  abilities.push({ keyword: 'Sustain', description: '...' });
-}
-```
+**Lógica en `generator.ts`:**
+1. **Detección de formato musical** (REMIX, LIVE, ACOUSTIC, etc.)
+2. **Asignación basada en formato y género**:
+   - SOUNDTRACK → habilidades de soundtrack
+   - Rock + random > 0.5 → habilidades de Drop
+   - Default → habilidades de Sustain
 
-### **Sistema Propuesto de Combinaciones**
+**Sistema propuesto de combinaciones:**
 
-#### 🎯 **Generación por Composición**
-```typescript
-// Cada combinación única de [Formato + Género + Rareza] = Habilidad única
-const abilityId = `${format}_${genre}_${rarity}_${index}`;
+1. **Generación por composición:**
+   - Cada combinación única de [Formato + Género + Rareza] = Habilidad única
+   - Ej: ROCK_DROP_MYTHIC_1, POP_HEAL_GOLD_2, ELECTRONIC_TUTOR_PLATINUM_1
 
-// Ejemplos:
-// ROCK_DROP_MYTHIC_1 - Ataque inmediato para rock mítico
-// POP_HEAL_GOLD_2 - Curación para pop dorado  
-// ELECTRONIC_TUTOR_PLATINUM_1 - Búsqueda para electrónicos platino
-```
-
-#### 🎵 **Generación por Sinergia Musical**
-```typescript
-// Detectar sinergias entre cartas en juego
-if (hasGenreSynergy(hand, 'Rock') && hasAlbumSynergy(hand, 'Thriller')) {
-  grantBonusAbility('ROCK_ALBUM_COMBO');
-}
-
-// Bonus acumulativos por género
-const genreMastery = {
-  'Rock': { currentLevel: 3, unlockedAbilities: ['ROCK_TAUNT', 'ROCK_PIERCE'] },
-  'Pop': { currentLevel: 2, unlockedAbilities: ['POP_HEAL', 'POP_DRAW'] },
-  // ... más géneros
-};
-```
+2. **Generación por sinergia musical:**
+   - Detectar sinergias entre cartas en juego
+   - Bonus por género y álbum combinados
+   - Sistema de maestría por género con niveles desbloqueables
 
 ---
 
 ## 🎮 MECÁNICAS ESPECÍFICAS DETALLADAS
 
 ### **1. SISTEMA DE COMBO MUSICAL**
-```typescript
-// Combo: 3+ cartas mismo álbum = efecto especial
-interface AlbumCombo {
-  requiredCards: number;        // 3+ cartas mismo álbum
-  effect: 'ALL_CREATURES_GAIN_HASTE'; // Todas ganan rapidez
-  duration: 2;                // 2 turnos
-}
 
-// Detección automática
-function checkAlbumCombo(hand: Card[], board: Card[]): boolean {
-  const albumCards = [...hand, ...board].filter(c => 
-    c.album === targetAlbum && c.format === 'ALBUM'
-  );
-  return albumCards.length >= 3;
-}
-```
+**Concepto:** 3+ cartas del mismo álbum activan efectos especiales
+
+**Estructura:**
+- `requiredCards`: Número mínimo de cartas (3+)
+- `effect`: Habilidad activada (ej: ALL_CREATURES_GAIN_HASTE)
+- `duration`: 2 turnos
+
+**Detección automática:**
+- Filtra cartas de mano y tablero por álbum específico
+- Requiere formato 'ALBUM' y mínimo 3 cartas
 
 ### **2. SISTEMA DE EVOLUCIÓN RÍTMICA**
-```typescript
-// Cartas pueden "evolucionar" durante la partida
-interface RhythmEvolution {
-  baseCard: string;           // Carta original
-  requiredPlays: number;       // Veces que debe jugarse
-  evolvedCard: string;         // Carta evolucionada
-  evolutionCondition: 'PLAY_COUNT' | 'DAMAGE_DEALT' | 'TURNS_IN_PLAY';
-}
 
-// Ejemplo: "Bohemian Rhapsody" → "Bohemian Symphony" después de 5 turnos
-```
+**Concepto:** Cartas evolucionan durante la partida
+
+**Estructura:**
+- `baseCard`: Carta original que evoluciona
+- `requiredPlays`: Veces que debe jugarse
+- `evolvedCard`: Carta resultante
+- `evolutionCondition`: Tipo de condición (PLAY_COUNT, DAMAGE_DEALT, TURNS_IN_PLAY)
+
+**Ejemplo:** "Bohemian Rhapsody" → "Bohemian Symphony" después de 5 turnos
 
 ### **3. SISTEMA DE IMPROVISACIÓN MUSICAL**
-```typescript
-// Combinar cartas para crear efectos nuevos
-interface Improvisation {
-  card1: string;
-  card2: string;  
-  resultAbility: string;      // Nueva habilidad temporal
-  cost: number;               // Energía para improvisar
-}
 
-// Ejemplo: Jazz + Blues = "Fusión Soul" (habilidad de curación masiva)
-```
+**Concepto:** Combinar cartas para crear efectos nuevos
+
+**Estructura:**
+- `card1`, `card2`: Cartas a combinar
+- `resultAbility`: Nueva habilidad temporal
+- `cost`: Energía requerida para improvisar
+
+**Ejemplo:** Jazz + Blues = "Fusión Soul" (curación masiva)
 
 ### **4. SISTEMA DE SETLIST DINÁMICA**
-```typescript
-// La playlist cambia el metajuego según cartas en juego
-interface SetlistEffect {
-  dominantGenre: string;       // Género con más cartas
-  globalEffect: string;        // Efecto en todas las cartas
-  duration: number;             // Turnos que dura
-}
 
-// Ejemplo: Dominancia Rock = Todas las criaturas ganan +1 ataque
-```
+**Concepto:** La playlist afecta el metajuego
+
+**Estructura:**
+- `dominantGenre`: Género con más cartas en juego
+- `globalEffect`: Efecto aplicado a todas las cartas
+- `duration`: Turnos que dura el efecto
+
+**Ejemplo:** Dominancia Rock = Todas las criaturas ganan +1 ataque
 
 ---
 
 ## 🔧 IMPLEMENTACIÓN TÉCNICA
 
 ### **1. Expansión de `ABILITIES_DB`**
-```typescript
-// Añadir nuevas habilidades sin límite
-const NEW_ABILITIES = {
-  // Habilidades de combo
-  'COMBO_ROCK_DUO_1': {
-    id: 'COMBO_ROCK_DUO_1',
-    name: 'Dúo de Rock',
-    description: 'Si tienes 2 cartas Rock, gana Trample.',
-    trigger: 'PASSIVE',
-    condition: { type: 'MIN_CARDS_OF_GENRE', value: 2, genre: 'Rock' },
-    effects: [{ type: 'COMBAT_MOD', value: 'TRAMPLE' }]
-  },
-  
-  // Habilidades contextuales
-  'CONTEXT_BATTLE_ROYAL_1': {
-    id: 'CONTEXT_BATTLE_ROYAL_1',
-    name: 'Batalla Real',
-    description: 'Solo activa si hay 10+ cartas en juego.',
-    trigger: 'ON_PLAY',
-    condition: { type: 'BOARD_SIZE', value: 10 },
-    effects: [{ type: 'GLOBAL_BUFF', value: 'ALL_CREATURES_PLUS_2_2' }]
-  }
-};
-```
+**Expansión de `ABILITIES_DB`:**
+
+**Nuevas habilidades sin límite:**
+- **Habilidades de combo:** Ej: 'Dúo de Rock' - requiere 2 cartas Rock para ganar Trample
+- **Habilidades contextuales:** Ej: 'Batalla Real' - solo activa si hay 10+ cartas en juego
+
+**Estructura de habilidad:**
+- `id`: Identificador único
+- `name`: Nombre visible
+- `description`: Texto explicativo
+- `trigger`: Cuándo se activa (PASSIVE, ON_PLAY, etc.)
+- `condition`: Requisito para activar
+- `effects`: Resultados de la habilidad
 
 ### **2. Sistema de Progresión de Habilidades**
-```typescript
-// Desbloqueo de habilidades por uso
-interface AbilityProgression {
-  abilityId: string;
-  currentLevel: number;      // 0-5
-  experience: number;          // XP ganada con esta habilidad
-  masteryBonus: number;         // Bonus por dominar la habilidad
-  unlockedEffects: string[];   // Efectos desbloqueados
-}
 
-// Ejemplo de progresión
-const abilityProgress = {
-  'ROCK_TAUNT': {
-    currentLevel: 3,
-    experience: 450,
-    masteryBonus: 1.5,  // +50% efectividad
-    unlockedEffects: ['TAUNT_AREA', 'PERMANENT_TAUNT']
-  }
-};
-```
+**Desbloqueo por uso:**
+- `abilityId`: Habilidad a progresar
+- `currentLevel`: Nivel actual (0-5)
+- `experience`: XP acumulada
+- `masteryBonus`: Multiplicador de efectividad
+- `unlockedEffects`: Efectos desbloqueados por nivel
+
+**Ejemplo:** 'ROCK_TAUNT' nivel 3 con +50% de efectividad y efectos adicionales
 
 ---
 
@@ -4085,188 +2015,71 @@ const abilityProgress = {
 
 ### PASO 1: Preparar tu proyecto
 
-```bash
-# Asume que tienes un proyecto Next.js con Supabase
-cd tu-proyecto-local
+**PASO 1: Preparar tu proyecto**
 
-# Crear carpetas si no existen
-mkdir -p src/lib
-mkdir -p src/components
-mkdir -p src/types
-mkdir -p src/styles
-```
+- Asumir proyecto Next.js con Supabase existente
+- Navegar al directorio del proyecto
+- Crear estructura de carpetas básica (src/lib, src/components, src/types, src/styles)
 
-### PASO 2: Copiar los archivos
+**PASO 2: Copiar los archivos**
 
-```bash
-# Copiar sistemas de lógica
-cp /ruta/a/abilityEngine.ts src/lib/
-cp /ruta/a/cardGenerator.ts src/lib/
-cp /ruta/a/combatSystem.ts src/lib/
-cp /ruta/a/economySystem.ts src/lib/
+**Sistemas de lógica:**
+- abilityEngine.ts → src/lib/
+- cardGenerator.ts → src/lib/
+- combatSystem.ts → src/lib/
+- economySystem.ts → src/lib/
 
-# Copiar tipos
-cp /ruta/a/types.ts src/types/
+**Tipos y componentes:**
+- types.ts → src/types/
+- CardComponents.tsx → src/components/
+- styles_cards.css → src/styles/
 
-# Copiar componentes React
-cp /ruta/a/CardComponents.tsx src/components/
+**PASO 3: Revisar importaciones**
 
-# Copiar estilos
-cp /ruta/a/styles_cards.css src/styles/
-```
+**Imports clave a verificar:**
+- cardGenerator.ts importa AbilityGenerator y MasterCardTemplate
+- combatSystem.ts importa MasterCardTemplate y GameState
+- CardComponents.tsx importa MasterCardTemplate y estilos CSS
+- Ajustar rutas según estructura del proyecto (@/lib/, @/types/, etc.)
 
-### PASO 3: Revisar importaciones
+**PASO 4: Crear Supabase Tables**
 
-En cada archivo, asegúrate de que los imports sean correctos:
+**Ejecutar SQL para crear tablas:**
+- master_cards (tabla principal de cartas)
+- game_states (estados de partidas)
+- player_profiles (perfiles de jugadores)
+- Índices de performance para búsquedas
 
-```typescript
-// En src/lib/cardGenerator.ts
-import { AbilityGenerator, GeneratedAbility } from '@/lib/abilityEngine';
-import { MasterCardTemplate } from '@/types'; // Cambiar según tu estructura
+**Estructura de tablas principales:**
+- **master_cards:** id, artist, album, genre, rarity, cost, atk, def, ability, youtube_data
+- **player_inventory:** user_id, regalias, wildcards, inventory, pity_timer, vault
+- **game_states:** match_id, player_a_id, player_b_id, state JSONB, is_finished, winner
+- **player_profiles:** user_id, username, avatar_url, bio, stats (wins/losses/elo/level)
 
-// En src/lib/combatSystem.ts
-import { MasterCardTemplate } from '@/lib/cardGenerator';
-import { GameState } from '@/types';
-
-// En src/components/CardComponents.tsx
-import { MasterCardTemplate } from '@/lib/cardGenerator';
-import '@/styles/cards.css';
-```
-
-### PASO 4: Crear Supabase Tables
-
-Ejecuta este SQL en Supabase:
-
-```sql
--- Tabla de cartas maestras
-CREATE TABLE master_cards (
-  id TEXT PRIMARY KEY,
-  apple_id TEXT,
-  isrc_code TEXT,
-  name TEXT NOT NULL,
-  artist TEXT NOT NULL,
-  album TEXT,
-  genre TEXT,
-  rarity TEXT NOT NULL, -- BRONZE, SILVER, GOLD, PLATINUM
-  cost INTEGER NOT NULL,
-  atk INTEGER NOT NULL,
-  def INTEGER NOT NULL,
-  ability JSONB, -- GeneratedAbility
-  youtube_views BIGINT,
-  youtube_video_id TEXT,
-  theme_color TEXT,
-  mechanic_tags TEXT[],
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tabla de inventario de jugadores
-CREATE TABLE player_inventory (
-  user_id TEXT PRIMARY KEY,
-  regalias INTEGER DEFAULT 0,
-  wildcards JSONB DEFAULT '{"bronze": 0, "silver": 0, "gold": 0, "platinum": 0}',
-  inventory JSONB DEFAULT '{}', -- {card_id: count}
-  pity_timer JSONB DEFAULT '{"silverGold": 0, "platinum": 0}',
-  vault JSONB DEFAULT '{"progress": 0, "lastGrantedAt": null}',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tabla de estados de partidas
-CREATE TABLE game_states (
-  match_id TEXT PRIMARY KEY,
-  player_a_id TEXT NOT NULL,
-  player_b_id TEXT NOT NULL,
-  state JSONB NOT NULL, -- GameState completo
-  is_finished BOOLEAN DEFAULT false,
-  winner TEXT,
-  end_condition TEXT, -- knockout, hype_win, forgotten, draw
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tabla de perfiles de jugadores
-CREATE TABLE player_profiles (
-  user_id TEXT PRIMARY KEY,
-  username TEXT NOT NULL UNIQUE,
-  avatar_url TEXT,
-  bio TEXT,
-  win_count INTEGER DEFAULT 0,
-  loss_count INTEGER DEFAULT 0,
-  elo_rating INTEGER DEFAULT 1500,
-  level INTEGER DEFAULT 1,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Índices para performance
-CREATE INDEX idx_master_cards_rarity ON master_cards(rarity);
-CREATE INDEX idx_master_cards_genre ON master_cards(genre);
-CREATE INDEX idx_game_states_players ON game_states(player_a_id, player_b_id);
-CREATE INDEX idx_game_states_finished ON game_states(is_finished);
-```
+**Índices de performance:**
+- Por rareza y género en master_cards
+- Por jugadores en game_states
+- Por estado finalizado en game_states
 
 ### PASO 5: Crear una página de prueba
 
-```typescript
-// app/test/card-generation/page.tsx
-'use client';
+**Página de prueba para generación de cartas:**
 
-import { CardGenerator } from '@/lib/cardGenerator';
-import { CardFlip } from '@/components/CardComponents';
-import { useState } from 'react';
+**Componente:** `app/test/card-generation/page.tsx`
 
-export default function TestCardGeneration() {
-  const [card, setCard] = useState(null);
+**Funcionalidad:**
+- Botón "Generar Carta" para crear carta de prueba
+- Usa datos de ejemplo (Bohemian Rhapsody de Queen)
+- Muestra la carta generada con componente CardFlip
+- Interfaz simple con fondo negro y diseño centrado
 
-  const handleGenerateCard = () => {
-    const testData = {
-      id: '145689012',
-      name: 'Bohemian Rhapsody',
-      artistName: 'Queen',
-      collectionName: 'A Night at the Opera',
-      primaryGenreName: 'Rock',
-      trackNumber: 11,
-      artworkUrl500: 'https://via.placeholder.com/500',
-    };
+**Datos de prueba:**
+- ID de track: 145689012
+- Género: Rock
+- Álbum: A Night at the Opera
+- ViewCount: 1.5 billones
 
-    const generated = CardGenerator.generateCard(testData, {
-      videoId: 'test',
-      viewCount: 1_500_000_000,
-    });
-
-    setCard(generated);
-  };
-
-  return (
-    <div className="w-full h-screen bg-black flex flex-col items-center justify-center gap-8">
-      <button
-        onClick={handleGenerateCard}
-        className="px-6 py-3 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400"
-      >
-        Generar Carta
-      </button>
-
-      {card && (
-        <div className="flex gap-8">
-          <CardFlip card={card} size="large" />
-          <div className="text-white">
-            <h2 className="text-2xl font-bold mb-4">{card.name}</h2>
-            <p className="mb-2">Artista: {card.artist}</p>
-            <p className="mb-2">Género: {card.genre}</p>
-            <p className="mb-2">Rareza: {card.rarity}</p>
-            <p className="mb-2">Cost: {card.cost}</p>
-            <p className="mb-2">ATK: {card.atk} / DEF: {card.def}</p>
-            {card.ability && (
-              <p className="mt-4 text-amber-500">{card.ability.text}</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-```
+**Visualización:** Muestra carta generada con CardFlip y detalles (nombre, artista, género, rareza, stats, habilidad)
 
 ---
 
@@ -4321,109 +2134,66 @@ export default function TestCardGeneration() {
 ## 🔧 TAREAS TÉCNICAS PENDIENTES
 
 ### API Integration
-```typescript
-// Crear archivo: src/lib/api/appleMusic.ts
-- searchMusic(query: string)
-- getTrackDetails(trackId: string)
+### API Integration
 
-// Crear archivo: src/lib/api/youtube.ts
-- searchVideo(title: string, artist: string)
-- getVideoStats(videoId: string)
-
-// Crear archivo: src/lib/api/musicBrainz.ts
-- getRecordingByISRC(isrc: string)
-- getMetadata(recordingId: string)
-```
+**Archivos a crear:**
+- `src/lib/api/appleMusic.ts`: searchMusic, getTrackDetails
+- `src/lib/api/youtube.ts`: searchVideo, getVideoStats
+- `src/lib/api/musicBrainz.ts`: getRecordingByISRC, getMetadata
 
 ### Supabase Integration
-```typescript
-// Crear archivo: src/lib/supabase.ts
-- Inicializar cliente Supabase
-- Funciones de CRUD para cada tabla
-- Real-time listeners para GameState
 
-// Crear archivo: src/lib/database.ts
-- saveMasterCard(card: MasterCardTemplate)
-- getPlayerInventory(userId: string)
-- updateGameState(matchId: string, state: GameState)
-```
+**Archivos a crear:**
+- `src/lib/supabase.ts`: Inicializar cliente, CRUD, Real-time listeners
+- `src/lib/database.ts`: saveMasterCard, getPlayerInventory, updateGameState
 
 ### Componentes Faltantes
-```typescript
-// src/components/GameBoard.tsx
-- Visualización del tablero
-- Animaciones de combate
-- Indicadores de vida/hype
 
-// src/components/DeckBuilder.tsx
-- Editor de mazos
-- Validación de deck
-- Analizador de curva
-
-// src/components/Store.tsx
-- Tienda de sobres
-- Historial de compras
-- Medidor de pity
-
-// src/components/Search.tsx
-- Buscador de La Disquera
-- Vista previa de cartas
-- Botón de crafteo
-```
+**Componentes a desarrollar:**
+- `GameBoard.tsx`: Visualización del tablero, animaciones de combate, indicadores de vida/hype
+- `DeckBuilder.tsx`: Editor de mazos, validación de deck, analizador de curva
+- `Store.tsx`: Tienda de sobres, historial de compras, medidor de pity
+- `Search.tsx`: Buscador de La Disquera, vista previa de cartas, botón de crafteo
 
 ### Hooks de React
-```typescript
-// src/hooks/useGameState.ts
-- Gestionar estado de partida
-- Acciones de juego
 
-// src/hooks/useInventory.ts
-- Gestionar inventario
-- Abrir sobres
-- Craftear cartas
-
-// src/hooks/useAuth.ts
-- Autenticación con Supabase
-- Gestión de sesión
-```
+**Hooks a crear:**
+- `useGameState.ts`: Gestionar estado de partida, acciones de juego
+- `useInventory.ts`: Gestionar inventario, abrir sobres, craftear cartas
+- `useAuth.ts`: Autenticación con Supabase, gestión de sesión
 
 ---
 
 ## 🧪 TESTING
 
 ### Unit Tests (Recomendado)
-```bash
-npm install --save-dev jest @testing-library/react
 
-# Crear:
-# __tests__/cardGenerator.test.ts
-# __tests__/abilityEngine.test.ts
-# __tests__/combatSystem.test.ts
-# __tests__/economySystem.test.ts
-```
+**Instalación de Jest y Testing Library:**
+- npm install --save-dev jest @testing-library/react
+- Crear archivos de test en carpeta __tests__/
+- Tests para cardGenerator, abilityEngine, combatSystem, economySystem
 
-### Test Cases Críticos
-```typescript
-// CardGenerator
+**Test Cases Críticos:**
+
+**CardGenerator:**
 - Misma canción siempre genera misma carta (Hash determinista)
 - Rareza se calcula correctamente por vistas
 - Eventos tienen coste reducido
 
-// AbilityEngine
+**AbilityEngine:**
 - Habilidades Tier 1 tienen penalización > Tier 3
 - Cartas Platino reciben descuento en recargo
 - Tags mecánicos se generan correctamente
 
-// CombatSystem
+**CombatSystem:**
 - El Choque: ambos reciben daño
 - La Emboscada: solo atacante daña
 - Victoria se detecta correctamente (3 condiciones)
 
-// EconomySystem
+**EconomySystem:**
 - Límite de 4 copias se respeta
 - Anti-duplicados: 5ª copia = comodín
 - Pity timer avanza correctamente
-```
 
 ---
 
@@ -4496,62 +2266,35 @@ Mejorar la experiencia en dispositivos móviles eliminando solapamientos y optim
 
 ### **1. 🎨 Mejoras en CSS Global (`globals.css`)**
 
+### **1. 🎨 Mejoras en CSS Global (`globals.css`)**
+
 #### **📱 Nuevas Utilidades Responsive:**
-```css
-/* 📱 Optimizaciones para móviles */
-.mobile-safe-area {
-    @apply pt-safe-top pb-safe-bottom px-safe;
-}
 
-.mobile-no-overflow {
-    @apply overflow-x-hidden overflow-y-auto;
-}
+**Mobile Safe Area:**
+- `mobile-safe-area`: Aplica padding para safe areas de iOS
+- `mobile-no-overflow`: Previene scroll horizontal
+- `mobile-touch-friendly`: Tamaño mínimo para touch (44px+)
 
-.mobile-touch-friendly {
-    @apply min-h-12 min-w-12 touch-manipulation;
-}
+**Tarjetas Responsive:**
+- `card-mobile`: w-48 para móviles
+- `card-tablet`: w-56 para tablets
+- `card-desktop`: w-64 para desktop
+- Mantienen aspect ratio 2.5/3.5
 
-/* 🎯 Tarjetas responsive */
-.card-mobile {
-    @apply w-48 aspect-[2.5/3.5] text-sm;
-}
+**Navegación Responsive:**
+- `nav-mobile`: Fixed bottom navigation para móviles
+- Fondo negro con backdrop-blur
+- Border top y z-50 para superposición
+**Navegación Mobile Items:**
+- `nav-mobile-item`: Flex column con gap y padding
+- `nav-mobile-text`: Texto tiny (10px) uppercase y tracking tight
 
-.card-tablet {
-    @apply w-56 aspect-[2.5/3.5] text-base;
-}
+**Viewport Height Fixes:**
+- `vh-full`: 100vh con fallback a 100dvh para móviles
 
-.card-desktop {
-    @apply w-64 aspect-[2.5/3.5] text-base;
-}
-
-/* 🎯 Navegación responsive */
-.nav-mobile {
-    @apply fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg border-t border-white/20 px-4 py-2 z-50;
-}
-
-.nav-mobile-item {
-    @apply flex flex-col items-center gap-1 p-2 rounded-lg transition-all;
-}
-
-.nav-mobile-text {
-    @apply text-[10px] uppercase font-bold tracking-tighter;
-}
-
-/* 🎯 Viewport height fixes */
-.vh-full {
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport height para móviles */
-}
-
-/* 🎯 Safe areas para iPhone */
-.safe-top {
-    padding-top: env(safe-area-inset-top);
-}
-
-.safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-}
-```
+**Safe Areas para iPhone:**
+- `safe-top`: Padding top con env(safe-area-inset-top)
+- `safe-bottom`: Padding bottom con env(safe-area-inset-bottom)
 
 #### **📱 Media Queries Específicas:**
 - **Mobile (< 640px):** Estilos específicos para móviles
@@ -4565,43 +2308,32 @@ Mejorar la experiencia en dispositivos móviles eliminando solapamientos y optim
 ### **2. 🏗️ Mejoras en Layout Principal (`layout.tsx`)**
 
 #### **📱 Meta Tags Optimizadas:**
-```html
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#0a0a0a" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-```
+- Viewport con user-scalable=no y viewport-fit=cover
+- Theme color negro para consistencia
+- apple-mobile-web-app-capable para PWA
+- Status bar black-translucent para inmersión
 
 #### **📱 Layout Responsive:**
-```jsx
-<body className={`${inter.className} bg-black text-white min-h-screen antialiased overflow-x-hidden mobile-safe-area`}>
-  <div className="relative z-10 w-full max-w-7xl mx-auto min-h-screen pb-20 md:pb-24">
-    <main className="layout-mobile md:layout-tablet lg:layout-desktop pt-2 md:pt-4 px-3 md:px-4 lg:px-6 mx-auto w-full max-w-5xl">
-      {children}
-    </main>
-  </div>
-</body>
-```
+- Body con mobile-safe-area y overflow-x-hidden
+- Container con max-width y padding responsive
+- Main con layout variants por breakpoint
+- Padding bottom extra para móviles (pb-20 vs pb-24)
 
 ---
 
 ### **3. 🧭 Mejoras en Navegación (`TabBar.tsx`)**
 
 #### **📱 Versión Móvil Optimizada:**
-```jsx
-<nav className="nav-mobile">
-  <ul className="flex justify-around items-center max-w-sm mx-auto mobile-only">
-    <TabItem href="/" icon={<Home size={20} />} label={t(language, 'nav', 'home')} isActive={pathname === '/'} />
-    {/* ... más items con iconos de 20px en móvil */}
-  </ul>
-  
-  {/* Versión Desktop/Tablet */}
-  <ul className="hidden md:flex justify-between items-center max-w-5xl mx-auto px-6 py-3 tablet-only desktop-only">
-    <TabItem href="/" icon={<Home size={24} />} label={t(language, 'nav', 'home')} isActive={pathname === '/'} />
-    {/* ... más items con iconos de 24px en desktop */}
-  </ul>
-</nav>
-```
+**Navegación Móvil:**
+- Fixed bottom navigation con `nav-mobile`
+- Flex justify-around para distribución equitativa
+- Iconos de 20px para móviles vs 24px para desktop
+- Hidden en desktop, visible solo en móvil
+
+**Navegación Desktop/Tablet:**
+- Hidden en móvil, visible desde md
+- Flex justify-between para distribución
+- Iconos más grandes (24px) para mejor visibilidad
 
 #### **🎯 Mejoras en Componentes:**
 - **Iconos más pequeños en móvil** (20px vs 24px)
@@ -4613,37 +2345,29 @@ Mejorar la experiencia en dispositivos móviles eliminando solapamientos y optim
 ### **4. 🃏 Mejoras en Componente de Cartas (`Card.tsx`)**
 
 #### **📱 Tarjetas Responsive:**
-```jsx
-// Tamaño adaptativo por dispositivo
-className={`relative card-hover-effect ${isBig ? 'w-80 sm:w-96' : 'card-mobile sm:card-tablet md:card-desktop'} aspect-[2.5/3.5]`}
-
-// Hover optimizado para móvil
-const delay = window.innerWidth < 768 ? 600 : 1200;
-```
+- **Tamaño adaptativo:** card-mobile → card-tablet → card-desktop según breakpoint
+- **Aspect ratio consistente:** 2.5/3.5 en todos los dispositivos
+- **Hover optimizado:** Delay más largo en móvil (600ms vs 1200ms)
 
 #### **🎯 Mejoras en Elementos:**
-- **Dot Counter:** Más pequeño en móvil (`w-3 h-3` vs `w-4 h-4`)
-- **Top Badges:** Espaciado optimizado (`top-2 sm:top-3`)
-- **Iconos:** Escalado responsive (`w-3.5 sm:w-4 sm:h-4`)
+- **Dot Counter:** Más pequeño en móvil (w-3 h-3 vs w-4 h-4)
+- **Top Badges:** Espaciado optimizado (top-2 sm:top-3)
+- **Iconos:** Escalado responsive (w-3.5 sm:w-4 sm:h-4)
 
 ---
 
 ### **5. 🏠 Mejoras en Página Principal (`page.tsx`)**
 
 #### **📱 Grid Responsive:**
-```jsx
-<div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-  {/* En móvil: 1 columna, en desktop: 2 columnas */}
-</div>
-```
+- **Móvil:** 1 columna (grid-cols-1)
+- **Desktop:** 2 columnas (md:grid-cols-2)
+- **Gap adaptativo:** gap-3 sm:gap-4
 
 #### **🎯 Botones Optimizados:**
-```jsx
-<button className="w-full bg-cyan-500 text-black font-black py-3 sm:py-4 rounded-xl sm:rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm">
-  <span className="hidden sm:inline">ELEGIR DIFICULTAD Y JUGAR</span>
-  <span className="sm:hidden">JUGAR</span>
-</button>
-```
+- **Texto responsive:** Texto completo en desktop, abreviado en móvil
+- **Padding adaptativo:** py-3 sm:py-4
+- **Border radius:** rounded-xl sm:rounded-2xl
+- **Tamaño de texto:** text-xs sm:text-sm
 
 ---
 

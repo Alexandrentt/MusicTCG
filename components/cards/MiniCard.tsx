@@ -17,7 +17,7 @@ export default function MiniCard({ data, className = '', count = 0, onArtistClic
 
   const { url: artworkUrl, variant } = useMemo(
     () => getBestArtworkSync(data),
-    [data.id, data.artworkUrl, data.videoId]
+    [data]
   );
 
   const rarityBorder = {
@@ -100,12 +100,12 @@ export default function MiniCard({ data, className = '', count = 0, onArtistClic
           {!isEvent && (
             <div className="flex justify-between items-center bg-white/5 backdrop-blur-md p-1.5 rounded-xl border border-white/10 group-hover/container:bg-white/10 transition-colors">
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-black text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">{data.stats?.atk ?? 0}</span>
+                <span className="text-[11px] font-black text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">{data.stats?.atk ?? data.atk ?? 0}</span>
                 <div className="w-1.5 h-1.5 rounded-full bg-red-500/30 border border-red-500/50" />
               </div>
               <div className="flex items-center gap-1.5 text-right">
                 <div className="w-1.5 h-1.5 rounded-full bg-teal-400/30 border border-teal-400/50" />
-                <span className="text-[11px] font-black text-teal-400 drop-shadow-[0_0_8px_rgba(45,212,191,0.4)]">{data.stats?.def ?? 0}</span>
+                <span className="text-[11px] font-black text-teal-400 drop-shadow-[0_0_8px_rgba(45,212,191,0.4)]">{data.stats?.def ?? data.def ?? 0}</span>
               </div>
             </div>
           )}
