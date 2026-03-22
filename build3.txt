@@ -1,0 +1,41 @@
+
+> MusicTCG @0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.14
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.8s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/14) ...
+   Generating static pages (3/14) 
+   Generating static pages (6/14) 
+   Generating static pages (10/14) 
+ ✓ Generating static pages (14/14)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    12.1 kB         260 kB
+├ ○ /_not-found                             1 kB         104 kB
+├ ○ /admin                               7.46 kB         191 kB
+├ ○ /admin/mythic                        3.28 kB         176 kB
+├ ƒ /api/match/create-vs-bot               123 B         103 kB
+├ ○ /friends                             5.65 kB         191 kB
+├ ○ /onboarding                          13.8 kB         239 kB
+├ ○ /play                                  25 kB         265 kB
+├ ○ /profile                             6.81 kB         201 kB
+├ ○ /search                              4.81 kB         243 kB
+├ ○ /store                               5.58 kB         245 kB
+└ ○ /studio                              19.4 kB         263 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/1255-aadf393aa3a56bfa.js      46.2 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js  54.4 kB
+  └ other shared chunks (total)          2.32 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

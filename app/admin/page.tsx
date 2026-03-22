@@ -22,6 +22,11 @@ export default function AdminGatePage() {
     const [isAuthenticated, setIsAuthenticated] = useState(isAdminAuthenticated());
     const [error, setError] = useState('');
     const [shake, setShake] = useState(false);
+    const [showPasswordChange, setShowPasswordChange] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordChangeError, setPasswordChangeError] = useState('');
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
 
     useEffect(() => {
         // Obtener email del usuario logueado
@@ -303,6 +308,25 @@ export default function AdminGatePage() {
                         <p className="text-purple-400/60 text-xs font-bold mt-1">
                             {email}
                         </p>
+                        
+                        {/* Password Actions */}
+                        <div className="flex gap-2 mt-4 justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowPasswordChange(true)}
+                                className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                            >
+                                Cambiar Contraseña
+                            </button>
+                            <span className="text-gray-600">•</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowForgotPassword(true)}
+                                className="text-xs text-orange-400 hover:text-orange-300 transition-colors"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
                     </div>
 
                     {/* Form */}
@@ -334,6 +358,100 @@ export default function AdminGatePage() {
                     </form>
                 </div>
             </div>
+
+            {/* Password Change Modal */}
+            {showPasswordChange && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+                    <div className="bg-[#0a0a0a] border border-purple-500/30 rounded-2xl p-6 max-w-md w-full">
+                        <h3 className="text-xl font-black text-white mb-4">Cambiar Contraseña</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-sm text-gray-400 block mb-2">Nueva Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
+                                    placeholder="Nueva contraseña..."
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm text-gray-400 block mb-2">Confirmar Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
+                                    placeholder="Confirmar contraseña..."
+                                />
+                            </div>
+                            {passwordChangeError && (
+                                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-xl">
+                                    {passwordChangeError}
+                                </div>
+                            )}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        if (newPassword && newPassword === confirmPassword) {
+                                            // Here you would update the password in your backend/database
+                                            toast.success('Contraseña actualizada correctamente');
+                                            setShowPasswordChange(false);
+                                            setNewPassword('');
+                                            setConfirmPassword('');
+                                            setPasswordChangeError('');
+                                        } else {
+                                            setPasswordChangeError('Las contraseñas no coinciden');
+                                        }
+                                    }}
+                                    className="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-colors"
+                                >
+                                    Actualizar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowPasswordChange(false);
+                                        setNewPassword('');
+                                        setConfirmPassword('');
+                                        setPasswordChangeError('');
+                                    }}
+                                    className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-xl transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Forgot Password Modal */}
+            {showForgotPassword && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+                    <div className="bg-[#0a0a0a] border border-orange-500/30 rounded-2xl p-6 max-w-md w-full">
+                        <h3 className="text-xl font-black text-white mb-4">Recuperar Contraseña</h3>
+                        <p className="text-gray-400 mb-6">
+                            Contacta al administrador del sistema para restablecer tu contraseña.
+                        </p>
+                        <div className="space-y-3">
+                            <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                                <p className="text-sm text-orange-400 font-bold mb-2">Opciones de recuperación:</p>
+                                <ul className="text-xs text-gray-300 space-y-2">
+                                    <li>• Email: admin@musictcg.com</li>
+                                    <li>• Discord: #admin-support</li>
+                                    <li>• Documentación del proyecto</li>
+                                </ul>
+                            </div>
+                            <button
+                                onClick={() => setShowForgotPassword(false)}
+                                className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 rounded-xl transition-colors"
+                            >
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

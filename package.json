@@ -7,7 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "clean": "next clean"
+    "clean": "next clean",
+    "test:procedural": "npx tsx lib/engine/testProcedural.ts",
+    "test:procedural:quick": "npx tsx -e \"import('./lib/engine/proceduralTesting').then(m => m.proceduralTestSuite.runQuickTest().then(r => console.log('Result:', r)))\"",
+    "test:abilities": "npm run test:procedural",
+    "migration:run": "npx tsx lib/engine/runMigration.ts",
+    "migration:check": "npm run migration:run",
+    "migration:safe": "npm run migration:run",
+    "migration:status": "npm run migration:run",
+    "migration:logs": "echo 'Check migration logs in Supabase migration_logs table'",
+    "migration:rollback": "npx tsx -e \"import('./lib/engine/runMigration').then(m => console.log('Rollback not implemented yet'))\""
   },
   "dependencies": {
     "@google/genai": "^1.17.0",

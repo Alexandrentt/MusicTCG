@@ -175,6 +175,47 @@ export enum Keyword {
   ENCORE = 'encore',
 }
 
+// NUEVO: Clasificación de Habilidades
+export enum AbilityType {
+  PASSIVE = 'passive',      // Siempre activa, no requiere activación
+  ACTIVE = 'active',        // Requiere activación manual o condición específica
+  TRIGGERED = 'triggered',  // Se activa por eventos del juego
+  ACTIVATED = 'activated',  // Costo adicional de energía para activar
+}
+
+export enum AbilityCategory {
+  // COMBAT
+  COMBAT_OFFENSE = 'combat_offense',      // Ataque, daño, destrucción
+  COMBAT_DEFENSE = 'combat_defense',      // Defensa, protección, taunt
+  COMBAT_MOBILITY = 'combat_mobility',     // Haste, flying, trample
+  
+  // RESOURCE
+  RESOURCE_ENERGY = 'resource_energy',        // Generación, ramp, costo
+  RESOURCE_DRAW = 'resource_draw',          // Robar, buscar, scry
+  RESOURCE_HAND = 'resource_hand',          // Descartar, manipular mano
+  
+  // CONTROL
+  CONTROL_BOARD = 'control_board',            // Remover, mover, congelar
+  CONTROL_TARGET = 'control_target',          // Silenciar, counter, redirect
+  CONTROL_META = 'control_meta',              // Instant, respuesta, negación
+  
+  // SYNERGY
+  SYNERGY_GENRE = 'synergy_genre',          // Bonos por género musical
+  SYNERGY_ALBUM = 'synergy_album',          // Bonos por álbum
+  SYNERGY_RARITY = 'synergy_rarity',        // Bonos por rareza
+  SYNERGY_PLAYLIST = 'synergy_playlist',      // Interacción con playlist
+  
+  // UTILITY
+  UTILITY_SEARCH = 'utility_search',           // Buscar, tutor
+  UTILITY_MANIPULATION = 'utility_manipulation', // Reordenar, filtrar
+  UTILITY_INFORMATION = 'utility_information',   // Revelar, scry
+  
+  // SPECIAL
+  SPECIAL_TRANSFORM = 'special_transform',      // Evolución, transformación
+  SPECIAL_LEGENDARY = 'special_legendary',    // Efectos únicos, game-changing
+  SPECIAL_CONDITIONAL = 'special_conditional',  // Condicionales complejas
+}
+
 export enum Condition {
   UNDERDOG = 'underdog',
   MAINSTREAM = 'mainstream',
@@ -201,6 +242,43 @@ export interface GeneratedAbility {
   statPenalty: number;
   keyword?: Keyword | string; // Compatibilidad con el generador v1
   description?: string;      // Compatibilidad con el generador v1
+  
+  // NUEVO: Clasificación de Habilidad
+  abilityType: AbilityType;
+  category?: AbilityCategory;
+  activationCost?: number;
+  isPermanent?: boolean;
+  stackable?: boolean;
+  
+  // 🌊 NUEVO: Sistema de Cascadas
+  cascades?: CascadeAbility[];
+  cascadeDepth?: number; // Nivel de profundidad de cascada
+  cascadeTrigger?: string; // Qué dispara esta cascada
+}
+
+export interface CascadeAbility {
+  id: string;
+  trigger: string; // Condición de cascada
+  effect: Effect;
+  target: Target;
+  value: number;
+  condition?: string;
+  delay?: number; // Turnos de espera
+  probability?: number; // Probabilidad de activación (0-1)
+  cascadeDepth?: number; // Profundidad de esta cascada
+  cascades?: CascadeAbility[]; // Sub-cascadas (cascadas anidadas)
+}
+
+export interface CascadeChain {
+  rootAbility: GeneratedAbility;
+  chain: CascadeAbility[];
+  totalEffects: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
+  estimatedDamage?: number;
+  estimatedHealing?: number;
+  estimatedResourceGain?: number;
+  isPermanent?: boolean;          // Efecto permanente vs temporal
+  stackable?: boolean;            // Si puede acumular múltiples copias
 }
 
 // ============================================

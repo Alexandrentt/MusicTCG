@@ -1,0 +1,2 @@
+lib/engine/combinationMatrix.ts(372,9): error TS1117: An object literal cannot have multiple properties with the same name.
+lib/engine/combinationMatrix.ts(456,9): error TS1117: An object literal cannot have multiple properties with the same name.

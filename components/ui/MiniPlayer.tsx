@@ -53,24 +53,41 @@ export default function MiniPlayer() {
     }
 
     const audio = audioRef.current;
+    if (!audio) return;
     
     const shouldPlay = isPlaying && (!isInBattle || playMusicInBattle);
+    audio.volume = volume;
 
     if (currentTrack && audio.src !== currentTrack.url) {
+      // Stop any current playback before changing source
+      audio.pause();
       audio.src = currentTrack.url;
       audio.load();
       if (shouldPlay) {
-        audio.play().catch(e => console.error("Audio play failed:", e));
+        // Wait for audio to be ready before playing
+        const playWhenReady = () => {
+          audio.play().catch((e) => {
+            if (e.name !== 'AbortError') {
+              console.error("Audio play failed:", e);
+            }
+          });
+        };
+        audio.addEventListener('canplay', playWhenReady, { once: true });
       }
     } else if (currentTrack) {
       if (shouldPlay) {
-        audio.play().catch(e => console.error("Audio play failed:", e));
+        // Only play if audio is ready
+        if (audio.readyState >= 2) {
+          audio.play().catch((e) => {
+            if (e.name !== 'AbortError') {
+              console.error("Audio play failed:", e);
+            }
+          });
+        }
       } else {
         audio.pause();
       }
     }
-
-    audio.volume = volume;
 
     return () => {
       // Don't destroy audio on unmount to keep it playing across pages

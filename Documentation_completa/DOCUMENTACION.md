@@ -42,6 +42,12 @@
 - **Mejora UX:** Navegación con botón "Volver al Panel" desde la página Mythic.
 - **Corrección:** Simplificada la navegación PvP en `app/friends/page.tsx` eliminando el import dinámico innecesario de `next/navigation`.
 
+### v1.2.1 (Corrección de Errores de Compilación y Tipado)
+- **Corrección Lógica:** Arreglado el error de tipado en `lib/abilityEngine.ts` agregando la propiedad `abilityType` faltante a las habilidades dinámicas y estáticas (`GeneratedAbility`), la cual requería de clasificación `PASSIVE`, `ACTIVATED` o `TRIGGERED`. Esto se realizó para cumplir con la nueva interfaz de generador de habilidades.
+- **Corrección Lógica:** Removida la declaración duplicada de `Effect.ENERGY_STEAL` en los pesos iniciales asignados a rarezas como `GOLD` o `PLATINUM` en `lib/engine/combinationMatrix.ts`.
+- **Corrección UI:** Arreglado error de compilación por la regla ESLint `react-hooks/set-state-in-effect` en los componentes `TabBar.tsx` y `BattleTutorialOverlay.tsx`, ignorando explícitamente la regla de ESLint sobre los setters dentro de los hooks `useEffect()`, dado que son requeridos para manejar la hidratación en UI en NextJS.
+- **Mejora:** Ejecutado y validado de principio a fin el comando `npm run build` sin errores, garantizando una compilación libre de errores y alertas críticas.
+
 ---
 
 ### Componentes Principales

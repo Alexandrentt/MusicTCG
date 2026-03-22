@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
 import { getMythicTrackIds } from '@/lib/admin/mythicService';
+import { registerMythicDiscovery, generateMythicDiscoveryMessage, generateMythicStatusMessage, getUserMythicStats } from '@/lib/mythic/mythicTracker';
 import RankingDisplay from '@/components/RankingDisplay';
 import ChestQueue from '@/components/monetization/ChestQueue';
 import CosmeticShopBanner from '@/components/monetization/CosmeticShopBanner';
@@ -59,6 +60,11 @@ export default function Home() {
   const [openedCards, setOpenedCards] = useState<OpenedCardItem[]>([]);
   const [isOpening, setIsOpening] = useState(false);
   const [revealingAll, setRevealingAll] = useState(false);
+  const [mythicStats, setMythicStats] = useState<{
+    totalMythicCards: number;
+    uniqueDiscoveries: number;
+    sharedDiscoveries: number;
+  }>({ totalMythicCards: 0, uniqueDiscoveries: 0, sharedDiscoveries: 0 });
   const [recentDiscoveries, setRecentDiscoveries] = useState<any[]>([]);
   const [globalStats, setGlobalStats] = useState<any>(null);
 
@@ -88,6 +94,16 @@ export default function Home() {
     checkDailyMissions();
     getRecentDiscoveries(6).then(setRecentDiscoveries);
     getGlobalStats().then(setGlobalStats);
+    
+    // Cargar estadísticas de cartas míticas
+    const loadMythicStats = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const stats = await getUserMythicStats(session.user.id);
+        setMythicStats(stats);
+      }
+    };
+    loadMythicStats();
 
     // -- Onboarding Detection --
     const onboarding = getOnboardingState();
@@ -130,14 +146,39 @@ export default function Home() {
       const shuffled = allTracks.sort(() => 0.5 - Math.random());
       const selectedTracks = shuffled.slice(0, totalCards);
 
-      const items: OpenedCardItem[] = selectedTracks.map((track: any) => {
+      const items: OpenedCardItem[] = [];
+      let newMythicDiscoveries = 0;
+      
+      for (const track of selectedTracks) {
         const card = generateCard(track, undefined, undefined, mythicTrackIds);
         const res = usePlayerStore.getState().addCard(card);
         const revealed = card.rarity !== 'PLATINUM' && card.rarity !== 'MYTHIC';
         const playerName = discoveryUsername || 'Un Jugador';
+        
+        // Manejar descubrimientos de cartas míticas
+        if (card.rarity === 'MYTHIC') {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            const discovery = await registerMythicDiscovery(card, session.user.id);
+            
+            if (discovery.isUniqueOwner) {
+              toast.success(generateMythicDiscoveryMessage(discovery), {
+                duration: 8000,
+                icon: '🌟'
+              });
+              newMythicDiscoveries++;
+            } else {
+              toast.success(`✨ Descubriste "${card.name}"! ${discovery.totalOwners} jugadores tienen esta carta mítica.`, {
+                duration: 6000,
+                icon: '🎯'
+              });
+            }
+          }
+        }
+        
         logDiscovery(card, playerName);
-        return { card, isDuplicate: res.convertedToWildcard, revealed };
-      });
+        items.push({ card, isDuplicate: res.convertedToWildcard, revealed });
+      }
 
       const rarityOrder = { BRONZE: 0, SILVER: 1, GOLD: 2, PLATINUM: 3, MYTHIC: 4 };
       items.sort((a, b) => (rarityOrder[a.card.rarity] || 0) - (rarityOrder[b.card.rarity] || 0));
@@ -145,6 +186,19 @@ export default function Home() {
       if (consumeFreePack(packsToOpen)) {
         setOpenedCards(items);
         setIsOpening(true);
+        
+        // Actualizar estadísticas de cartas míticas
+        if (newMythicDiscoveries > 0) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            const stats = await getUserMythicStats(session.user.id);
+            setMythicStats(stats);
+            toast.success(generateMythicStatusMessage(stats.totalMythicCards), {
+              duration: 5000,
+              icon: '🏆'
+            });
+          }
+        }
       }
     } catch (err) {
       console.error(err);
@@ -208,45 +262,77 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── SECCIÓN DE ACCIÓN RÁPIDA (NUEVA PARTIDA) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* VS BOT */}
-        <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 rounded-3xl p-6 flex flex-col gap-4 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] transition-all group">
-          <div className="flex items-center gap-4">
-            <div className="bg-cyan-500/20 p-3 rounded-2xl group-hover:scale-110 transition-transform">
-              <Shield className="w-8 h-8 text-cyan-400" />
+      {/* ── ESTADÍSTICAS DE CARTAS MÍTICAS ── */}
+      {mythicStats.totalMythicCards > 0 && (
+        <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-3xl p-6 mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="bg-purple-500/20 p-3 rounded-2xl">
+              <Star className="w-8 h-8 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">VS LA MÁQUINA</h2>
-              <p className="text-cyan-200/60 text-xs font-bold">Practica y gana regalías contra el bot</p>
+              <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">Colección Mítica</h3>
+              <p className="text-purple-200/60 text-sm font-bold">Tus cartas más raras y exclusivas</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-black/40 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-purple-400">{mythicStats.totalMythicCards}</div>
+              <div className="text-xs text-purple-200/60 uppercase font-bold">Total Míticas</div>
+            </div>
+            <div className="bg-black/40 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-pink-400">{mythicStats.uniqueDiscoveries}</div>
+              <div className="text-xs text-pink-200/60 uppercase font-bold">Descubrimientos Únicos</div>
+            </div>
+            <div className="bg-black/40 rounded-xl p-4 text-center">
+              <div className="text-2xl font-black text-cyan-400">{mythicStats.sharedDiscoveries}</div>
+              <div className="text-xs text-cyan-200/60 uppercase font-bold">Descubrimientos Compartidos</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SECCIÓN DE ACCIÓN RÁPIDA (NUEVA PARTIDA) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        {/* VS BOT */}
+        <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] transition-all group">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="bg-cyan-500/20 p-2 sm:p-3 rounded-xl sm:rounded-2xl group-hover:scale-105 transition-transform">
+              <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-2xl font-black text-white italic tracking-tighter uppercase">VS LA MÁQUINA</h2>
+              <p className="text-cyan-200/60 text-xs sm:text-sm font-bold">Practica y gana regalías contra el bot</p>
             </div>
           </div>
           <button
             onClick={() => setShowBotSelector(true)}
-            className="w-full bg-cyan-500 text-black font-black py-4 rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2"
+            className="w-full bg-cyan-500 text-black font-black py-3 sm:py-4 rounded-xl sm:rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm"
           >
-            <Play className="w-5 h-5 fill-current" />
-            ELEGIR DIFICULTAD Y JUGAR
+            <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+            <span className="hidden sm:inline">ELEGIR DIFICULTAD Y JUGAR</span>
+            <span className="sm:hidden">JUGAR</span>
           </button>
         </div>
 
         {/* VS AMIGO / PVP */}
-        <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-3xl p-6 flex flex-col gap-4 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] transition-all group">
-          <div className="flex items-center gap-4">
-            <div className="bg-purple-500/20 p-3 rounded-2xl group-hover:scale-110 transition-transform">
-              <Globe className="w-8 h-8 text-purple-400" />
+        <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] transition-all group">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="bg-purple-500/20 p-2 sm:p-3 rounded-xl sm:rounded-2xl group-hover:scale-105 transition-transform">
+              <Globe className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">RETAR AMIGO</h2>
-              <p className="text-purple-200/60 text-xs font-bold">Partidas en tiempo real contra otros jugadores</p>
+              <h2 className="text-lg sm:text-2xl font-black text-white italic tracking-tighter uppercase">RETAR AMIGO</h2>
+              <p className="text-purple-200/60 text-xs sm:text-sm font-bold">Partidas en tiempo real contra otros jugadores</p>
             </div>
           </div>
           <Link
             href="/friends"
-            className="w-full bg-purple-500 text-black font-black py-4 rounded-2xl hover:bg-purple-400 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 text-center"
+            className="w-full bg-purple-500 text-black font-black py-3 sm:py-4 rounded-xl sm:rounded-2xl hover:bg-purple-400 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm"
           >
-            <TrendingUp className="w-5 h-5" />
-            BUSCAR RIVAL
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">BUSCAR RIVAL</span>
+            <span className="sm:hidden">PVP</span>
           </Link>
         </div>
       </div>

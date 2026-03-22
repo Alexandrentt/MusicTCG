@@ -21,7 +21,8 @@ import {
     Condition,
     GeneratedAbility,
     MasterCardTemplate as Card,
-    CardRarity
+    CardRarity,
+    AbilityType
 } from '../types/types';
 
 // ============================================
@@ -103,6 +104,7 @@ export class AbilityGenerator {
             text: selected.text,
             mechanicTags: [selected.keyword],
             statPenalty: selected.penalty,
+            abilityType: AbilityType.PASSIVE,
         };
     }
 
@@ -186,6 +188,7 @@ export class AbilityGenerator {
             text,
             mechanicTags,
             statPenalty,
+            abilityType: trigger === Trigger.AURA ? AbilityType.PASSIVE : trigger === Trigger.SOLO ? AbilityType.ACTIVATED : AbilityType.TRIGGERED,
         };
     }
 

@@ -23,6 +23,8 @@ import { MasterCardTemplate } from '@/types/types';
 import { recordMatchResult, getCurrentUserId } from '@/lib/database/supabaseSync';
 import { toast } from 'sonner';
 import { generateRandomChest } from '@/lib/monetization/chestSystem';
+import BattleTutorialOverlay, { useBattleTutorial, BATTLE_TUTORIAL_STEPS } from '@/components/tutorial/BattleTutorialOverlay';
+import { HelpCircle } from 'lucide-react';
 
 
 function mapMasterCardToCardData(c: MasterCardTemplate): CardData {
@@ -205,13 +207,13 @@ function BoardCardSlot({
         hasTaunt ? 'ring-2 ring-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : '',
       ].join(' ') + (card.isTapped ? (owner === 'bot' ? ' -rotate-6' : ' rotate-6') : '')}
     >
-      <div className="absolute inset-0 rounded-[6px] sm:rounded-[10px] bg-zinc-900 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 rounded-[6px] sm:rounded-[10px] bg-zinc-800 overflow-hidden pointer-events-none">
         {card.artworkUrl ? (
-          <Image src={card.artworkUrl} alt={card.name} fill className="object-cover opacity-80" />
+          <Image src={card.artworkUrl} alt={card.name} fill className="object-cover opacity-90" />
         ) : (
-          <div className="w-full h-full flex justify-center items-center"><Music className="w-8 h-8 opacity-20" /></div>
+          <div className="w-full h-full flex justify-center items-center bg-gradient-to-br from-zinc-700 to-zinc-800"><Music className="w-8 h-8 opacity-50 text-cyan-400" /></div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
 
         {/* Name and Stats overlay for better visibility on board */}
         <div className="absolute bottom-1 left-1 right-1 flex flex-col gap-0.5">
@@ -299,6 +301,8 @@ function PlayPage() {
   const [showTurnIndicator, setShowTurnIndicator] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialCompleted, setTutorialCompleted] = useState(true); // Will check localStorage
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('novato');
   const inspectTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -341,6 +345,15 @@ function PlayPage() {
     setIsInBattle(matchStarted);
     return () => setIsInBattle(false);
   }, [matchStarted, setIsInBattle]);
+
+  // Check if tutorial was completed
+  useEffect(() => {
+    const completed = localStorage.getItem('battleTutorialCompleted');
+    if (!completed && matchStarted) {
+      setTutorialCompleted(false);
+      setShowTutorial(true);
+    }
+  }, [matchStarted]);
 
   // Derived gameState for potential engine compatibility or debug
   const gameState = useMemo(() => ({
@@ -777,12 +790,21 @@ function PlayPage() {
               TURNO {turnCount} — {turn === 'player' ? '>>> TU ACTUACIÓN' : '>>> RIVAL ACTUANDO'}
             </p>
           </div>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/10"
-          >
-            <Settings className="w-5 h-5 text-gray-400" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTutorial(true)}
+              className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/10"
+              title="Ayuda / Tutorial"
+            >
+              <HelpCircle className="w-5 h-5 text-cyan-400" />
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-colors border border-white/10"
+            >
+              <Settings className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Replica Phase Overlay */}
@@ -1087,7 +1109,18 @@ function PlayPage() {
           setVolume={setVolume}
           language={language}
         />
-      </div >
-    </div >
+
+        <BattleTutorialOverlay
+          isOpen={showTutorial}
+          onClose={() => setShowTutorial(false)}
+          onComplete={() => {
+            setTutorialCompleted(true);
+            setShowTutorial(false);
+            localStorage.setItem('battleTutorialCompleted', 'true');
+          }}
+          mode={tutorialCompleted ? 'refresher' : 'first-time'}
+        />
+      </div>
+    </div>
   );
 }

@@ -1,0 +1,23 @@
+
+> MusicTCG @0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.14
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 5.2s
+   Linting and checking validity of types ...
+Failed to compile.
+
+./lib/engine/combinationMatrix.ts:372:9
+Type error: An object literal cannot have multiple properties with the same name.
+
+[0m [90m 370 |[39m         [[33mEffect[39m[33m.[39m[33mENERGY_DENIAL[39m][33m:[39m [35m6[39m[33m,[39m
+ [90m 371 |[39m         [[33mEffect[39m[33m.[39m[33mENERGY_RECOVERY[39m][33m:[39m [35m4[39m[33m,[39m
+[31m[1m>[22m[39m[90m 372 |[39m         [[33mEffect[39m[33m.[39m[33mENERGY_STEAL[39m][33m:[39m [35m5[39m[33m,[39m
+ [90m     |[39m         [31m[1m^[22m[39m
+ [90m 373 |[39m         [[33mEffect[39m[33m.[39m[33mFORCE_SACRIFICE[39m][33m:[39m [35m4[39m[33m,[39m
+ [90m 374 |[39m         [[33mEffect[39m[33m.[39m[33mSACRIFICE_PAYOFF[39m][33m:[39m [35m4[39m[33m,[39m
+ [90m 375 |[39m         [[33mEffect[39m[33m.[39m[33mMANA_DISRUPTION[39m][33m:[39m [35m3[39m[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

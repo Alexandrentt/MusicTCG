@@ -21,11 +21,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${inter.className} bg-black text-white min-h-screen antialiased overflow-x-hidden`} suppressHydrationWarning>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
+      <body className={`${inter.className} bg-black text-white min-h-screen antialiased overflow-x-hidden mobile-safe-area`} suppressHydrationWarning>
         <SupabaseSync />
-        <div className="relative z-10 w-full max-w-7xl mx-auto min-h-screen pb-24">
+        <div className="relative z-10 w-full max-w-7xl mx-auto min-h-screen pb-20 md:pb-24">
           <Onboarding />
-          <main className="pb-24 pt-4 p-4 mx-auto w-full max-w-5xl">
+          <main className="layout-mobile md:layout-tablet lg:layout-desktop pt-2 md:pt-4 px-3 md:px-4 lg:px-6 mx-auto w-full max-w-5xl">
             {children}
           </main>
         </div>

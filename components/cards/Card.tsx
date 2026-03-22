@@ -35,9 +35,11 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
 
   const handleMouseEnter = () => {
     if (isBig || disableHover) return;
+    // Reduce hover delay on mobile for better UX
+    const delay = window.innerWidth < 768 ? 600 : 1200;
     hoverTimeoutRef.current = setTimeout(() => {
       setShowBigCard(true);
-    }, 1200);
+    }, delay);
   };
 
   const handleMouseLeave = () => {
@@ -54,11 +56,11 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
   const renderDotCounter = () => {
     if (ownedCount <= 1 || isBig) return null;
     return (
-      <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-1 z-40 pointer-events-none">
+      <div className="absolute -top-2 sm:-top-4 left-1/2 -translate-x-1/2 flex gap-0.5 sm:gap-1 z-40 pointer-events-none">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className={`w-4 h-4 rotate-45 border-2 transition-all duration-300 shadow-2xl ${i < ownedCount
+            className={`w-3 h-3 sm:w-4 sm:h-4 rotate-45 border-2 transition-all duration-300 shadow-2xl ${i < ownedCount
               ? 'bg-gradient-to-br from-orange-400 to-orange-600 border-orange-300/60 shadow-[0_0_10px_rgba(249,115,22,0.9)]'
               : 'bg-black/70 border-white/10 opacity-30'
               }`}
@@ -69,11 +71,11 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
   };
 
   const renderTopBadges = () => (
-    <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-20 pointer-events-none">
+    <div className="absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 flex justify-between items-start z-20 pointer-events-none">
       {/* Cost Badge */}
-      <div className="bg-black/80 backdrop-blur-xl px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-2xl">
-        <Music className={`text-cyan-400 ${isBig ? 'w-5 h-5' : 'w-3.5 h-3.5'}`} />
-        <span className={`font-black text-white ${isBig ? 'text-xl' : 'text-sm'}`}>{data.cost}</span>
+      <div className="bg-black/80 backdrop-blur-xl px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-white/20 flex items-center gap-1 sm:gap-1.5 shadow-2xl">
+        <Music className={`text-cyan-400 ${isBig ? 'w-5 h-5' : 'w-3.5 sm:w-4 sm:h-4'}`} />
+        <span className={`font-black text-white ${isBig ? 'text-xl' : 'text-xs sm:text-sm'}`}>{data.cost}</span>
       </div>
     </div>
   );
@@ -90,8 +92,8 @@ export default function Card({ data, className = '', onDoubleClick, isBig = fals
           onDoubleClick={onDoubleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          whileHover={(!isBig && !disableHover) ? { scale: 1.05, y: -5 } : {}}
-          className={`relative ${isBig ? 'w-80 sm:w-96' : 'w-64'} aspect-[2.5/3.5] rounded-3xl border-2 overflow-hidden flex flex-col ${rarityStyles} transition-all ${className}`}
+          whileHover={(!isBig && !disableHover) ? { scale: 1.02, y: -2 } : {}}
+          className={`relative card-hover-effect ${isBig ? 'w-80 sm:w-96' : 'card-mobile sm:card-tablet md:card-desktop'} aspect-[2.5/3.5] rounded-3xl border-2 overflow-hidden flex flex-col ${rarityStyles} transition-all ${className}`}
           style={{ '--theme-color': data.themeColor } as React.CSSProperties}
         >
           {renderTopBadges()}
