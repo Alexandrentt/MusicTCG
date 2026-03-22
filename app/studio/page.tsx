@@ -6,10 +6,15 @@ import { useMusicPlayer } from '@/store/useMusicPlayer';
 import Card from '@/components/cards/Card';
 import MiniCard from '@/components/cards/MiniCard';
 import { CardData } from '@/lib/engine/generator';
-import { Trash2, Plus, Minus, X, Play, Share2, RefreshCw, Music, Search as SearchIcon, Filter, CheckCircle2 } from 'lucide-react';
+import {
+  Music, Plus, Minus, Play, Info, Share2, Trash2, Search as SearchIcon, SlidersHorizontal,
+  ArrowUpDown, Filter, X, LayoutGrid, LayoutList, Check, Star,
+  Sparkles, Zap, ChevronLeft, ChevronRight, Download, Eye, ExternalLink, RefreshCw, CheckCircle2
+} from 'lucide-react';
+import AltArtToggle from '@/components/cards/AltArtToggle';
 import { shareCardAsImage } from '@/lib/share';
-import { toast } from 'sonner';
 import { t } from '@/lib/i18n';
+import { toast } from 'sonner';
 import useDebounce from '@/hooks/useDebounce';
 import { generateCard } from '@/lib/engine/generator';
 import { SearchResult } from '@/lib/search/searchEngine';
@@ -916,7 +921,7 @@ export default function StudioPage() {
 
       {/* Card Details / Mill Modal */}
       {selectedCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm overflow-y-auto" onClick={() => setSelectedCard(null)}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/92 backdrop-blur-sm overflow-y-auto" onClick={() => setSelectedCard(null)}>
           {(() => {
             const ownedMasterCard = Object.values(inventory).find(
               item =>
@@ -924,14 +929,15 @@ export default function StudioPage() {
                 item.card.artist.toLowerCase() === selectedCard.artist.toLowerCase()
             );
             return (
-              <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 max-w-5xl w-full animate-in fade-in zoom-in duration-200 py-8 lg:py-16 mx-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex flex-col lg:flex-row items-center lg:items-start gap-12 max-w-7xl w-full animate-in fade-in zoom-in-95 duration-300 py-8 lg:py-16 mx-auto px-6" onClick={e => e.stopPropagation()}>
 
-                {/* Left Col: Target Card and Actions */}
-                <div className="flex flex-col items-center gap-6 w-full max-w-md shrink-0">
-                  <div className="relative group" id="share-card-container">
+                {/* Left Col: BIG Card + Actions */}
+                <div className="flex flex-col items-center gap-8 w-full shrink-0 lg:w-auto">
+                  <div className="relative group drop-shadow-[0_0_50px_rgba(0,0,0,0.8)]" id="share-card-container">
                     <Card
                       data={selectedCard}
-                      className="w-72 sm:w-80"
+                      isBig={true}
+                      disableHover={true}
                       onArtistClick={(artist) => {
                         setGlobalSearchQuery(artist);
                         setSearchFilter('artist');
@@ -963,51 +969,62 @@ export default function StudioPage() {
 
 
                   {/* Wildcards for this rarity */}
-                  <div className="bg-[#121212]/80 backdrop-blur-md w-full p-3 rounded-xl border border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${selectedCard.rarity === 'BRONZE' ? 'bg-[#cd7f32]' :
-                        selectedCard.rarity === 'SILVER' ? 'bg-[#c0c0c0]' :
-                          selectedCard.rarity === 'GOLD' ? 'bg-[#ffd700]' : 'bg-cyan-400'
+                  <div className="bg-white/5 backdrop-blur-xl w-full p-4 rounded-2xl border border-white/10 flex items-center justify-between shadow-inner">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3.5 h-3.5 rounded-full shadow-[0_0_10px_currentColor] ${selectedCard.rarity === 'BRONZE' ? 'text-[#cd7f32] bg-[#cd7f32]' :
+                        selectedCard.rarity === 'SILVER' ? 'text-[#c0c0c0] bg-[#c0c0c0]' :
+                          selectedCard.rarity === 'GOLD' ? 'text-[#ffd700] bg-[#ffd700]' : 'text-cyan-400 bg-cyan-400'
                         }`} />
-                      <p className="text-gray-300 text-[10px] font-bold uppercase tracking-wider">
-                        {t(language, 'studio', 'wildcards')}: <span className="text-white ml-2">{wildcards[selectedCard.rarity] || 0}</span>
+                      <p className="text-gray-300 text-xs font-black uppercase tracking-widest">
+                        {t(language, 'studio', 'wildcards')}: <span className="text-white ml-2 text-sm">{wildcards[selectedCard.rarity] || 0}</span>
                       </p>
                     </div>
-                    <p className="text-[10px] text-gray-500 italic hidden sm:block">1.5 Rules Active</p>
                   </div>
 
-                  <div className="flex flex-wrap gap-4 w-full">
-                    <button
-                      onClick={() => setSelectedCard(null)}
-                      className="flex-1 min-w-[100px] py-3 rounded-full font-bold text-white bg-[#242424] hover:bg-[#333] transition-colors"
-                    >
-                      {t(language, 'studio', 'close') || 'Cerrar'}
-                    </button>
-                    <button
-                      onClick={() => handleShare(selectedCard)}
-                      className="flex-1 min-w-[100px] py-3 rounded-full font-bold text-black bg-blue-400 hover:bg-blue-300 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Share2 size={18} />
-                      <span>{t(language, 'studio', 'share') || 'Compartir'}</span>
-                    </button>
+                  {/* Alt Art Picker */}
+                  <div className="w-full">
+                    <AltArtToggle card={selectedCard} />
+                  </div>
+
+                  <div className="flex flex-col gap-4 w-full">
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        onClick={() => setSelectedCard(null)}
+                        className="py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white/50 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95"
+                      >
+                        {t(language, 'studio', 'close') || 'Cerrar'}
+                      </button>
+                      <button
+                        onClick={() => handleShare(selectedCard)}
+                        className="py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/40 border border-blue-400/30 transition-all flex items-center justify-center gap-2 active:scale-95"
+                      >
+                        <Share2 size={16} />
+                        <span>{t(language, 'studio', 'share') || 'Compartir'}</span>
+                      </button>
+                    </div>
+
                     {ownedMasterCard && (
-                      <div className="flex flex-col gap-4 w-full">
+                      <div className="flex flex-col gap-4 w-full mt-2">
                         <button
                           onClick={() => handleMillCard(selectedCard)}
-                          className="w-full py-3 rounded-full font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                          className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white bg-red-600/90 hover:bg-red-500 shadow-lg shadow-red-900/40 border border-red-400/30 transition-all flex items-center justify-center gap-2 active:scale-95"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={16} />
                           <span>{t(language, 'studio', 'mill') || 'Moler'}</span>
                         </button>
-                        <p className="text-xs text-gray-400 text-center">
+                        <p className="text-[10px] text-gray-500 text-center px-4 leading-relaxed italic opacity-60">
                           {t(language, 'studio', 'millWarning') || 'Moler esta carta la eliminará de tu colección y aumentará tu progreso para obtener un comodín de su rareza.'}
                         </p>
                       </div>
                     )}
+
                     {!ownedMasterCard && (
-                      <div className="w-full bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl text-center">
-                        <p className="text-cyan-400 text-xs font-bold uppercase tracking-widest mb-1">CARTA NO POSEÍDA</p>
-                        <p className="text-gray-400 text-[10px]">Busca esta carta en sobres o canjéala con comodines para añadirla a tu colección.</p>
+                      <div className="w-full bg-cyan-500/5 border border-cyan-500/10 p-5 rounded-2xl text-center backdrop-blur-sm">
+                        <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1.5 flex items-center justify-center gap-2">
+                          <Star size={10} className="fill-current" />
+                          CARTA NO POSEÍDA
+                        </p>
+                        <p className="text-gray-500 text-[10px] leading-relaxed">Consigue esta carta en sobres o canjéala con comodines para añadirla a tu mazo.</p>
                       </div>
                     )}
                   </div>
@@ -1053,29 +1070,39 @@ export default function StudioPage() {
                     {/* Lyrics Section — solo se oculta en error real */}
                     {(loadingLyrics || lyrics) && (
 
-                      <div className="w-full p-6 bg-[#121212] border border-white/10 rounded-2xl h-[300px] lg:h-[500px] flex flex-col shadow-inner">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6 flex items-center gap-2 shrink-0">
-                          <Music size={12} className="text-cyan-500" />
-                          {t(language, 'studio', 'lyrics')}
-                        </h3>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 relative">
+                      <div className="w-full p-8 bg-[#0a0a0a]/60 backdrop-blur-2xl border border-white/5 rounded-[2rem] h-[500px] lg:h-[650px] flex flex-col shadow-2xl relative overflow-hidden group/lyrics">
+                        {/* Glass edge */}
+                        <div className="absolute inset-0 border border-white/5 rounded-[2rem] pointer-events-none" />
+
+                        <div className="flex items-center justify-between mb-8 shrink-0">
+                          <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-cyan-400/60 flex items-center gap-3">
+                            <i className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
+                            {t(language, 'studio', 'lyrics')}
+                          </h3>
+                          <Music size={16} className="text-white/10" />
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 relative">
                           {loadingLyrics ? (
-                            <div className="flex gap-1 py-8 justify-center">
-                              <div className="w-1 h-6 bg-cyan-500/40 animate-bounce" />
-                              <div className="w-1 h-6 bg-cyan-500/40 animate-bounce delay-75" />
-                              <div className="w-1 h-6 bg-cyan-500/40 animate-bounce delay-150" />
+                            <div className="h-full flex flex-col items-center justify-center gap-4">
+                              <div className="flex gap-1.5">
+                                <div className="w-1.5 h-8 bg-cyan-500/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                <div className="w-1.5 h-8 bg-cyan-500/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                <div className="w-1.5 h-8 bg-cyan-500/40 rounded-full animate-bounce" />
+                              </div>
+                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest animate-pulse">Sincronizando líricas...</p>
                             </div>
                           ) : Array.isArray(lyrics) ? (
-                            <div className="flex flex-col gap-4 pb-12">
+                            <div className="flex flex-col gap-6 pb-24">
                               {lyrics.map((line, i) => (
                                 <p
                                   key={i}
                                   id={`lyric-${i}`}
-                                  className={`text-base leading-relaxed whitespace-pre-wrap font-serif italic transition-all duration-500 ${i === currentLyricIndex
-                                    ? 'text-white font-bold scale-110 origin-left drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]'
+                                  className={`text-lg sm:text-xl leading-relaxed whitespace-pre-wrap font-serif italic transition-all duration-700 ${i === currentLyricIndex
+                                    ? 'text-white font-bold opacity-100 translate-x-2 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] scale-105 origin-left'
                                     : i < currentLyricIndex
-                                      ? 'text-white/20 blur-[0.5px]'
-                                      : 'text-white/40'
+                                      ? 'text-white/10 blur-[1px] opacity-40 -translate-x-1'
+                                      : 'text-white/30 opacity-60'
                                     }`}
                                 >
                                   {line.text || '♪'}
@@ -1083,15 +1110,19 @@ export default function StudioPage() {
                               ))}
                             </div>
                           ) : typeof lyrics === 'string' && lyrics.length > 0 ? (
-                            <p className="text-base text-gray-300 leading-relaxed whitespace-pre-wrap font-serif italic pb-8 opacity-80">
+                            <p className="text-lg text-gray-300 leading-relaxed whitespace-pre-wrap font-serif italic pb-12 opacity-80 decoration-cyan-500/20 underline-offset-8">
                               {lyrics}
                             </p>
                           ) : (
-                            <div className="h-full flex items-center justify-center text-gray-600 text-xs text-center italic">
-                              No se encontraron letras para esta canción.
+                            <div className="h-full flex flex-col items-center justify-center text-gray-600 text-xs text-center italic gap-4">
+                              <Music size={32} className="opacity-10" />
+                              <p>Líricas no disponibles para esta frecuencia.</p>
                             </div>
                           )}
                         </div>
+
+                        {/* Bottom gradient fade for lyrics */}
+                        <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-[#0a0a0a] to-transparent pointer-events-none" />
                       </div>
                     )}
                   </div>

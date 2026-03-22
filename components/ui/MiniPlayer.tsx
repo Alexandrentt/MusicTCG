@@ -5,6 +5,7 @@ import { useMusicPlayer } from '@/store/useMusicPlayer';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Play, Pause, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function MiniPlayer() {
   const { currentTrack, isPlaying, volume, togglePlayPause, playNext, setVolume } = useMusicPlayer();
@@ -54,7 +55,7 @@ export default function MiniPlayer() {
 
     const audio = audioRef.current;
     if (!audio) return;
-    
+
     const shouldPlay = isPlaying && (!isInBattle || playMusicInBattle);
     audio.volume = volume;
 
@@ -101,10 +102,10 @@ export default function MiniPlayer() {
     <div className="fixed bottom-16 left-0 right-0 bg-[#181818] border-t border-white/10 p-2 z-40 flex items-center justify-between px-4 animate-in slide-in-from-bottom-2">
       {/* Progress Bar */}
       <div className="absolute top-0 left-0 h-0.5 bg-green-500 transition-all duration-100" style={{ width: `${progress}%` }}></div>
-      
+
       <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={handleInspect}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={currentTrack.artworkUrl} alt={currentTrack.title} className="w-10 h-10 rounded object-cover" crossOrigin="anonymous" />
+        <Image src={currentTrack.artworkUrl} alt={currentTrack.title} width={40} height={40} className="w-10 h-10 rounded object-cover" crossOrigin="anonymous" />
         <div className="flex flex-col min-w-0">
           <span className="text-white text-sm font-bold truncate">{currentTrack.title}</span>
           <span className="text-gray-400 text-xs truncate">{currentTrack.artist}</span>
@@ -112,10 +113,10 @@ export default function MiniPlayer() {
       </div>
 
       <div className="flex items-center gap-4">
-        <button onClick={togglePlayPause} className="text-white hover:scale-110 transition-transform">
+        <button onClick={togglePlayPause} aria-label={isPlaying ? "Pausar" : "Reproducir"} className="text-white hover:scale-110 transition-transform">
           {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
         </button>
-        <button onClick={playNext} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={playNext} aria-label="Siguiente Canción" className="text-gray-400 hover:text-white transition-colors">
           <SkipForward size={20} fill="currentColor" />
         </button>
       </div>

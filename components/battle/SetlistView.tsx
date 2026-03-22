@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CardData } from '@/lib/engine/generator';
 import { PlaylistSynergy } from '@/types/playlistCombat';
 import { ChevronDown, ChevronUp, Music, Zap, Shield, Star, BarChart2, Shuffle } from 'lucide-react';
+import Image from 'next/image';
 
 interface SetlistViewProps {
     // Datos del jugador
@@ -47,9 +48,11 @@ function MiniTrackRow({ track, index }: { track: CardData; index: number }) {
         >
             <span className="text-[10px] text-gray-500 w-4 shrink-0 font-mono">#{index + 1}</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
                 src={track.artworkUrl ? track.artworkUrl.replace('http://', 'https://') : ''}
                 alt={track.name}
+                width={32}
+                height={32}
                 className="w-8 h-8 rounded object-cover shrink-0"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
@@ -165,9 +168,11 @@ export default function SetlistView({
                                 <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-1">▶ Ahora tocando</p>
                                 <div className="flex items-center gap-2">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
+                                    <Image
                                         src={currentTrack.artworkUrl?.replace('http://', 'https://') || ''}
                                         alt={currentTrack.name}
+                                        width={40}
+                                        height={40}
                                         className="w-10 h-10 rounded object-cover border border-emerald-500/30"
                                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
@@ -263,10 +268,11 @@ export default function SetlistView({
                                             {fullPlaylist.map((card, i) => (
                                                 <div key={`${card.id}-${i}`} className="relative group aspect-square">
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img
+                                                    <Image
                                                         src={card.artworkUrl?.replace('http://', 'https://') || ''}
                                                         alt={card.name}
-                                                        className="w-full h-full rounded object-cover opacity-80 hover:opacity-100 transition"
+                                                        fill
+                                                        className="rounded object-cover opacity-80 hover:opacity-100 transition"
                                                         onError={(e) => {
                                                             const el = e.target as HTMLImageElement;
                                                             el.src = '';
@@ -330,11 +336,13 @@ export default function SetlistView({
                                 <div className="flex gap-1 overflow-x-auto">
                                     {pastTracks.slice(-6).map((t, i) => (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img
+                                        <Image
                                             key={`${t.id}-${i}`}
                                             src={t.artworkUrl?.replace('http://', 'https://') || ''}
                                             alt={t.name}
                                             title={t.name}
+                                            width={24}
+                                            height={24}
                                             className="w-6 h-6 rounded object-cover opacity-50 shrink-0"
                                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />

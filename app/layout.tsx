@@ -11,11 +11,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'MusicTCG | Tu mazo musical',
-  description: 'Un juego de cartas coleccionables procedural basado en música real.',
-  icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
-  }
+  description: 'Un juego de cartas coleccionables procedural basado en música real.'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

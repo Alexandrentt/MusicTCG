@@ -38,7 +38,14 @@ export interface PlayerState {
     PLATINUM: number;
     MYTHIC: number;
   };
-  inventory: Record<string, { card: CardData; count: number; obtainedAt: number }>;
+  inventory: Record<string, {
+    card: CardData;
+    count: number;
+    obtainedAt: number;
+    useAltArt?: boolean;
+    altArtUrl?: string;
+    altArtSource?: 'youtube' | 'caa' | 'generative';
+  }>;
   decks: Record<string, Deck>;
 
   freePacksCount: number;
@@ -110,6 +117,7 @@ export interface PlayerState {
   incrementPity: (rarity: 'GOLD' | 'PLATINUM') => void;
   resetPity: (rarity: 'GOLD' | 'PLATINUM') => void;
   completeOnboarding: (deckName: string, cards: CardData[]) => void;
+  setCardAltArt: (cardId: string, use: boolean, url?: string, source?: string) => void;
   recalculateInventory: () => void;
   resetAll: () => void;
 
@@ -182,6 +190,17 @@ export const usePlayerStore = create<PlayerState>()(
 
       inspectingCard: null,
       setInspectingCard: (card) => set({ inspectingCard: card }),
+      setCardAltArt: (cardId, use, url, source) => set(state => ({
+        inventory: {
+          ...state.inventory,
+          [cardId]: {
+            ...state.inventory[cardId],
+            useAltArt: use,
+            altArtUrl: url,
+            altArtSource: source as any,
+          }
+        }
+      })),
       addRegalias: (amount) => set((state) => ({ regalias: state.regalias + amount })),
 
       spendRegalias: (amount) => {

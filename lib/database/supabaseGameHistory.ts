@@ -52,6 +52,10 @@ export async function saveGameResult(match: GameMatch) {
  * Obtener historial de partidas de un jugador
  */
 export async function getPlayerMatchHistory(userId: string, limit: number = 10): Promise<GameMatch[]> {
+    if (!userId || userId === 'local-guest' || userId.length !== 36) {
+        return [];
+    }
+
     const { data, error } = await supabase
         .from('game_matches')
         .select('match_data')
@@ -60,17 +64,22 @@ export async function getPlayerMatchHistory(userId: string, limit: number = 10):
         .limit(limit);
 
     if (error) {
-        console.error("Error fetching match history:", error);
+        console.error("Error fetching match history:", error.message || error);
         return [];
     }
 
-    return data.map(row => row.match_data as GameMatch);
+    return (data || []).map(row => row.match_data as GameMatch);
 }
 
 /**
  * Obtener o inicializar estadísticas de jugador
  */
 export async function getPlayerStats(userId: string): Promise<PlayerStats> {
+    // Si no hay userId válido, devolvemos el placeholder directamente
+    if (!userId || userId === 'local-guest' || userId.length !== 36) {
+        return getPlaceholderStats(userId || 'local-guest');
+    }
+
     const { data, error } = await supabase
         .from('player_stats')
         .select('stats_data')
@@ -81,7 +90,15 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
         return data.stats_data as PlayerStats;
     }
 
-    // Inicialización (Placeholder completo por ahora)
+    if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching player stats:", error.message || error);
+    }
+
+    // Inicialización
+    return getPlaceholderStats(userId);
+}
+
+function getPlaceholderStats(userId: string): PlayerStats {
     return {
         userId,
         username: '...',

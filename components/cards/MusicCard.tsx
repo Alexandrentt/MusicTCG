@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { Zap, Shield, Swords, Droplets, Flame, Wind, Music, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import Image from 'next/image';
 
 /**
  * Interface de Datos (Props) as requested by USER.
@@ -121,10 +122,11 @@ export const MusicCard: React.FC<MusicCardProps> = ({
                 {albumArtUrl ? (
                     <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                             src={albumArtUrl}
                             alt={trackName}
-                            className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
+                            fill
+                            className="object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
                             crossOrigin="anonymous"
                         />
                     </>

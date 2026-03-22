@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Zap, Shield } from 'lucide-react';
 import { PlaylistCard } from '@/types/playlist';
+import Image from 'next/image';
 
 interface PlaylistCardProps {
     card: PlaylistCard;
@@ -33,10 +34,11 @@ export default function PlaylistCardComponent({
                 {/* Artwork & Header */}
                 <div className="relative aspect-[4/3] rounded-md overflow-hidden bg-white/5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                         src={cardData.artworkUrl}
                         alt={cardData.name}
-                        className={`w-full h-full object-cover ${state === 'TAPPED' ? 'grayscale opacity-50' : ''}`}
+                        fill
+                        className={`object-cover ${state === 'TAPPED' ? 'grayscale opacity-50' : ''}`}
                     />
                     <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/20">
                         <span className="text-[10px] font-bold text-white">Cost {cardData.cost}</span>

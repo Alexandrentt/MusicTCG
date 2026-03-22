@@ -5,18 +5,18 @@ import { usePlayerStore } from '@/store/usePlayerStore';
 import { useEffect, useState, useMemo } from 'react';
 import { Gift, CheckCircle, Loader2, Play, Star, Eye, Globe, Music, Sparkles, TrendingUp, ChevronRight, Shield, Settings as SettingsIcon, Radio, Music2, EyeOff, LayoutPanelTop } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateCard, CardData } from '@/lib/engine/generator';
+import { CardData } from '@/lib/engine/generator';
 import Card from '@/components/cards/Card';
 import CardBack from '@/components/CardBack';
 import { motion, AnimatePresence } from 'motion/react';
 import { t } from '@/lib/i18n';
 import { getRecentDiscoveries, logDiscovery, getGlobalStats } from '@/lib/discovery';
 import Pack from '@/components/store/Pack';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import PackOpenModal, { OpenedCardItem } from '@/components/store/PackOpenModal';
-import { getMythicTrackIds } from '@/lib/admin/mythicService';
 import { registerMythicDiscovery, generateMythicDiscoveryMessage, generateMythicStatusMessage, getUserMythicStats } from '@/lib/mythic/mythicTracker';
+import { useInventorySync } from '@/hooks/useInventorySync';
 import RankingDisplay from '@/components/RankingDisplay';
 import ChestQueue from '@/components/monetization/ChestQueue';
 import CosmeticShopBanner from '@/components/monetization/CosmeticShopBanner';
@@ -39,6 +39,10 @@ import { getOnboardingState } from '@/lib/onboarding/onboardingState';
 // HOME PAGE
 // ═════════════════════════════════════════
 export default function Home() {
+  const supabase = createSupabaseBrowserClient();
+  // Sincroniza inventario con Supabase al iniciar sesión
+  useInventorySync();
+
   const {
     freePacksCount,
     checkHourlyPacks,
@@ -94,7 +98,7 @@ export default function Home() {
     checkDailyMissions();
     getRecentDiscoveries(6).then(setRecentDiscoveries);
     getGlobalStats().then(setGlobalStats);
-    
+
     // Cargar estadísticas de cartas míticas
     const loadMythicStats = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -104,6 +108,7 @@ export default function Home() {
       }
     };
     loadMythicStats();
+
 
     // -- Onboarding Detection --
     const onboarding = getOnboardingState();
@@ -133,76 +138,71 @@ export default function Home() {
     if (freePacksCount <= 0) return;
     setLoading(true);
     try {
-      const mythicTrackIds = await getMythicTrackIds();
       const packsToOpen = freePacksCount;
-      const totalCards = packsToOpen * 5;
 
-      const resultsPool = await Promise.all([
-        fetch(`https://itunes.apple.com/search?term=pop&entity=song&limit=50`).then(r => r.json()),
-        fetch(`https://itunes.apple.com/search?term=rock&entity=song&limit=50`).then(r => r.json())
-      ]);
+      // ✅ SEGURO: La generación de cartas ocurre en el servidor
+      const res = await fetch('/api/packs/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: packsToOpen }),
+      });
 
-      const allTracks = resultsPool.flatMap(r => r.results || []);
-      const shuffled = allTracks.sort(() => 0.5 - Math.random());
-      const selectedTracks = shuffled.slice(0, totalCards);
+      const data = await res.json();
 
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al abrir sobres');
+      }
+
+      const cards: CardData[] = data.cards;
       const items: OpenedCardItem[] = [];
       let newMythicDiscoveries = 0;
-      
-      for (const track of selectedTracks) {
-        const card = generateCard(track, undefined, undefined, mythicTrackIds);
-        const res = usePlayerStore.getState().addCard(card);
+      const playerName = discoveryUsername || 'Un Jugador';
+
+      for (const card of cards) {
+        // Actualizar inventario local (Zustand) con las cartas ya persistidas en BD
+        const addResult = usePlayerStore.getState().addCard(card);
         const revealed = card.rarity !== 'PLATINUM' && card.rarity !== 'MYTHIC';
-        const playerName = discoveryUsername || 'Un Jugador';
-        
-        // Manejar descubrimientos de cartas míticas
+
+        // Registrar descubrimientos míticos
         if (card.rarity === 'MYTHIC') {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user?.id) {
             const discovery = await registerMythicDiscovery(card, session.user.id);
-            
             if (discovery.isUniqueOwner) {
-              toast.success(generateMythicDiscoveryMessage(discovery), {
-                duration: 8000,
-                icon: '🌟'
-              });
+              toast.success(generateMythicDiscoveryMessage(discovery), { duration: 8000, icon: '🌟' });
               newMythicDiscoveries++;
             } else {
-              toast.success(`✨ Descubriste "${card.name}"! ${discovery.totalOwners} jugadores tienen esta carta mítica.`, {
-                duration: 6000,
-                icon: '🎯'
-              });
+              toast.success(`✨ Descubriste "${card.name}"! ${discovery.totalOwners} jugadores tienen esta carta.`, { duration: 6000, icon: '🎯' });
             }
           }
         }
-        
+
         logDiscovery(card, playerName);
-        items.push({ card, isDuplicate: res.convertedToWildcard, revealed });
+        items.push({ card, isDuplicate: addResult.convertedToWildcard, revealed });
       }
+
+      // Actualizar freePacksCount en el store local con el valor correcto del servidor
+      usePlayerStore.setState({
+        freePacksCount: data.remainingPacks ?? 0,
+      });
 
       const rarityOrder = { BRONZE: 0, SILVER: 1, GOLD: 2, PLATINUM: 3, MYTHIC: 4 };
-      items.sort((a, b) => (rarityOrder[a.card.rarity] || 0) - (rarityOrder[b.card.rarity] || 0));
+      items.sort((a, b) => (rarityOrder[a.card.rarity as keyof typeof rarityOrder] || 0) - (rarityOrder[b.card.rarity as keyof typeof rarityOrder] || 0));
 
-      if (consumeFreePack(packsToOpen)) {
-        setOpenedCards(items);
-        setIsOpening(true);
-        
-        // Actualizar estadísticas de cartas míticas
-        if (newMythicDiscoveries > 0) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user?.id) {
-            const stats = await getUserMythicStats(session.user.id);
-            setMythicStats(stats);
-            toast.success(generateMythicStatusMessage(stats.totalMythicCards), {
-              duration: 5000,
-              icon: '🏆'
-            });
-          }
+      setOpenedCards(items);
+      setIsOpening(true);
+
+      if (newMythicDiscoveries > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          const stats = await getUserMythicStats(session.user.id);
+          setMythicStats(stats);
+          toast.success(generateMythicStatusMessage(stats.totalMythicCards), { duration: 5000, icon: '🏆' });
         }
       }
-    } catch (err) {
-      console.error(err);
-      toast.error('Error al abrir sobres gratis');
+    } catch (err: any) {
+      console.error('[handleOpenFreePacks]', err);
+      toast.error(err.message || 'Error al abrir sobres gratis');
     } finally {
       setLoading(false);
     }
@@ -274,7 +274,7 @@ export default function Home() {
               <p className="text-purple-200/60 text-sm font-bold">Tus cartas más raras y exclusivas</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-black/40 rounded-xl p-4 text-center">
               <div className="text-2xl font-black text-purple-400">{mythicStats.totalMythicCards}</div>

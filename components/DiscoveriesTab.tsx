@@ -11,6 +11,7 @@ import { t } from '@/lib/i18n';
 import { useMusicPlayer } from '@/store/useMusicPlayer';
 import { toast } from 'sonner';
 import { shareCardAsImage } from '@/lib/share';
+import Image from 'next/image';
 
 export default function DiscoveriesTab() {
     const { language } = usePlayerStore();
@@ -128,8 +129,8 @@ export default function DiscoveriesTab() {
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap border-2 ${filter === f
-                                        ? 'bg-white border-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]'
-                                        : 'bg-zinc-900 border-white/5 text-gray-500 hover:border-white/20'
+                                    ? 'bg-white border-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]'
+                                    : 'bg-zinc-900 border-white/5 text-gray-500 hover:border-white/20'
                                     }`}
                             >
                                 {f === 'all' ? 'Ver Todos' : f}
@@ -156,8 +157,8 @@ export default function DiscoveriesTab() {
                     {Object.entries(globalStats.rarityCounts).map(([rarity, count]: [any, any]) => (
                         <div key={rarity} className="px-4 py-2 bg-zinc-900 border border-white/5 rounded-xl flex items-center gap-3">
                             <div className={`w-2 h-2 rounded-full ${rarity === 'PLATINUM' ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]' :
-                                    rarity === 'GOLD' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' :
-                                        rarity === 'SILVER' ? 'bg-gray-400' : 'bg-orange-600'
+                                rarity === 'GOLD' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' :
+                                    rarity === 'SILVER' ? 'bg-gray-400' : 'bg-orange-600'
                                 }`} />
                             <span className="text-[10px] font-black tracking-widest text-gray-400 uppercase">{rarity}</span>
                             <span className="text-xs font-black text-white">{count}</span>
@@ -202,22 +203,23 @@ export default function DiscoveriesTab() {
                         >
                             <div className="aspect-[4/5] relative">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <Image
                                     src={discovery.artworkUrl}
                                     alt={discovery.name}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1500ms]"
+                                    fill
+                                    className="object-cover group-hover:scale-110 transition-transform duration-[1500ms]"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent opacity-80" />
 
                                 {/* Rarity Badge */}
                                 <div className="absolute top-4 right-4">
                                     <div className={`p-1.5 rounded-xl border backdrop-blur-md ${discovery.rarity === 'PLATINUM' ? 'bg-cyan-500/10 border-cyan-400/50' :
-                                            discovery.rarity === 'GOLD' ? 'bg-amber-500/10 border-amber-400/50' :
-                                                discovery.rarity === 'SILVER' ? 'bg-white/10 border-white/20' : 'bg-orange-950/20 border-orange-400/30'
+                                        discovery.rarity === 'GOLD' ? 'bg-amber-500/10 border-amber-400/50' :
+                                            discovery.rarity === 'SILVER' ? 'bg-white/10 border-white/20' : 'bg-orange-950/20 border-orange-400/30'
                                         }`}>
                                         <Sparkles className={`w-4 h-4 ${discovery.rarity === 'PLATINUM' ? 'text-cyan-400' :
-                                                discovery.rarity === 'GOLD' ? 'text-amber-400' :
-                                                    'text-white'
+                                            discovery.rarity === 'GOLD' ? 'text-amber-400' :
+                                                'text-white'
                                             }`} />
                                     </div>
                                 </div>
@@ -279,6 +281,7 @@ export default function DiscoveriesTab() {
                                 {selectedCard.previewUrl && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); handlePlayPreview(selectedCard); }}
+                                        aria-label="Reproducir preview"
                                         className="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-500 text-black rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all"
                                     >
                                         <Play size={32} fill="currentColor" />
