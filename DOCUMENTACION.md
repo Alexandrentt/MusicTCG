@@ -9,6 +9,86 @@
 
 ## Historial de Versiones
 
+### v1.6.5 (Arreglo de Dominio y Flujo de Recuperación de Contraseña)
+- **Problema de Dominio Arreglado:** El enlace de recuperación de contraseña redirigía al dominio incorrecto (`musictcg-alexandrentts-projects.vercel.app`).
+- **Solución:** Cambiado `redirectTo` en `handleForgotPassword` de `${window.location.origin}/profile` a `'https://musictcg.vercel.app/profile'`.
+- **Nuevo Flujo de Recuperación Completo:**
+  1. Usuario ingresa su correo en "Recuperar Contraseña"
+  2. Recibe email con enlace a `musictcg.vercel.app/profile#access_token=...&type=recovery`
+  3. Al hacer clic, se detecta el token en la URL (`useEffect` con `PASSWORD_RECOVERY`)
+  4. Se muestra formulario de "Establecer Nueva Contraseña" automáticamente
+  5. Usuario ingresa nueva contraseña + confirmación
+  6. Se llama a `supabase.auth.updateUser({ password: newPassword })`
+  7. Éxito: Se limpia el formulario y el hash de la URL
+- **Nueva Funcionalidad:** Cambiar contraseña para usuarios logueados - Sección en Settings que permite a usuarios autenticados cambiar su contraseña sin cerrar sesión.
+- **Nuevos Estados Agregados:**
+  - `showPasswordReset` - Controla visibilidad del formulario de nueva contraseña (recuperación)
+  - `newPassword` - Almacena la nueva contraseña
+  - `confirmPassword` - Para validar coincidencia
+- **Nueva Función:** `handleUpdatePassword` - Maneja la actualización de contraseña con validaciones:
+  - Ambos campos requeridos
+  - Mínimo 6 caracteres
+  - Las contraseñas deben coincidir
+- **Archivo Modificado:** `app/profile/page.tsx` (líneas 31-34, 42, 96-97, 198-235, 256-296, 527-562)
+- **Justificación:** El flujo anterior solo enviaba el email pero no permitía establecer la nueva contraseña en la app. Ahora el proceso es completo: desde solicitar recuperación hasta establecer nueva contraseña y estar listo para iniciar sesión. Además, los usuarios logueados pueden cambiar su contraseña directamente desde el perfil.
+
+---
+
+### v1.6.4 (Sistema de Autenticación con Email Real)
+- **Cambio Mayor:** Migración de sistema de autenticación de "ghost emails" a **email real + contraseña**.
+- **Problema Anterior:** El sistema generaba emails falsos (`username@gmail.com`) a partir del nombre de usuario, lo cual causaba confusión y problemas con la recuperación de contraseña.
+- **Nuevo Flujo de Autenticación:**
+  - **Login:** Usuario ingresa correo electrónico real + contraseña
+  - **Registro:** Email real (requerido) + Contraseña + Nombre de usuario (opcional)
+  - **Recuperación de contraseña:** Se envía al correo electrónico real del usuario
+- **Validaciones Agregadas:**
+  - Validación de formato de email (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`)
+  - Mensajes de error claros cuando el correo no tiene formato válido
+- **Cambios en Estados:**
+  - `displayName` → `email` (para input de login)
+  - Nuevo estado `username` (opcional, solo para registro)
+  - Formulario limpia los campos después de autenticación exitosa (`setEmail('')`, `setPassword('')`, `setUsername('')`)
+- **UI Actualizada:**
+  - Labels cambiados de "Nombre de Usuario" a "Correo Electrónico"
+  - Placeholders actualizados (`tu@correo.com`)
+  - Campo de nombre de usuario marcado como opcional solo en registro
+- **Archivo Modificado:** `app/profile/page.tsx` (líneas 20-290)
+- **Justificación:** Los usuarios esperan usar su correo electrónico real para autenticarse. El sistema anterior de "ghost emails" era confuso y no permitía recuperar contraseñas de manera confiable.
+
+---
+
+### v1.6.3 (Corrección de "Olvidar Contraseña")
+- **Bug Crítico Arreglado:** La estructura condicional JSX en `app/profile/page.tsx` estaba incorrecta. El formulario de "Recuperar Contraseña" estaba en la rama del usuario logueado (`!user ? ... : showForgotPassword ? ...`), haciendo imposible acceder a la funcionalidad.
+- **Corrección:** Reestructurado el operador ternario para anidar correctamente:
+  - Si NO hay usuario (`!user`), verificar `showForgotPassword`:
+    - Si es `true` → Mostrar formulario de recuperación de contraseña
+    - Si es `false` → Mostrar formulario de login/registro
+  - Si hay usuario → Mostrar botón de cerrar sesión
+- **Archivo Modificado:** `app/profile/page.tsx` (líneas 198-288)
+- **Justificación:** La lógica previa violaba el sentido común - un usuario logueado no necesita "olvidar contraseña". La corrección permite que usuarios no autenticados puedan recuperar su contraseña usando su nombre de usuario.
+
+---
+
+### v1.6.2 (Sistema de Loading Controlado por Tabs)
+- **Nuevo Sistema de Loading:** Implementado loading overlay controlado manualmente en `app/studio/page.tsx` para mostrar transiciones al cambiar entre tabs (Mazos, Colección, Descubrimientos).
+- **Estados de Loading:** Agregados `isTabLoading`, `tabLoadingProgress` y `tabLoadingMessage` para controlar la visualización del loading.
+- **Mensajes Dinámicos por Tab:** Cada tab tiene mensajes específicos:
+  - `mazos`: ['Cargando mazos...', 'Organizando cartas...', 'Preparando deckbuilder...']
+  - `coleccion`: ['Cargando colección...', 'Organizando cartas...', 'Preparando vista previa...']
+  - `descubrimientos`: ['Cargando descubrimientos...', 'Sincronizando datos...', 'Preparando explorador...']
+- **Función handleTabChange:** Reemplaza `setActiveTab` directo para activar loading inmediatamente al cambiar de pestaña, simular progreso, y ocultar cuando el contenido está listo.
+- **UI de Loading Overlay:** Componente visual con z-[100], spinner animado con motion.div, barra de progreso dinámica, y mensajes rotativos. Dura ~600ms + tiempo de renderizado.
+- **Justificación:** El loading nativo de Next.js (`loading.tsx`) solo aparece en carga inicial de página, no en cambios de estado cliente-side. Este sistema proporciona feedback visual inmediato al usuario cuando navega entre secciones del Studio.
+
+---
+
+### v1.6.1 (Hotfix - Corrección de Error de Sintaxis)
+- **Corrección Urgente:** Eliminado componente `MatchHistory` duplicado en `app/profile/page.tsx` que causaba error de sintaxis "Expression expected" y rompía el build.
+- **Limpieza:** Caché de build limpiado (`rm -rf .next`) para eliminar errores de módulos no encontrados (`./611.js`, `./331.js`).
+- **Validación:** Build exitoso verificado con `npm run build`.
+
+---
+
 ### v1.6.0 (Sincronización Total Supabase, Perfil Expandido y Limpieza de Loaders)
 
 En esta versión se completa la transición hacia una arquitectura de "Nube como Fuente de la Verdad", eliminando definitivamente los cargadores manuales en favor de un sistema de sincronización silencioso y nativo.

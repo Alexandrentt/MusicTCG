@@ -31,6 +31,66 @@ import SearchCardResult from '@/components/discovery/SearchCardResult';
 
 export default function StudioPage() {
   const [activeTab, setActiveTab] = useState<'mazos' | 'coleccion' | 'descubrimientos'>('coleccion');
+  const [isTabLoading, setIsTabLoading] = useState(false);
+  const [tabLoadingProgress, setTabLoadingProgress] = useState(15);
+  const [tabLoadingMessage, setTabLoadingMessage] = useState('Cargando...');
+
+  const TAB_LOADING_MESSAGES: Record<string, string[]> = {
+    mazos: ['Cargando mazos...', 'Organizando cartas...', 'Preparando deckbuilder...'],
+    coleccion: ['Cargando colección...', 'Organizando cartas...', 'Preparando vista previa...'],
+    descubrimientos: ['Cargando descubrimientos...', 'Sincronizando datos...', 'Preparando explorador...']
+  };
+
+  // Función para cambiar de tab con loading controlado
+  const handleTabChange = (tab: 'mazos' | 'coleccion' | 'descubrimientos') => {
+    if (tab === activeTab) return;
+    
+    setIsTabLoading(true);
+    setTabLoadingProgress(15);
+    setTabLoadingMessage(TAB_LOADING_MESSAGES[tab][0]);
+    
+    // Simular progreso de carga
+    let progress = 15;
+    const progressInterval = setInterval(() => {
+      progress += Math.random() * 15;
+      if (progress >= 85) {
+        progress = 85;
+        clearInterval(progressInterval);
+      }
+      setTabLoadingProgress(progress);
+      
+      // Rotar mensajes
+      const messageIndex = Math.floor((progress / 85) * TAB_LOADING_MESSAGES[tab].length);
+      setTabLoadingMessage(TAB_LOADING_MESSAGES[tab][Math.min(messageIndex, TAB_LOADING_MESSAGES[tab].length - 1)]);
+    }, 150);
+    
+    // Cambiar el tab inmediatamente
+    setActiveTab(tab);
+    
+    // Usar requestAnimationFrame para detectar cuando React ha terminado de renderizar
+    // Esto asegura que el loading se muestre durante todo el proceso de renderizado
+    const checkRenderComplete = () => {
+      // Verificar que el DOM se ha actualizado
+      requestAnimationFrame(() => {
+        // Dar un pequeño margen para asegurar que todo esté listo
+        setTimeout(() => {
+          clearInterval(progressInterval);
+          setTabLoadingProgress(100);
+          
+          // Ocultar loading con transición suave
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              setIsTabLoading(false);
+              setTabLoadingProgress(15);
+            }, 200);
+          });
+        }, 100);
+      });
+    };
+    
+    // Iniciar verificación de renderizado
+    checkRenderComplete();
+  };
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -533,6 +593,39 @@ export default function StudioPage() {
 
   return (
     <div className="flex flex-col gap-6 min-h-screen pb-24 relative">
+      {/* LOADING OVERLAY - Aparece al cambiar de tab */}
+      {isTabLoading && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
+          <div className="relative w-[72px] h-[72px] mb-8">
+            <motion.div 
+              animate={{ rotate: 360 }} 
+              transition={{ duration: 3, repeat: Infinity, ease: 'linear' }} 
+              className="absolute inset-0 rounded-full border-[1.5px] border-transparent border-t-cyan-400/65"
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Music size={24} className="text-white/40" />
+            </div>
+          </div>
+          <div className="w-[200px]">
+            <div className="h-[2px] bg-white/10 rounded overflow-hidden mb-3">
+              <motion.div 
+                animate={{ width: `${Math.min(tabLoadingProgress, 100)}%` }} 
+                transition={{ duration: 0.3 }}
+                className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded"
+              />
+            </div>
+            <motion.p 
+              key={tabLoadingMessage}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center text-[10px] font-black uppercase tracking-[0.15em] text-white/40"
+            >
+              {tabLoadingMessage}
+            </motion.p>
+          </div>
+        </div>
+      )}
+
       <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-md py-4 -mx-4 px-4 border-b border-white/5 flex flex-col gap-4">
         <div className="flex justify-between items-start">
           <div>
@@ -596,19 +689,19 @@ export default function StudioPage() {
         {!globalSearchQuery && (
           <div className="flex gap-2 overflow-x-auto pb-1 animate-in fade-in slide-in-from-top-2 duration-300">
             <button
-              onClick={() => setActiveTab('mazos')}
+              onClick={() => handleTabChange('mazos')}
               className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'mazos' ? 'bg-white text-black' : 'bg-[#242424] text-white hover:bg-[#333]'}`}
             >
               {mounted ? (t(language, 'studio', 'decksTab', { count: decksList.length }) || `Mazos (${decksList.length})`) : 'Mazos (---)'}
             </button>
             <button
-              onClick={() => setActiveTab('coleccion')}
+              onClick={() => handleTabChange('coleccion')}
               className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'coleccion' ? 'bg-white text-black' : 'bg-[#242424] text-white hover:bg-[#333]'}`}
             >
               {mounted ? (t(language, 'studio', 'collectionTab', { count: inventoryList.length }) || `Colección (${inventoryList.length})`) : 'Colección (---)'}
             </button>
             <button
-              onClick={() => setActiveTab('descubrimientos')}
+              onClick={() => handleTabChange('descubrimientos')}
               className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${activeTab === 'descubrimientos' ? 'bg-white text-black' : 'bg-[#242424] text-white hover:bg-[#333]'}`}
             >
               {t(language, 'nav', 'discoveries') || 'Descubrimientos'}
@@ -855,58 +948,57 @@ export default function StudioPage() {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {paginatedInventory.map((item) => (
-                    <div
-                      key={item.card.id}
-                      className="relative group cursor-pointer"
-                      onClick={() => setSelectedCard(item.card)}
-                    >
-                      <MiniCard
-                        data={item.card}
-                        count={item.count}
-                        className="w-full group-hover:scale-105 transition-transform"
-                        onArtistClick={(artist) => {
-                          setGlobalSearchQuery(artist);
-                          setSearchFilter('artist');
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                      />
+                      <div
+                        key={item.card.id}
+                        className="relative group cursor-pointer"
+                        onClick={() => setSelectedCard(item.card)}
+                      >
+                        <MiniCard
+                          data={item.card}
+                          count={item.count}
+                          className="w-full group-hover:scale-105 transition-transform"
+                          onArtistClick={(artist) => {
+                            setGlobalSearchQuery(artist);
+                            setSearchFilter('artist');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        />
 
-                      {/* Studio Counter (Diamonds) - Estética Pro */}
-                      <div className="absolute top-1 left-1/2 -translate-x-1/2 flex gap-1 z-30 drop-shadow-md">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <motion.div
-                            key={i}
-                            initial={false}
-                            animate={{
-                              scale: i < item.count ? [1, 1.2, 1] : 1,
-                              rotate: 45
-                            }}
-                            className={`w-2 h-2 border border-white/30 transition-all ${i < item.count
-                              ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(34,211,238,0.6)] border-white/50'
-                              : 'bg-black/80 opacity-40'
-                              }`}
-                          />
-                        ))}
+                        {/* Studio Counter (Diamonds) - Estética Pro */}
+                        <div className="absolute top-1 left-1/2 -translate-x-1/2 flex gap-1 z-30 drop-shadow-md">
+                          {Array.from({ length: 4 }).map((_, i) => (
+                            <motion.div
+                              key={i}
+                              initial={false}
+                              animate={{
+                                scale: i < item.count ? [1, 1.2, 1] : 1,
+                                rotate: 45
+                              }}
+                              className={`w-2 h-2 border border-white/30 transition-all ${i < item.count
+                                  ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(34,211,238,0.6)] border-white/50'
+                                  : 'bg-black/80 opacity-40'
+                                }`}
+                            />
+                          ))}
+                        </div>
                       </div>
-
-                    </div>
-                  ))}
-                </div>
-
-                {/* Botón cargar más */}
-                {hasMore && (
-                  <div className="flex flex-col items-center gap-2 pt-4">
-                    <p className="text-xs text-gray-600 uppercase tracking-widest font-bold">
-                      Mostrando {paginatedInventory.length} de {filteredInventory.length}
-                    </p>
-                    <button
-                      onClick={() => setInventoryPage(p => p + 1)}
-                      className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all active:scale-95"
-                    >
-                      Cargar {Math.min(CARDS_PER_PAGE, filteredInventory.length - paginatedInventory.length)} más
-                    </button>
+                    ))}
                   </div>
-                )}
+
+                  {/* Botón cargar más */}
+                  {hasMore && (
+                    <div className="flex flex-col items-center gap-2 pt-4">
+                      <p className="text-xs text-gray-600 uppercase tracking-widest font-bold">
+                        Mostrando {paginatedInventory.length} de {filteredInventory.length}
+                      </p>
+                      <button
+                        onClick={() => setInventoryPage(p => p + 1)}
+                        className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all active:scale-95"
+                      >
+                        Cargar {Math.min(CARDS_PER_PAGE, filteredInventory.length - paginatedInventory.length)} más
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>

@@ -309,14 +309,24 @@ BEGIN
 END;
 $$;
 
--- Función para crear perfil automáticamente al registrarse
+-- Función para crear perfil automáticamente al registrarse (Compatible con Email Real)
+-- Extrae username desde: 1) user_metadata.username, 2) user_metadata.full_name, 3) parte local del email
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO public.user_profile (id, username)
+  INSERT INTO public.user_profile (id, username, discovery_username)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1))
+    COALESCE(
+      NEW.raw_user_meta_data->>'username',
+      NEW.raw_user_meta_data->>'full_name',
+      split_part(NEW.email, '@', 1)
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data->>'username',
+      NEW.raw_user_meta_data->>'full_name',
+      split_part(NEW.email, '@', 1)
+    )
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;

@@ -1,6 +1,37 @@
 import { supabase } from './supabase';
 import { CardData } from './engine/generator';
 
+// Helper to serialize errors properly
+function serializeError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+  if (typeof error === 'object' && error !== null) {
+    return JSON.stringify(error);
+  }
+  return String(error);
+}
+
+// Retry helper for Supabase operations
+async function withRetry<T>(
+  operation: () => Promise<{ data: T; error: Error | null }>,
+  retries: number = 3,
+  delay: number = 100
+): Promise<{ data: T; error: Error | null }> {
+  let lastError: unknown;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export async function logDiscovery(card: CardData, discovererId?: string) {
   try {
     // Check if it's already discovered
@@ -31,27 +62,35 @@ export async function logDiscovery(card: CardData, discovererId?: string) {
 
 export async function getRecentDiscoveries(count: number = 20) {
   try {
-    const { data, error } = await supabase
-      .from('global_discoveries')
-      .select('*')
-      .order('discovered_at', { ascending: false })
-      .limit(count);
+    const result = await withRetry(async () => {
+      const res = await supabase
+        .from('global_discoveries')
+        .select('*')
+        .order('discovered_at', { ascending: false })
+        .limit(count);
+      return { data: res.data as any[] | null, error: res.error };
+    });
 
-    if (error) throw error;
+    if (result.error) throw result.error;
 
-    // Transform back to CardData format if needed, but current code expects rows
-    return data || [];
+    return result.data || [];
   } catch (error) {
-    console.error('Error getting recent discoveries:', error);
+    console.error('Error getting recent discoveries:', serializeError(error));
     return [];
   }
 }
 
 export async function getGlobalStats() {
   try {
-    const { data, error } = await supabase.from('global_discoveries').select('*');
-    if (error) throw error;
+    const result = await withRetry(async () => {
+      const res = await supabase
+        .from('global_discoveries')
+        .select('*');
+      return { data: res.data as any[] | null, error: res.error };
+    });
+    if (result.error) throw result.error;
 
+    const data = result.data || [];
     const total = data.length;
     let totalOwners = 0;
     const rarityCounts: Record<string, number> = {
@@ -63,7 +102,7 @@ export async function getGlobalStats() {
       MYTHIC: 0
     };
 
-    data.forEach(row => {
+    data.forEach((row: { total_owners?: number; card_data?: CardData }) => {
       totalOwners += (row.total_owners || 1);
       const card = row.card_data as CardData;
       if (card && card.rarity && rarityCounts[card.rarity] !== undefined) {
@@ -77,7 +116,7 @@ export async function getGlobalStats() {
       rarityCounts
     };
   } catch (error) {
-    console.error('Error getting global stats:', error);
+    console.error('Error getting global stats:', serializeError(error));
     return null;
   }
 }

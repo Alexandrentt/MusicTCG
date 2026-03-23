@@ -20,15 +20,35 @@ export default function ProfilePage() {
   // Email/Password state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');  // Solo para registro, no para login
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailAuth, setShowEmailAuth] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [localUsername, setLocalUsername] = useState(discoveryUsername);
 
+  // Password reset states
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   useEffect(() => {
-    setLocalUsername(discoveryUsername);
-  }, [discoveryUsername]);
+    // Handle password recovery token from URL - only on client side
+    if (typeof window === 'undefined') return;
+    
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token') && hash.includes('type=recovery')) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setShowPasswordReset(true);
+          toast.success('¡Token de recuperación válido! Puedes cambiar tu contraseña ahora.');
+        }
+      });
+      
+      return () => subscription.unsubscribe();
+    }
+  }, []);
 
   const handleUpdateUsername = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,10 +81,50 @@ export default function ProfilePage() {
     }
   }, [language, setLanguage]);
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail.trim()) {
+      toast.error('Ingresa tu correo electrónico');
+      return;
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotPasswordEmail.trim())) {
+      toast.error('Ingresa un correo electrónico válido');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail.trim(), {
+        redirectTo: 'https://musictcg.vercel.app/profile',
+      });
+
+      if (error) {
+        if (error.message.includes('User not found')) {
+          toast.error('Correo no encontrado. Verifica tu dirección de correo.');
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      toast.success('Revisa tu correo electrónico para restablecer tu contraseña.');
+      setShowForgotPassword(false);
+      setForgotPasswordEmail('');
+    } catch (error: any) {
+      console.error('Reset Password Error:', error);
+      toast.error(error.message || 'Error al enviar el correo de recuperación.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!displayName.trim() || !password.trim()) {
-      toast.error('Nombre de usuario y contraseña son requeridos');
+    if (!email.trim() || !password.trim()) {
+      toast.error('Correo electrónico y contraseña son requeridos');
       return;
     }
     if (password.length < 6) {
@@ -72,41 +132,47 @@ export default function ProfilePage() {
       return;
     }
 
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast.error('Ingresa un correo electrónico válido');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Build deterministic ghost email from username
-      const cleanUsername = displayName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-      const ghostEmail = `${cleanUsername}@gmail.com`;
-
       if (isRegistering) {
+        // En registro, username es opcional (se puede usar el email como fallback)
+        const displayUsername = username.trim() || email.trim().split('@')[0];
+        
         const { error } = await supabase.auth.signUp({
-          email: ghostEmail,
+          email: email.trim(),
           password,
           options: {
             data: {
-              full_name: displayName.trim(),
-              username: displayName.trim()
+              full_name: displayUsername,
+              username: displayUsername
             }
           }
         });
         if (error) {
           if (error.message.includes('already registered')) {
-            toast.error('Este nombre de usuario ya está en uso. Intenta con otro.');
+            toast.error('Este correo electrónico ya está registrado. Intenta iniciar sesión.');
           } else {
             throw error;
           }
           return;
         }
-        setDiscoveryUsername(displayName.trim());
-        toast.success('¡Cuenta creada! Bienvenido a MusicTCG.');
+        setDiscoveryUsername(displayUsername);
+        toast.success('¡Cuenta creada! Revisa tu correo para confirmar tu cuenta.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email: ghostEmail,
+          email: email.trim(),
           password,
         });
         if (error) {
           if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
-            toast.error('Usuario o contraseña incorrectos. ¿No tienes cuenta? Regístrate.');
+            toast.error('Correo o contraseña incorrectos. ¿No tienes cuenta? Regístrate.');
           } else {
             throw error;
           }
@@ -122,9 +188,51 @@ export default function ProfilePage() {
         toast.success('¡Sesión iniciada! Bienvenido de vuelta.');
       }
       setShowEmailAuth(false);
+      setEmail('');
+      setPassword('');
+      setUsername('');
     } catch (error: any) {
       console.error('Auth Error:', error);
       toast.error(error.message || 'Error al autenticar. Intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword.trim() || !confirmPassword.trim()) {
+      toast.error('Ambos campos de contraseña son requeridos');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('¡Contraseña actualizada exitosamente! Ya puedes iniciar sesión.');
+      setShowPasswordReset(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      // Limpiar el hash de la URL
+      window.history.replaceState(null, '', window.location.pathname);
+    } catch (error: any) {
+      console.error('Update Password Error:', error);
+      toast.error(error.message || 'Error al actualizar la contraseña.');
     } finally {
       setIsLoading(false);
     }
@@ -150,48 +258,147 @@ export default function ProfilePage() {
         </div>
 
         {!user ? (
-          <form onSubmit={handleEmailAuth} className="w-full flex flex-col gap-3 mt-4 animate-in fade-in slide-in-from-top-4">
-            <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Nombre de Usuario</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
-                  placeholder="Tu nombre de usuario"
-                  required
-                />
+          showPasswordReset ? (
+            <form onSubmit={handleUpdatePassword} className="w-full flex flex-col gap-3 mt-4 animate-in fade-in slide-in-from-top-4">
+              <div className="text-center mb-2">
+                <h3 className="text-lg font-bold text-white">Establecer Nueva Contraseña</h3>
+                <p className="text-xs text-gray-400 mt-1">Ingresa tu nueva contraseña</p>
               </div>
-              <div>
-                <label className="text-gray-400 text-xs block mb-1">Contraseña</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
-                  placeholder="••••••••"
-                  required
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Nueva Contraseña</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Confirmar Contraseña</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                  />
+                </div>
               </div>
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-4 bg-white text-black rounded-full font-black text-sm hover:bg-gray-200 transition-all disabled:opacity-50 mt-2 active:scale-95"
-            >
-              {isLoading ? '...' : (isRegistering ? 'CREAR CUENTA' : 'INICIAR SESIÓN')}
-            </button>
-            <div className="flex justify-center items-center px-2 mt-4">
               <button
-                type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
-                className="text-xs text-gray-400 hover:text-white underline font-bold"
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-4 bg-white text-black rounded-full font-black text-sm hover:bg-gray-200 transition-all disabled:opacity-50 mt-2 active:scale-95"
               >
-                {isRegistering ? '¿YA TIENES CUENTA? INICIA SESIÓN' : '¿NO TIENES CUENTA? REGÍSTRATE'}
+                {isLoading ? '...' : 'ACTUALIZAR CONTRASEÑA'}
               </button>
-            </div>
-          </form>
+            </form>
+          ) : showForgotPassword ? (
+            <form onSubmit={handleForgotPassword} className="w-full flex flex-col gap-3 mt-4 animate-in fade-in slide-in-from-top-4">
+              <div className="text-center mb-2">
+                <h3 className="text-lg font-bold text-white">Recuperar Contraseña</h3>
+                <p className="text-xs text-gray-400 mt-1">Ingresa tu correo electrónico para recibir instrucciones</p>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">Correo Electrónico</label>
+                <input
+                  type="email"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
+                  placeholder="tu@correo.com"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-4 bg-white text-black rounded-full font-black text-sm hover:bg-gray-200 transition-all disabled:opacity-50 mt-2 active:scale-95"
+              >
+                {isLoading ? '...' : 'ENVIAR CORREO'}
+              </button>
+              <div className="flex justify-center items-center px-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="text-xs text-gray-400 hover:text-white underline"
+                >
+                  VOLVER AL INICIO DE SESIÓN
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleEmailAuth} className="w-full flex flex-col gap-3 mt-4 animate-in fade-in slide-in-from-top-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
+                    placeholder="tu@correo.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-xs block mb-1">Contraseña</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                {isRegistering && (
+                  <div>
+                    <label className="text-gray-400 text-xs block mb-1">Nombre de Usuario (opcional)</label>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full bg-[#242424] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all font-bold"
+                      placeholder="Tu nombre de usuario"
+                    />
+                  </div>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-4 bg-white text-black rounded-full font-black text-sm hover:bg-gray-200 transition-all disabled:opacity-50 mt-2 active:scale-95"
+              >
+                {isLoading ? '...' : (isRegistering ? 'CREAR CUENTA' : 'INICIAR SESIÓN')}
+              </button>
+              <div className="flex justify-center items-center px-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsRegistering(!isRegistering)}
+                  className="text-xs text-gray-400 hover:text-white underline font-bold"
+                >
+                  {isRegistering ? '¿YA TIENES CUENTA? INICIA SESIÓN' : '¿NO TIENES CUENTA? REGÍSTRATE'}
+                </button>
+              </div>
+              {!isRegistering && (
+                <div className="flex justify-center items-center px-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-xs text-gray-500 hover:text-gray-300 underline"
+                  >
+                    ¿OLVIDASTE TU CONTRASEÑA?
+                  </button>
+                </div>
+              )}
+            </form>
+          )
         ) : (
           <div className="flex flex-col gap-2 w-full mt-2">
             <button
@@ -321,6 +528,43 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Change Password - Solo para usuarios logueados */}
+        {user && (
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <LogIn size={18} className="text-gray-400" />
+                <span className="text-sm font-bold">Cambiar Contraseña</span>
+              </div>
+            </div>
+            <form onSubmit={handleUpdatePassword} className="flex flex-col gap-2">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Nueva contraseña"
+                className="w-full bg-[#242424] text-white text-sm rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-white/30"
+                minLength={6}
+              />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirmar contraseña"
+                className="w-full bg-[#242424] text-white text-sm rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-white/30"
+                minLength={6}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !newPassword || !confirmPassword}
+                className="bg-white text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                {isLoading ? '...' : 'Actualizar Contraseña'}
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* Historial de Partidas */}
         {user && (
           <>
@@ -332,9 +576,6 @@ export default function ProfilePage() {
           </>
         )}
       </div>
-
-      {/* Match History */}
-      <MatchHistory userId={user?.id || 'local-guest'} />
     </div>
   );
 }
